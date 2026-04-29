@@ -1,172 +1,159 @@
 # Mandi Agent
 
-AI-powered agricultural platform empowering Indian smallholder farmers with real-time mandi price prediction, virtual cooperatives, and voice advisories in 22 Indian languages.
+> AI-powered agricultural platform empowering Indian smallholder farmers with real-time mandi price prediction, virtual cooperatives, and voice advisories in 22 Indian languages.
 
-> SDG 2 Hackathon Project — Targeting ₹30,000 prize
+---
 
-[![Python](https://img.shields.io/badge/Python-3.12+-blue.svg)](https://www.python.org/)
-[![FastAPI](https://img.shields.io/badge/FastAPI-0.115+-green.svg)](https://fastapi.tiangolo.com/)
-[![Expo](https://img.shields.io/badge/Expo-SDK%2054-black.svg)](https://expo.dev/)
-[![Supabase](https://img.shields.io/badge/Supabase-PostgreSQL-3ECF8E.svg)](https://supabase.com/)
-[![Docker](https://img.shields.io/badge/Docker-Compose-2496ED.svg)](https://www.docker.com/)
+## 🌐 Live Demo
 
-## Overview
+> _Deploying soon — backend runs locally via Docker Compose_
 
-Mandi Agent helps 120M Indian farmers make data-driven decisions:
+---
 
-- **Price Prediction** — AI-powered mandi price forecasts using Gemini 2.0 + RAG
-- **Virtual Cooperatives** — Bundle produce across farmers to reach full truckloads
-- **Voice Advisories** — WhatsApp-based advisories in 22 Indian languages via Reverie API
-- **Multi-Language Mobile App** — React Native app with 8 Indian languages
+## 🎥 Demo Video
 
-## Project Structure
+> _To be added_
+
+---
+
+## 🧠 Architecture
+
+**Overview:**
+
+Farmers interact via the React Native mobile app or WhatsApp. Voice/text requests are routed through n8n automation to the FastAPI backend, where AI agents (PydanticAI + LangGraph + Gemini 2.0) process the intent. The backend fetches live mandi data from Agmarknet/eNAM, enriches it with weather (IMD, ISRO MOSDAC), and queries the RAG pipeline (Supabase pgvector + Cohere embeddings) for contextual advisories. Responses are delivered back via WhatsApp voice (Reverie SDK) or mobile push notifications.
 
 ```
-mandi-agent/
-├── mandi_agent/          # Backend (Python/FastAPI)
-│   ├── backend/          # FastAPI application
-│   │   ├── agents/       # AI agents (price prediction, oversupply, spoilage, etc.)
-│   │   ├── data_sources/ # External API connectors (Agmarknet, eNAM, IMD, MOSDAC)
-│   │   ├── rag/          # RAG pipeline (embeddings, ingestion, retrieval)
-│   │   ├── orchestrator/ # LangGraph workflow orchestration
-│   │   ├── voice/        # Bhashini voice integration
-│   │   ├── automations/  # n8n triggers
-│   │   ├── guardrails/   # AI safety layer
-│   │   └── main.py       # FastAPI entry point
-│   ├── n8n/              # n8n workflow configurations
-│   ├── Dockerfile        # Backend container
-│   ├── docker-compose.yml # Full stack orchestration
-│   └── requirements.txt   # Python dependencies
-│
-├── mobile/               # Mobile App (React Native/Expo)
-│   ├── app/              # Expo Router pages
-│   ├── components/       # Reusable UI components
-│   ├── services/         # API clients
-│   ├── store/            # Zustand state management
-│   ├── context/          # LanguageContext (i18n)
-│   ├── hooks/            # Custom React hooks
-│   └── assets/           # Fonts, images, icons
-│
-└── .gitignore
+┌────────────┐     ┌──────────┐     ┌───────────────┐     ┌─────────────────┐
+│  Farmer    │────▶│  n8n /   │────▶│  FastAPI      │────▶│  AI Agents       │
+│  (App /    │◀────│  Twilio  │◀────│  Backend      │◀────│  (LangGraph +    │
+│  WhatsApp) │     │  Reverie │     │               │     │   Gemini 2.0)    │
+└────────────┘     └──────────┘     └───────┬───────┘     └────────┬────────┘
+                                            │                      │
+                                     ┌──────┴──────┐        ┌──────┴──────┐
+                                     │  Supabase   │        │  RAG Store  │
+                                     │  (pgvector) │        │  (Cohere)   │
+                                     └─────────────┘        └─────────────┘
+                                            │
+                                     ┌──────┴────────────────────────┐
+                                     │  External Data Sources         │
+                                     │  Agmarknet · eNAM · IMD · MOSDAC│
+                                     └───────────────────────────────┘
 ```
 
-## Tech Stack
+---
 
-### Backend
-| Layer | Technology |
-|-------|------------|
-| Framework | FastAPI + async/await |
-| AI Agents | PydanticAI + LangGraph + Gemini 2.0 Flash |
-| Database | Supabase (PostgreSQL + pgvector) |
-| Voice | Reverie SDK (22 Indian languages) |
-| RAG | Cohere multilingual embeddings |
-| Automation | n8n (WhatsApp routing, scheduled jobs) |
-| Messaging | Twilio WhatsApp |
-| Containerization | Docker + Docker Compose |
+## ⚙️ Tech Stack
 
-### Mobile
-| Layer | Technology |
-|-------|------------|
-| Framework | Expo SDK 54 + React Native |
-| Routing | expo-router (file-based) |
-| State | Zustand + React Query |
-| Animations | react-native-reanimated |
-| Styling | NativeWind (Tailwind) |
-| i18n | Custom LanguageContext (8 languages) |
-| Language | TypeScript |
+**Backend:**
 
-## Quick Start
+* Python 3.12 (FastAPI)
+* PydanticAI + LangGraph (AI agent orchestration)
+* Gemini 2.0 Flash (LLM)
+* Supabase / PostgreSQL + pgvector (vector database)
+* Cohere embed-multilingual-v3.0 (embeddings)
+* Reverie SDK (22-language voice synthesis)
+* n8n (workflow automation)
 
-### Prerequisites
+**Frontend:**
 
-- Python 3.12+
-- Node.js 18+
-- Docker & Docker Compose
-- Expo CLI (`npm install -g expo-cli`)
+* Expo SDK 54 / React Native
+* TypeScript
+* Zustand + React Query (state management)
+* NativeWind (Tailwind styling)
 
-### Backend Setup
+**DevOps:**
+
+* Docker + Docker Compose
+* Twilio (WhatsApp messaging)
+
+---
+
+## ✨ Features
+
+* AI-powered mandi price forecasting with RAG-enriched context
+* Virtual cooperatives — bundle produce across farmers to reach full truckloads
+* Voice advisories in 22 Indian languages via WhatsApp
+* Multi-language mobile app (Hindi, Tamil, Telugu, Kannada, Marathi, Bengali, Gujarati, Malayalam)
+* Oversupply detection & spoilage risk alerts
+* Real-time data from Agmarknet, eNAM, IMD weather, ISRO MOSDAC
+* n8n-powered automation for scheduled broadcasts and emergency alerts
+
+---
+
+## 📊 Performance Metrics
+
+| Metric | Value |
+| --- | --- |
+| Languages Supported | 22 (voice) / 8 (UI) |
+| Data Sources | 5 (Agmarknet, eNAM, IMD, MOSDAC, Fusion) |
+| AI Agents | 8+ (price, spoilage, oversupply, advisory, negotiation, etc.) |
+| n8n Workflows | 10+ automated pipelines |
+
+---
+
+## ⚖️ Trade-offs & Design Decisions
+
+* Gemini 2.0 Flash over Claude → faster response, lower cost, adequate quality for agricultural domain
+* Supabase over self-hosted Postgres → managed service reduces DevOps overhead
+* pgvector over Pinecone/Weaviate → co-locates vector search with transactional data
+* n8n over custom cron jobs → visual workflow builder enables non-technical ops staff
+* React Native over Flutter → Expo ecosystem, OTA updates, easier hot reload
+
+---
+
+## 🧪 Testing
+
+* Unit tests using pytest
 
 ```bash
 cd mandi_agent
+pytest
+```
 
-# 1. Create virtual environment
+---
+
+## 🐳 Docker Setup
+
+```bash
+cd mandi_agent
+docker compose up -d
+
+# Backend: http://localhost:8000/api/health
+# n8n:     http://localhost:5678
+```
+
+---
+
+## 🔄 CI/CD Pipeline
+
+* _Planned: GitHub Actions — lint + test on every push, Docker build on merge_
+
+---
+
+## ⚙️ Installation & Setup
+
+### Backend
+
+```bash
+git clone https://github.com/rohanesor/Mandi-Agent.git
+cd Mandi-Agent/mandi_agent
+
+# Virtual environment
 python -m venv .venv
-source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+source .venv/bin/activate  # Windows: .venv\Scripts\activate
 
-# 2. Install dependencies
+# Dependencies
 pip install -r requirements.txt
 
-# 3. Configure environment
+# Configure environment
 cp .env.example .env
 # Edit .env with your API keys
 
-# 4. Run with Docker Compose (recommended)
+# Run (Docker recommended)
 docker compose up -d
 
-# OR run locally
+# Or locally
 uvicorn backend.main:app --reload --port 8000
-```
-
-### Mobile Setup
-
-```bash
-cd mobile
-
-# 1. Install dependencies
-npm install
-
-# 2. Configure environment
-cp .env.example .env  # if available
-# Edit .env with your API URLs
-
-# 3. Start development server
-npx expo start
-
-# 4. Run on device
-# - Scan QR code with Expo Go app
-# - Or press 'a' for Android emulator, 'i' for iOS simulator
-```
-
-## API Endpoints
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/health` | Health check |
-| GET | `/api/v1/farmers/{id}` | Get farmer profile |
-| POST | `/api/v1/farmers` | Register farmer |
-| POST | `/api/v1/harvest-intent` | Submit harvest intent |
-| GET | `/api/v1/prices/{commodity}` | Get mandi prices |
-| GET | `/api/v1/forecast/{crop}` | Get price forecast |
-| POST | `/api/v1/advisory/generate` | Generate advisory |
-| POST | `/api/v1/bundle/create` | Create cooperative bundle |
-| POST | `/api/v1/voice/session` | Create voice session |
-
-## Supported Languages (Mobile)
-
-- Hindi (हिंदी)
-- Tamil (தமிழ்)
-- Telugu (తెలుగు)
-- Kannada (ಕನ್ನಡ)
-- Marathi (मराठी)
-- Bengali (বাংলা)
-- Gujarati (ગુજરાતી)
-- Malayalam (മലയാളം)
-
-## Development
-
-### Backend
-
-```bash
-cd mandi_agent
-
-# Run tests
-pytest
-
-# Type checking
-mypy mandi_agent/
-
-# Linting
-ruff check mandi_agent/
 ```
 
 ### Mobile
@@ -174,91 +161,68 @@ ruff check mandi_agent/
 ```bash
 cd mobile
 
-# Type check
-npx tsc --noEmit
-
-# Clear cache
-npx expo start --clear
+npm install
+npx expo start
 ```
+
+---
+
+## 📁 Folder Structure
+
+```
+├── mandi_agent/          # Backend
+│   ├── backend/
+│   │   ├── agents/       # AI agents (price, spoilage, oversupply, etc.)
+│   │   ├── data_sources/ # Agmarknet, eNAM, IMD, MOSDAC connectors
+│   │   ├── rag/          # Embeddings, ingestion, retrieval
+│   │   ├── orchestrator/ # LangGraph workflow
+│   │   ├── voice/        # Reverie + Bhashini
+│   │   ├── automations/  # n8n triggers
+│   │   ├── guardrails/   # AI safety
+│   │   └── main.py
+│   ├── n8n/              # Workflow configurations
+│   ├── Dockerfile
+│   ├── docker-compose.yml
+│   └── requirements.txt
+│
+├── mobile/               # React Native app
+│   ├── app/              # Expo Router pages
+│   ├── components/       # Reusable UI
+│   ├── services/         # API clients
+│   ├── store/            # Zustand state
+│   ├── context/          # LanguageContext (i18n)
+│   └── assets/
+│
+└── README.md
+```
+
+---
+
+## 🔮 Future Improvements
+
+* User authentication (OTP-based phone login)
+* Offline mode with SQLite sync
+* Multi-region Supabase deployment
+* Farmer feedback loop for model fine-tuning
+* Government scheme eligibility matching
+* Cold storage marketplace integration
+
+---
+
+## 🤝 Contributing
+
+Pull requests are welcome. For major changes, open an issue first.
 
 ### Daily Commit Workflow
 
 ```bash
-# Check changes
-git status
-git diff
-
-# Stage and commit
 git add .
 git commit -m "feat: description of changes"
-
-# Push to remote
 git push origin main
 ```
 
-## Environment Variables
+---
 
-### Backend (.env)
-
-| Variable | Description |
-|----------|-------------|
-| `ANTHROPIC_API_KEY` | Claude 3.7 for AI agents |
-| `SUPABASE_URL` | Supabase project URL |
-| `SUPABASE_SERVICE_KEY` | Supabase service role key |
-| `COHERE_API_KEY` | Multilingual embeddings |
-| `BHASHINI_API_KEY` | 22-language voice API |
-| `TWILIO_ACCOUNT_SID` | Twilio account SID |
-| `TWILIO_AUTH_TOKEN` | Twilio auth token |
-| `TWILIO_WHATSAPP_FROM` | WhatsApp sender number |
-| `N8N_BASE_URL` | n8n instance URL |
-| `REVERIE_API_KEY` | Voice synthesis API key |
-| `REVERIE_APP_ID` | Reverie application ID |
-| `DATA_GOV_API_KEY` | Agmarknet data.gov.in API |
-
-### Mobile (.env)
-
-| Variable | Description |
-|----------|-------------|
-| `EXPO_PUBLIC_API_URL` | Backend API endpoint |
-| `EXPO_PUBLIC_BHASHINI_API_KEY` | Voice recognition |
-| `EXPO_PUBLIC_REVERIE_KEY` | Voice synthesis |
-| `EXPO_PUBLIC_REVERIE_APP_ID` | Reverie app ID |
-
-## Supabase Setup
-
-1. Create a Supabase project
-2. Enable pgvector: `CREATE EXTENSION IF NOT EXISTS vector;`
-3. Run the SQL migration in `mandi_agent/supabase_match_function.sql`
-
-## Docker Services
-
-| Service | Port | URL |
-|---------|------|-----|
-| Backend API | 8000 | http://localhost:8000 |
-| n8n Dashboard | 5678 | http://localhost:5678 |
-| n8n MCP | 5678 | http://localhost:5678/mcp-server/http |
-
-## Project Phases
-
-- [x] Phase 1: Project Foundation (schemas, structure)
-- [x] Phase 2: Data Sources (Agmarknet, eNAM, IMD, MOSDAC, Fusion)
-- [x] Phase 3: RAG Pipeline (embeddings, ingestion, retrieval)
-- [x] Phase 4: AI Agents (price prediction, oversupply, spoilage)
-- [x] Phase 5: Voice Interface (Reverie integration)
-- [x] Phase 6: LangGraph Orchestration (advisory generation)
-- [ ] Phase 7: Integration & Testing (In progress)
-
-## Contributing
-
-1. Create a feature branch: `git checkout -b feature/your-feature`
-2. Make changes and test
-3. Commit with conventional messages: `git commit -m "feat: add price alerts"`
-4. Push and create a pull request
-
-## License
+## 📜 License
 
 This project is for SDG 2 Hackathon use.
-
-## Team
-
-Built with by the Mandi Agent team.
