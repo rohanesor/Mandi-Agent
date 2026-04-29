@@ -1,0 +1,81 @@
+# =============================================================================
+# Mandi Agent — Root .gitignore
+# =============================================================================
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+*.whl
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Environment files (NEVER commit secrets)
+.env
+.env.local
+.env.*.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Expo / React Native
+.expo/
+node_modules/
+dist/
+*.tsbuildinfo
+*.js.map
+*.log
+hs_err_pid*.log
+*.ogg
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+nul
+
+# Docker
+*.tar
+
+# Generated files
+*.pdf
+*.json
+!package.json
+!tsconfig.json
+!workflow_details.json
+!node_map.json
+!nodes_discovered.json
+!sdk_raw.txt
+!webhook-config.json
+!webhook_node.json
+!webhook_node_bundle.json
+!webhook_paths.json
+!cloud_workflows.json
+!cloud_workflows_v2.json
+!workflows.json
+!workflows_utf8.json
+
+# Claude / AI assistant settings
+.claude/settings.local.json
+
+# Temporary / scratch files
+scratch/
+test_results*.txt
+demo_output.txt
+update_log.txt
+upload_results.json

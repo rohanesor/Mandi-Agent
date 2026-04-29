@@ -1,0 +1,110 @@
+# =============================================================================
+# Mandi-Agent — Docker Compose
+# =============================================================================
+# Usage:
+#   docker compose up -d          # Start all services
+#   docker compose logs -f        # Follow logs
+#   docker compose down           # Stop all services
+#
+# After startup:
+#   Backend API:   http://localhost:8000/api/health
+#   n8n Dashboard: http://localhost:5678
+#   n8n MCP:       http://localhost:5678/mcp-server/http
+# =============================================================================
+
+
+services:
+  # ---------------------------------------------------------------------------
+  # Backend — FastAPI (Mandi-Agent core)
+  # ---------------------------------------------------------------------------
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: mandi-backend
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    environment:
+      # Override n8n URL to use Docker internal network (production mode)
+      N8N_BASE_URL: http://n8n:5678
+      N8N_WEBHOOK_URL: http://n8n:5678/webhook/
+    volumes:
+      # Mount backend code for hot-reload during development
+      - ./backend:/workspace/mandi_agent/backend:ro
+    networks:
+      - mandi-net
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/health"]
+      interval: 30s
+      timeout: 10s
+      start_period: 15s
+      retries: 3
+
+  # ---------------------------------------------------------------------------
+  # n8n — Workflow automation engine
+  # ---------------------------------------------------------------------------
+  n8n:
+    image: n8nio/n8n
+    container_name: mandi-n8n
+    ports:
+      - "5678:5678"
+    environment:
+      # Basic config
+      - N8N_HOST=0.0.0.0
+      - N8N_PORT=5678
+      - N8N_PROTOCOL=http
+      # Use Docker internal network for webhook base URL
+      - WEBHOOK_URL=http://n8n:5678/
+      - GENERIC_TIMEZONE=Asia/Kolkata
+
+      # Execution settings - allow async execution
+      - EXECUTIONS_MODE=queue
+      - EXECUTIONS_DATA_SAVE_ON_ERROR=all
+      - EXECUTIONS_DATA_SAVE_ON_SUCCESS=all
+      - N8N_PUSH_BACKEND=websocket
+
+      # Enable MCP server for AI agent integration
+      - N8N_EXPERIMENTAL_MCP_ENABLED=true
+
+      # Backend connection — workflows call these internal URLs
+      - BACKEND_BASE_URL=http://backend:8000
+
+      # Pass through API keys from .env for n8n workflow nodes
+      - REVERIE_APP_ID=${REVERIE_APP_ID}
+      - REVERIE_API_KEY=${REVERIE_API_KEY}
+      - REVERIE_ENDPOINT=${REVERIE_ENDPOINT}
+      - TWILIO_ACCOUNT_SID=${TWILIO_ACCOUNT_SID}
+      - TWILIO_AUTH_TOKEN=${TWILIO_AUTH_TOKEN}
+      - TWILIO_WHATSAPP_FROM=${TWILIO_WHATSAPP_FROM}
+      - OPS_COORDINATOR_WHATSAPP=${OPS_COORDINATOR_WHATSAPP}
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+      - TELEGRAM_BLOCK_GROUP_ID=${TELEGRAM_BLOCK_GROUP_ID}
+      - GOOGLE_SHEET_ID=${GOOGLE_SHEET_ID}
+      - GOOGLE_SHEETS_ADVISORIES_TAB=${GOOGLE_SHEETS_ADVISORIES_TAB}
+      - GOOGLE_SHEETS_PRICE_CRASHES_TAB=${GOOGLE_SHEETS_PRICE_CRASHES_TAB}
+      - GOOGLE_SHEETS_EMERGENCIES_TAB=${GOOGLE_SHEETS_EMERGENCIES_TAB}
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_SERVICE_KEY=${SUPABASE_SERVICE_KEY}
+    volumes:
+      # Persist n8n data (workflows, credentials, executions)
+      - n8n_data:/home/node/.n8n
+    networks:
+      - mandi-net
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
+
+# =============================================================================
+# Volumes & Networks
+# =============================================================================
+volumes:
+  n8n_data:
+    driver: local
+
+networks:
+  mandi-net:
+    driver: bridge

@@ -1,0 +1,2114 @@
+{
+  "Q02acrKxRJ6Tv0Cr": {
+    "updatedAt": "2026-03-22T14:28:46.761Z",
+    "createdAt": "2026-03-20T18:23:44.685Z",
+    "id": "Q02acrKxRJ6Tv0Cr",
+    "name": "Spoilage Emergency",
+    "description": null,
+    "active": true,
+    "isArchived": false,
+    "nodes": [
+      {
+        "parameters": {
+          "httpMethod": "POST",
+          "path": "spoilage-emergency",
+          "responseMode": "lastNode",
+          "options": {}
+        },
+        "position": [
+          100,
+          300
+        ],
+        "type": "n8n-nodes-base.webhook",
+        "webhookId": "spoilage-emergency",
+        "name": "Webhook: Spoilage Emergency",
+        "typeVersion": 1,
+        "id": "11368dae-475b-44bb-813d-5a4b97879edf"
+      },
+      {
+        "position": [
+          350,
+          300
+        ],
+        "type": "n8n-nodes-base.if",
+        "parameters": {
+          "conditions": {
+            "options": {
+              "caseSensitive": true,
+              "leftValue": "",
+              "typeValidation": "strict"
+            },
+            "conditions": [
+              {
+                "id": "spoilage-threshold",
+                "leftValue": "={{ $json.spoilage_pct }}",
+                "rightValue": 65,
+                "operator": {
+                  "type": "boolean",
+                  "operation": "gt"
+                }
+              }
+            ],
+            "combinator": "and"
+          },
+          "options": {}
+        },
+        "typeVersion": 1,
+        "name": "If spoilage_pct > 65%",
+        "id": "6707db42-c6eb-48e5-913f-8fada0b37803"
+      },
+      {
+        "parameters": {
+          "resource": "media",
+          "channel": "whatsapp",
+          "from": "={{ $env.TWILIO_WHATSAPP_FROM }}",
+          "to": "=whatsapp:{{ $json.farmer_phone }}",
+          "messageType": "text",
+          "text": "={{ $json.recommended_action }}",
+          "options": {}
+        },
+        "position": [
+          600,
+          200
+        ],
+        "type": "n8n-nodes-base.twilio",
+        "credentials": {
+          "twilioApi": {
+            "id": "twilio-creds",
+            "name": "Twilio API"
+          }
+        },
+        "name": "Twilio: Send Emergency WhatsApp",
+        "typeVersion": 1,
+        "id": "56f3e9fa-9447-4d47-a7f6-018aaa00f4c2"
+      },
+      {
+        "position": [
+          850,
+          200
+        ],
+        "type": "n8n-nodes-base.httpRequest",
+        "parameters": {
+          "url": "http://localhost:8000/api/cold-storage/nearest",
+          "method": "GET",
+          "queryParameters": {
+            "parameters": [
+              {
+                "name": "lat",
+                "value": "={{ $json.farmer_lat }}"
+              },
+              {
+                "name": "lng",
+                "value": "={{ $json.farmer_lng }}"
+              },
+              {
+                "name": "crop",
+                "value": "={{ $json.crop }}"
+              }
+            ]
+          },
+          "options": {}
+        },
+        "typeVersion": 3,
+        "name": "NIC Cold Storage API: Find Nearest",
+        "id": "3bce6c57-61b0-4708-bee9-4ebb49131d67"
+      },
+      {
+        "position": [
+          1100,
+          200
+        ],
+        "type": "n8n-nodes-base.if",
+        "parameters": {
+          "conditions": {
+            "options": {
+              "caseSensitive": true,
+              "leftValue": "",
+              "typeValidation": "strict"
+            },
+            "conditions": [
+              {
+                "id": "cold-storage-available",
+                "leftValue": "={{ $json.available }}",
+                "rightValue": true,
+                "operator": {
+                  "type": "boolean",
+                  "operation": "equals"
+                }
+              }
+            ],
+            "combinator": "and"
+          },
+          "options": {}
+        },
+        "typeVersion": 1,
+        "name": "If Cold Storage Available",
+        "id": "637a28e0-0dcb-46be-aca9-af5a3e35a1c7"
+      },
+      {
+        "position": [
+          1350,
+          150
+        ],
+        "type": "n8n-nodes-base.httpRequest",
+        "parameters": {
+          "url": "http://localhost:8000/api/cold-storage/book",
+          "method": "POST",
+          "sendBody": true,
+          "bodyParameters": {
+            "parameters": [
+              {
+                "name": "farmer_id",
+                "value": "={{ $json.farmer_id }}"
+              },
+              {
+                "name": "storage_id",
+                "value": "={{ $json.storage_id }}"
+              },
+              {
+                "name": "crop",
+                "value": "={{ $json.crop }}"
+              },
+              {
+                "name": "quantity",
+                "value": "={{ $json.quantity_quintals }}"
+              }
+            ]
+          },
+          "options": {}
+        },
+        "typeVersion": 3,
+        "name": "Book Cold Storage Slot",
+        "id": "69072606-86d2-4ab7-a71f-1604cc9f136a"
+      },
+      {
+        "parameters": {
+          "resource": "media",
+          "channel": "whatsapp",
+          "from": "={{ $env.TWILIO_WHATSAPP_FROM }}",
+          "to": "=whatsapp:{{ $json.farmer_phone }}",
+          "messageType": "text",
+          "text": "={{ 'Cold storage booked! Location: ' + $json.storage_name + '. Contact: ' + $json.storage_contact }}",
+          "options": {}
+        },
+        "position": [
+          1600,
+          150
+        ],
+        "type": "n8n-nodes-base.twilio",
+        "credentials": {
+          "twilioApi": {
+            "id": "twilio-creds",
+            "name": "Twilio API"
+          }
+        },
+        "name": "Twilio: Confirm Cold Storage Booking",
+        "typeVersion": 1,
+        "id": "1f908847-5cb9-4187-9358-0405363ca30c"
+      },
+      {
+        "parameters": {
+          "resource": "media",
+          "channel": "whatsapp",
+          "from": "={{ $env.TWILIO_WHATSAPP_FROM }}",
+          "to": "=whatsapp:{{ $json.farmer_phone }}",
+          "messageType": "text",
+          "text": "={{ 'Redirect to nearest mandi: ' + $json.alternate_mandi + '. Price there: \ufffd,\ufffd' + $json.alternate_price + '/q. Distance: ' + $json.distance_km + 'km.' }}",
+          "options": {}
+        },
+        "position": [
+          1350,
+          350
+        ],
+        "type": "n8n-nodes-base.twilio",
+        "credentials": {
+          "twilioApi": {
+            "id": "twilio-creds",
+            "name": "Twilio API"
+          }
+        },
+        "name": "Twilio: Redirect SMS",
+        "typeVersion": 1,
+        "id": "6f20319a-e00b-4980-906c-062f9b23bd64"
+      },
+      {
+        "position": [
+          1850,
+          200
+        ],
+        "type": "n8n-nodes-base.slack",
+        "parameters": {
+          "webhookUrl": "={{ $env.SLACK_WEBHOOK_URL }}",
+          "channel": "#mandi-ops",
+          "blocks": {
+            "blocks": [
+              {
+                "type": "header",
+                "text": {
+                  "type": "plain_text",
+                  "text": "\ufffdYs\ufffd Spoilage Emergency Alert"
+                }
+              },
+              {
+                "type": "section",
+                "fields": [
+                  {
+                    "type": "mrkdwn",
+                    "text": "*Farmer:*\n{{ $json.farmer_id }}"
+                  },
+                  {
+                    "type": "mrkdwn",
+                    "text": "*Crop:*\n{{ $json.crop }}"
+                  },
+                  {
+                    "type": "mrkdwn",
+                    "text": "*Spoilage Risk:*\n{{ $json.spoilage_pct }}%"
+                  },
+                  {
+                    "type": "mrkdwn",
+                    "text": "*Recommended Action:*\n{{ $json.recommended_action }}"
+                  }
+                ]
+              }
+            ]
+          },
+          "options": {}
+        },
+        "typeVersion": 1,
+        "name": "Slack: Alert #mandi-ops",
+        "id": "af417107-5764-403d-9514-50f9ffc7b3db"
+      }
+    ],
+    "connections": {
+      "Webhook: Spoilage Emergency": {
+        "main": [
+          [
+            {
+              "node": "If spoilage_pct > 65%",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "If spoilage_pct > 65%": {
+        "main": [
+          [
+            {
+              "node": "Twilio: Send Emergency WhatsApp",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          [
+            {
+              "node": "Slack: Alert #mandi-ops",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Twilio: Send Emergency WhatsApp": {
+        "main": [
+          [
+            {
+              "node": "NIC Cold Storage API: Find Nearest",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "NIC Cold Storage API: Find Nearest": {
+        "main": [
+          [
+            {
+              "node": "If Cold Storage Available",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "If Cold Storage Available": {
+        "main": [
+          [
+            {
+              "node": "Book Cold Storage Slot",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          [
+            {
+              "node": "Twilio: Redirect SMS",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Book Cold Storage Slot": {
+        "main": [
+          [
+            {
+              "node": "Twilio: Confirm Cold Storage Booking",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      }
+    },
+    "settings": {
+      "executionOrder": "v1",
+      "callerPolicy": "workflowsFromSameOwner",
+      "availableInMCP": true
+    },
+    "staticData": null,
+    "meta": null,
+    "pinData": null,
+    "versionId": "df9e83b2-c4ca-43fc-a36e-dd756625b335",
+    "activeVersionId": "df9e83b2-c4ca-43fc-a36e-dd756625b335",
+    "versionCounter": 3,
+    "triggerCount": 0,
+    "shared": [
+      {
+        "updatedAt": "2026-03-20T18:23:44.687Z",
+        "createdAt": "2026-03-20T18:23:44.687Z",
+        "role": "workflow:owner",
+        "workflowId": "Q02acrKxRJ6Tv0Cr",
+        "projectId": "OKLqhsJ5OBTp5dxf",
+        "project": {
+          "updatedAt": "2026-03-20T17:59:39.021Z",
+          "createdAt": "2026-03-20T17:58:58.821Z",
+          "id": "OKLqhsJ5OBTp5dxf",
+          "name": "Rohan Rose <rohanjml07@gmail.com>",
+          "type": "personal",
+          "icon": null,
+          "description": null,
+          "creatorId": "0db2a8dd-af81-47d1-a90c-71748eac0a7f"
+        }
+      }
+    ],
+    "tags": [],
+    "activeVersion": {
+      "updatedAt": "2026-03-20T18:23:44.694Z",
+      "createdAt": "2026-03-20T18:23:44.694Z",
+      "versionId": "df9e83b2-c4ca-43fc-a36e-dd756625b335",
+      "workflowId": "Q02acrKxRJ6Tv0Cr",
+      "nodes": [
+        {
+          "parameters": {
+            "httpMethod": "POST",
+            "path": "spoilage-emergency",
+            "responseMode": "lastNode",
+            "options": {}
+          },
+          "position": [
+            100,
+            300
+          ],
+          "type": "n8n-nodes-base.webhook",
+          "webhookId": "spoilage-emergency",
+          "name": "Webhook: Spoilage Emergency",
+          "typeVersion": 1,
+          "id": "11368dae-475b-44bb-813d-5a4b97879edf"
+        },
+        {
+          "position": [
+            350,
+            300
+          ],
+          "type": "n8n-nodes-base.if",
+          "parameters": {
+            "conditions": {
+              "options": {
+                "caseSensitive": true,
+                "leftValue": "",
+                "typeValidation": "strict"
+              },
+              "conditions": [
+                {
+                  "id": "spoilage-threshold",
+                  "leftValue": "={{ $json.spoilage_pct }}",
+                  "rightValue": 65,
+                  "operator": {
+                    "type": "boolean",
+                    "operation": "gt"
+                  }
+                }
+              ],
+              "combinator": "and"
+            },
+            "options": {}
+          },
+          "typeVersion": 1,
+          "name": "If spoilage_pct > 65%",
+          "id": "6707db42-c6eb-48e5-913f-8fada0b37803"
+        },
+        {
+          "parameters": {
+            "resource": "media",
+            "channel": "whatsapp",
+            "from": "={{ $env.TWILIO_WHATSAPP_FROM }}",
+            "to": "=whatsapp:{{ $json.farmer_phone }}",
+            "messageType": "text",
+            "text": "={{ $json.recommended_action }}",
+            "options": {}
+          },
+          "position": [
+            600,
+            200
+          ],
+          "type": "n8n-nodes-base.twilio",
+          "credentials": {
+            "twilioApi": {
+              "id": "twilio-creds",
+              "name": "Twilio API"
+            }
+          },
+          "name": "Twilio: Send Emergency WhatsApp",
+          "typeVersion": 1,
+          "id": "56f3e9fa-9447-4d47-a7f6-018aaa00f4c2"
+        },
+        {
+          "position": [
+            850,
+            200
+          ],
+          "type": "n8n-nodes-base.httpRequest",
+          "parameters": {
+            "url": "http://localhost:8000/api/cold-storage/nearest",
+            "method": "GET",
+            "queryParameters": {
+              "parameters": [
+                {
+                  "name": "lat",
+                  "value": "={{ $json.farmer_lat }}"
+                },
+                {
+                  "name": "lng",
+                  "value": "={{ $json.farmer_lng }}"
+                },
+                {
+                  "name": "crop",
+                  "value": "={{ $json.crop }}"
+                }
+              ]
+            },
+            "options": {}
+          },
+          "typeVersion": 3,
+          "name": "NIC Cold Storage API: Find Nearest",
+          "id": "3bce6c57-61b0-4708-bee9-4ebb49131d67"
+        },
+        {
+          "position": [
+            1100,
+            200
+          ],
+          "type": "n8n-nodes-base.if",
+          "parameters": {
+            "conditions": {
+              "options": {
+                "caseSensitive": true,
+                "leftValue": "",
+                "typeValidation": "strict"
+              },
+              "conditions": [
+                {
+                  "id": "cold-storage-available",
+                  "leftValue": "={{ $json.available }}",
+                  "rightValue": true,
+                  "operator": {
+                    "type": "boolean",
+                    "operation": "equals"
+                  }
+                }
+              ],
+              "combinator": "and"
+            },
+            "options": {}
+          },
+          "typeVersion": 1,
+          "name": "If Cold Storage Available",
+          "id": "637a28e0-0dcb-46be-aca9-af5a3e35a1c7"
+        },
+        {
+          "position": [
+            1350,
+            150
+          ],
+          "type": "n8n-nodes-base.httpRequest",
+          "parameters": {
+            "url": "http://localhost:8000/api/cold-storage/book",
+            "method": "POST",
+            "sendBody": true,
+            "bodyParameters": {
+              "parameters": [
+                {
+                  "name": "farmer_id",
+                  "value": "={{ $json.farmer_id }}"
+                },
+                {
+                  "name": "storage_id",
+                  "value": "={{ $json.storage_id }}"
+                },
+                {
+                  "name": "crop",
+                  "value": "={{ $json.crop }}"
+                },
+                {
+                  "name": "quantity",
+                  "value": "={{ $json.quantity_quintals }}"
+                }
+              ]
+            },
+            "options": {}
+          },
+          "typeVersion": 3,
+          "name": "Book Cold Storage Slot",
+          "id": "69072606-86d2-4ab7-a71f-1604cc9f136a"
+        },
+        {
+          "parameters": {
+            "resource": "media",
+            "channel": "whatsapp",
+            "from": "={{ $env.TWILIO_WHATSAPP_FROM }}",
+            "to": "=whatsapp:{{ $json.farmer_phone }}",
+            "messageType": "text",
+            "text": "={{ 'Cold storage booked! Location: ' + $json.storage_name + '. Contact: ' + $json.storage_contact }}",
+            "options": {}
+          },
+          "position": [
+            1600,
+            150
+          ],
+          "type": "n8n-nodes-base.twilio",
+          "credentials": {
+            "twilioApi": {
+              "id": "twilio-creds",
+              "name": "Twilio API"
+            }
+          },
+          "name": "Twilio: Confirm Cold Storage Booking",
+          "typeVersion": 1,
+          "id": "1f908847-5cb9-4187-9358-0405363ca30c"
+        },
+        {
+          "parameters": {
+            "resource": "media",
+            "channel": "whatsapp",
+            "from": "={{ $env.TWILIO_WHATSAPP_FROM }}",
+            "to": "=whatsapp:{{ $json.farmer_phone }}",
+            "messageType": "text",
+            "text": "={{ 'Redirect to nearest mandi: ' + $json.alternate_mandi + '. Price there: \ufffd,\ufffd' + $json.alternate_price + '/q. Distance: ' + $json.distance_km + 'km.' }}",
+            "options": {}
+          },
+          "position": [
+            1350,
+            350
+          ],
+          "type": "n8n-nodes-base.twilio",
+          "credentials": {
+            "twilioApi": {
+              "id": "twilio-creds",
+              "name": "Twilio API"
+            }
+          },
+          "name": "Twilio: Redirect SMS",
+          "typeVersion": 1,
+          "id": "6f20319a-e00b-4980-906c-062f9b23bd64"
+        },
+        {
+          "position": [
+            1850,
+            200
+          ],
+          "type": "n8n-nodes-base.slack",
+          "parameters": {
+            "webhookUrl": "={{ $env.SLACK_WEBHOOK_URL }}",
+            "channel": "#mandi-ops",
+            "blocks": {
+              "blocks": [
+                {
+                  "type": "header",
+                  "text": {
+                    "type": "plain_text",
+                    "text": "\ufffdYs\ufffd Spoilage Emergency Alert"
+                  }
+                },
+                {
+                  "type": "section",
+                  "fields": [
+                    {
+                      "type": "mrkdwn",
+                      "text": "*Farmer:*\n{{ $json.farmer_id }}"
+                    },
+                    {
+                      "type": "mrkdwn",
+                      "text": "*Crop:*\n{{ $json.crop }}"
+                    },
+                    {
+                      "type": "mrkdwn",
+                      "text": "*Spoilage Risk:*\n{{ $json.spoilage_pct }}%"
+                    },
+                    {
+                      "type": "mrkdwn",
+                      "text": "*Recommended Action:*\n{{ $json.recommended_action }}"
+                    }
+                  ]
+                }
+              ]
+            },
+            "options": {}
+          },
+          "typeVersion": 1,
+          "name": "Slack: Alert #mandi-ops",
+          "id": "af417107-5764-403d-9514-50f9ffc7b3db"
+        }
+      ],
+      "connections": {
+        "Webhook: Spoilage Emergency": {
+          "main": [
+            [
+              {
+                "node": "If spoilage_pct > 65%",
+                "type": "main",
+                "index": 0
+              }
+            ]
+          ]
+        },
+        "If spoilage_pct > 65%": {
+          "main": [
+            [
+              {
+                "node": "Twilio: Send Emergency WhatsApp",
+                "type": "main",
+                "index": 0
+              }
+            ],
+            [
+              {
+                "node": "Slack: Alert #mandi-ops",
+                "type": "main",
+                "index": 0
+              }
+            ]
+          ]
+        },
+        "Twilio: Send Emergency WhatsApp": {
+          "main": [
+            [
+              {
+                "node": "NIC Cold Storage API: Find Nearest",
+                "type": "main",
+                "index": 0
+              }
+            ]
+          ]
+        },
+        "NIC Cold Storage API: Find Nearest": {
+          "main": [
+            [
+              {
+                "node": "If Cold Storage Available",
+                "type": "main",
+                "index": 0
+              }
+            ]
+          ]
+        },
+        "If Cold Storage Available": {
+          "main": [
+            [
+              {
+                "node": "Book Cold Storage Slot",
+                "type": "main",
+                "index": 0
+              }
+            ],
+            [
+              {
+                "node": "Twilio: Redirect SMS",
+                "type": "main",
+                "index": 0
+              }
+            ]
+          ]
+        },
+        "Book Cold Storage Slot": {
+          "main": [
+            [
+              {
+                "node": "Twilio: Confirm Cold Storage Booking",
+                "type": "main",
+                "index": 0
+              }
+            ]
+          ]
+        }
+      },
+      "authors": "Rohan Rose",
+      "name": null,
+      "description": null,
+      "autosaved": false,
+      "workflowPublishHistory": []
+    }
+  },
+  "TkGZeRKOB4B8wVnG": {
+    "updatedAt": "2026-03-22T14:30:46.482Z",
+    "createdAt": "2026-03-20T18:24:16.083Z",
+    "id": "TkGZeRKOB4B8wVnG",
+    "name": "Price Crash Broadcast",
+    "description": null,
+    "active": true,
+    "isArchived": false,
+    "nodes": [
+      {
+        "parameters": {
+          "httpMethod": "POST",
+          "path": "price-crash",
+          "responseMode": "lastNode",
+          "options": {}
+        },
+        "position": [
+          100,
+          300
+        ],
+        "type": "n8n-nodes-base.webhook",
+        "webhookId": "price-crash",
+        "name": "Webhook: Price Crash Warning",
+        "typeVersion": 1,
+        "id": "a49a540c-023b-4bf3-b72d-b5000c9edc5c"
+      },
+      {
+        "position": [
+          350,
+          300
+        ],
+        "type": "n8n-nodes-base.if",
+        "parameters": {
+          "conditions": {
+            "options": {
+              "caseSensitive": true,
+              "leftValue": "",
+              "typeValidation": "strict"
+            },
+            "conditions": [
+              {
+                "id": "drop-threshold",
+                "leftValue": "={{ $json.drop_pct }}",
+                "rightValue": 25,
+                "operator": {
+                  "type": "boolean",
+                  "operation": "gt"
+                }
+              }
+            ],
+            "combinator": "and"
+          },
+          "options": {}
+        },
+        "typeVersion": 1,
+        "name": "If drop > 25%",
+        "id": "a835daf5-5cfd-41a8-9562-a5d8053ae28f"
+      },
+      {
+        "parameters": {
+          "message": "\u00f0\u0178\u0161\u00a8 *Price Crash Alert \u00e2\u20ac\u201d {{ $json.block_id }}*\n\nCrop: *{{ $json.crop }}*\nCurrent Price: *\u00e2\u201a\u00b9{{ $json.current_price }}/quintal*\nForecast Price: *\u00e2\u201a\u00b9{{ $json.forecast_price }}/quintal}*\nPrice Drop: *{{ $json.drop_pct }}%*\n\nAffected Farmers: {{ $json.affected_farmer_count }}\n\nAlternative Mandi: *{{ $json.alternative_mandi }}*\nPrice There: *\u00e2\u201a\u00b9{{ $json.alternative_price }}/quintal}*",
+          "chatId": "={{ $env.TELEGRAM_BLOCK_GROUP_ID }}",
+          "additionalFields": {
+            "parse_mode": "Markdown"
+          },
+          "options": {}
+        },
+        "position": [
+          600,
+          200
+        ],
+        "type": "n8n-nodes-base.telegram",
+        "credentials": {
+          "telegramApi": {
+            "id": "telegram-creds",
+            "name": "Telegram Bot"
+          }
+        },
+        "name": "Telegram: Broadcast to Block Group",
+        "typeVersion": 1,
+        "id": "5652f2f3-1bd0-4e5c-bef0-cb5dcbb40f38"
+      },
+      {
+        "parameters": {
+          "operation": "append",
+          "database": "mandi_agent",
+          "table": "price_crash_events",
+          "columns": "block_id,crop,current_price,forecast_price,drop_pct,alternative_mandi,alternative_price,affected_farmers,created_at",
+          "values": "={{ $json.block_id }},={{ $json.crop }},={{ $json.current_price }},={{ $json.forecast_price }},={{ $json.drop_pct }},={{ $json.alternative_mandi }},={{ $json.alternative_price }},={{ $json.affected_farmer_count }},NOW()",
+          "options": {}
+        },
+        "position": [
+          850,
+          200
+        ],
+        "type": "n8n-nodes-base.notion",
+        "credentials": {
+          "notionApi": {
+            "id": "notion-creds",
+            "name": "Notion API"
+          }
+        },
+        "name": "Notion: Log Price Crash Event",
+        "typeVersion": 1,
+        "id": "ebcbe0ed-e1b7-48a1-8cb3-383e11ba5a9d"
+      },
+      {
+        "parameters": {
+          "operation": "append",
+          "database": "mandi_agent",
+          "table": "price_crash_events",
+          "columns": "block_id,crop,current_price,forecast_price,drop_pct,created_at",
+          "values": "={{ $json.block_id }},={{ $json.crop }},={{ $json.current_price }},={{ $json.forecast_price }},={{ $json.drop_pct }},NOW()",
+          "options": {}
+        },
+        "position": [
+          1100,
+          200
+        ],
+        "type": "n8n-nodes-base.supabase",
+        "credentials": {
+          "supabaseApi": {
+            "id": "supabase-creds",
+            "name": "Supabase"
+          }
+        },
+        "name": "Supabase: Log Price Crash",
+        "typeVersion": 1,
+        "id": "bd9c419b-514e-437d-8246-fa45d6a0226d"
+      },
+      {
+        "position": [
+          600,
+          400
+        ],
+        "type": "n8n-nodes-base.if",
+        "parameters": {
+          "conditions": {
+            "options": {
+              "caseSensitive": true,
+              "leftValue": "",
+              "typeValidation": "strict"
+            },
+            "conditions": [
+              {
+                "id": "severe-crash",
+                "leftValue": "={{ $json.drop_pct }}",
+                "rightValue": 40,
+                "operator": {
+                  "type": "boolean",
+                  "operation": "gt"
+                }
+              }
+            ],
+            "combinator": "and"
+          },
+          "options": {}
+        },
+        "typeVersion": 1,
+        "name": "If severe crash (>40%)",
+        "id": "3aa82d20-29b9-47f3-85c6-69c3ec5734ff"
+      },
+      {
+        "position": [
+          850,
+          400
+        ],
+        "type": "n8n-nodes-base.slack",
+        "parameters": {
+          "webhookUrl": "={{ $env.SLACK_WEBHOOK_URL }}",
+          "channel": "#mandi-ops",
+          "blocks": {
+            "blocks": [
+              {
+                "type": "header",
+                "text": {
+                  "type": "plain_text",
+                  "text": "\u00e2\u0161\u00a0\u00ef\u00b8\u008f Price Crash Alert"
+                }
+              },
+              {
+                "type": "section",
+                "fields": [
+                  {
+                    "type": "mrkdwn",
+                    "text": "*Block:*\n{{ $json.block_id }}"
+                  },
+                  {
+                    "type": "mrkdwn",
+                    "text": "*Crop:*\n{{ $json.crop }}"
+                  },
+                  {
+                    "type": "mrkdwn",
+                    "text": "*Current Price:*\n\u00e2\u201a\u00b9{{ $json.current_price }}"
+                  },
+                  {
+                    "type": "mrkdwn",
+                    "text": "*Forecast:*\n\u00e2\u201a\u00b9{{ $json.forecast_price }}"
+                  },
+                  {
+                    "type": "mrkdwn",
+                    "text": "*Drop:*\n{{ $json.drop_pct }}%"
+                  },
+                  {
+                    "type": "mrkdwn",
+                    "text": "*Affected Farmers:*\n{{ $json.affected_farmer_count }}"
+                  }
+                ]
+              }
+            ]
+          },
+          "options": {}
+        },
+        "typeVersion": 1,
+        "name": "Slack: Alert #mandi-ops",
+        "id": "72777a80-d6ec-4ca9-9a61-662b2c2f4a18"
+      },
+      {
+        "parameters": {
+          "message": "Mandi-Agent Alert: {{ $json.crop }} price in {{ $json.block_id }} has crashed {{ $json.drop_pct }}% to \u00e2\u201a\u00b9{{ $json.forecast_price }}. Alternative mandi: {{ $json.alternative_mandi }} at \u00e2\u201a\u00b9{{ $json.alternative_price }}.",
+          "chatId": "={{ $env.TELEGRAM_BLOCK_GROUP_ID }}",
+          "options": {}
+        },
+        "position": [
+          600,
+          600
+        ],
+        "type": "n8n-nodes-base.telegram",
+        "credentials": {
+          "telegramApi": {
+            "id": "telegram-creds",
+            "name": "Telegram Bot"
+          }
+        },
+        "name": "Telegram: Follow-up Alert",
+        "typeVersion": 1,
+        "id": "3ba04807-2d47-48cd-a730-965701b6aa7e"
+      },
+      {
+        "position": [
+          850,
+          600
+        ],
+        "type": "n8n-nodes-base.httpRequest",
+        "parameters": {
+          "url": "http://localhost:8000/api/harvest-intent/recalculate",
+          "method": "POST",
+          "sendBody": true,
+          "bodyParameters": {
+            "parameters": [
+              {
+                "name": "block_id",
+                "value": "={{ $json.block_id }}"
+              },
+              {
+                "name": "crop",
+                "value": "={{ $json.crop }}"
+              }
+            ]
+          },
+          "options": {}
+        },
+        "typeVersion": 3,
+        "name": "POST /api/harvest-intent/recalculate",
+        "id": "096902cb-6831-43c0-bf02-4ee6402c7a00"
+      }
+    ],
+    "connections": {
+      "Webhook: Price Crash Warning": {
+        "main": [
+          [
+            {
+              "node": "If drop > 25%",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "If drop > 25%": {
+        "main": [
+          [
+            {
+              "node": "Telegram: Broadcast to Block Group",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          [
+            {
+              "node": "If severe crash (>40%)",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Telegram: Broadcast to Block Group": {
+        "main": [
+          [
+            {
+              "node": "Notion: Log Price Crash Event",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Notion: Log Price Crash Event": {
+        "main": [
+          [
+            {
+              "node": "Supabase: Log Price Crash",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "If severe crash (>40%)": {
+        "main": [
+          [
+            {
+              "node": "Slack: Alert #mandi-ops",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Slack: Alert #mandi-ops": {
+        "main": [
+          [
+            {
+              "node": "Telegram: Follow-up Alert",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Telegram: Follow-up Alert": {
+        "main": [
+          [
+            {
+              "node": "POST /api/harvest-intent/recalculate",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      }
+    },
+    "settings": {
+      "executionOrder": "v1",
+      "callerPolicy": "workflowsFromSameOwner",
+      "availableInMCP": true
+    },
+    "staticData": null,
+    "meta": null,
+    "pinData": null,
+    "versionId": "5026a8c6-d38c-42a8-8cef-d85d4c761af0",
+    "activeVersionId": "5026a8c6-d38c-42a8-8cef-d85d4c761af0",
+    "versionCounter": 3,
+    "triggerCount": 0,
+    "shared": [
+      {
+        "updatedAt": "2026-03-20T18:24:16.086Z",
+        "createdAt": "2026-03-20T18:24:16.086Z",
+        "role": "workflow:owner",
+        "workflowId": "TkGZeRKOB4B8wVnG",
+        "projectId": "OKLqhsJ5OBTp5dxf",
+        "project": {
+          "updatedAt": "2026-03-20T17:59:39.021Z",
+          "createdAt": "2026-03-20T17:58:58.821Z",
+          "id": "OKLqhsJ5OBTp5dxf",
+          "name": "Rohan Rose <rohanjml07@gmail.com>",
+          "type": "personal",
+          "icon": null,
+          "description": null,
+          "creatorId": "0db2a8dd-af81-47d1-a90c-71748eac0a7f"
+        }
+      }
+    ],
+    "tags": [],
+    "activeVersion": {
+      "updatedAt": "2026-03-20T18:24:16.090Z",
+      "createdAt": "2026-03-20T18:24:16.090Z",
+      "versionId": "5026a8c6-d38c-42a8-8cef-d85d4c761af0",
+      "workflowId": "TkGZeRKOB4B8wVnG",
+      "nodes": [
+        {
+          "parameters": {
+            "httpMethod": "POST",
+            "path": "price-crash",
+            "responseMode": "lastNode",
+            "options": {}
+          },
+          "position": [
+            100,
+            300
+          ],
+          "type": "n8n-nodes-base.webhook",
+          "webhookId": "price-crash",
+          "name": "Webhook: Price Crash Warning",
+          "typeVersion": 1,
+          "id": "a49a540c-023b-4bf3-b72d-b5000c9edc5c"
+        },
+        {
+          "position": [
+            350,
+            300
+          ],
+          "type": "n8n-nodes-base.if",
+          "parameters": {
+            "conditions": {
+              "options": {
+                "caseSensitive": true,
+                "leftValue": "",
+                "typeValidation": "strict"
+              },
+              "conditions": [
+                {
+                  "id": "drop-threshold",
+                  "leftValue": "={{ $json.drop_pct }}",
+                  "rightValue": 25,
+                  "operator": {
+                    "type": "boolean",
+                    "operation": "gt"
+                  }
+                }
+              ],
+              "combinator": "and"
+            },
+            "options": {}
+          },
+          "typeVersion": 1,
+          "name": "If drop > 25%",
+          "id": "a835daf5-5cfd-41a8-9562-a5d8053ae28f"
+        },
+        {
+          "parameters": {
+            "message": "\u00f0\u0178\u0161\u00a8 *Price Crash Alert \u00e2\u20ac\u201d {{ $json.block_id }}*\n\nCrop: *{{ $json.crop }}*\nCurrent Price: *\u00e2\u201a\u00b9{{ $json.current_price }}/quintal*\nForecast Price: *\u00e2\u201a\u00b9{{ $json.forecast_price }}/quintal}*\nPrice Drop: *{{ $json.drop_pct }}%*\n\nAffected Farmers: {{ $json.affected_farmer_count }}\n\nAlternative Mandi: *{{ $json.alternative_mandi }}*\nPrice There: *\u00e2\u201a\u00b9{{ $json.alternative_price }}/quintal}*",
+            "chatId": "={{ $env.TELEGRAM_BLOCK_GROUP_ID }}",
+            "additionalFields": {
+              "parse_mode": "Markdown"
+            },
+            "options": {}
+          },
+          "position": [
+            600,
+            200
+          ],
+          "type": "n8n-nodes-base.telegram",
+          "credentials": {
+            "telegramApi": {
+              "id": "telegram-creds",
+              "name": "Telegram Bot"
+            }
+          },
+          "name": "Telegram: Broadcast to Block Group",
+          "typeVersion": 1,
+          "id": "5652f2f3-1bd0-4e5c-bef0-cb5dcbb40f38"
+        },
+        {
+          "parameters": {
+            "operation": "append",
+            "database": "mandi_agent",
+            "table": "price_crash_events",
+            "columns": "block_id,crop,current_price,forecast_price,drop_pct,alternative_mandi,alternative_price,affected_farmers,created_at",
+            "values": "={{ $json.block_id }},={{ $json.crop }},={{ $json.current_price }},={{ $json.forecast_price }},={{ $json.drop_pct }},={{ $json.alternative_mandi }},={{ $json.alternative_price }},={{ $json.affected_farmer_count }},NOW()",
+            "options": {}
+          },
+          "position": [
+            850,
+            200
+          ],
+          "type": "n8n-nodes-base.notion",
+          "credentials": {
+            "notionApi": {
+              "id": "notion-creds",
+              "name": "Notion API"
+            }
+          },
+          "name": "Notion: Log Price Crash Event",
+          "typeVersion": 1,
+          "id": "ebcbe0ed-e1b7-48a1-8cb3-383e11ba5a9d"
+        },
+        {
+          "parameters": {
+            "operation": "append",
+            "database": "mandi_agent",
+            "table": "price_crash_events",
+            "columns": "block_id,crop,current_price,forecast_price,drop_pct,created_at",
+            "values": "={{ $json.block_id }},={{ $json.crop }},={{ $json.current_price }},={{ $json.forecast_price }},={{ $json.drop_pct }},NOW()",
+            "options": {}
+          },
+          "position": [
+            1100,
+            200
+          ],
+          "type": "n8n-nodes-base.supabase",
+          "credentials": {
+            "supabaseApi": {
+              "id": "supabase-creds",
+              "name": "Supabase"
+            }
+          },
+          "name": "Supabase: Log Price Crash",
+          "typeVersion": 1,
+          "id": "bd9c419b-514e-437d-8246-fa45d6a0226d"
+        },
+        {
+          "position": [
+            600,
+            400
+          ],
+          "type": "n8n-nodes-base.if",
+          "parameters": {
+            "conditions": {
+              "options": {
+                "caseSensitive": true,
+                "leftValue": "",
+                "typeValidation": "strict"
+              },
+              "conditions": [
+                {
+                  "id": "severe-crash",
+                  "leftValue": "={{ $json.drop_pct }}",
+                  "rightValue": 40,
+                  "operator": {
+                    "type": "boolean",
+                    "operation": "gt"
+                  }
+                }
+              ],
+              "combinator": "and"
+            },
+            "options": {}
+          },
+          "typeVersion": 1,
+          "name": "If severe crash (>40%)",
+          "id": "3aa82d20-29b9-47f3-85c6-69c3ec5734ff"
+        },
+        {
+          "position": [
+            850,
+            400
+          ],
+          "type": "n8n-nodes-base.slack",
+          "parameters": {
+            "webhookUrl": "={{ $env.SLACK_WEBHOOK_URL }}",
+            "channel": "#mandi-ops",
+            "blocks": {
+              "blocks": [
+                {
+                  "type": "header",
+                  "text": {
+                    "type": "plain_text",
+                    "text": "\u00e2\u0161\u00a0\u00ef\u00b8\u008f Price Crash Alert"
+                  }
+                },
+                {
+                  "type": "section",
+                  "fields": [
+                    {
+                      "type": "mrkdwn",
+                      "text": "*Block:*\n{{ $json.block_id }}"
+                    },
+                    {
+                      "type": "mrkdwn",
+                      "text": "*Crop:*\n{{ $json.crop }}"
+                    },
+                    {
+                      "type": "mrkdwn",
+                      "text": "*Current Price:*\n\u00e2\u201a\u00b9{{ $json.current_price }}"
+                    },
+                    {
+                      "type": "mrkdwn",
+                      "text": "*Forecast:*\n\u00e2\u201a\u00b9{{ $json.forecast_price }}"
+                    },
+                    {
+                      "type": "mrkdwn",
+                      "text": "*Drop:*\n{{ $json.drop_pct }}%"
+                    },
+                    {
+                      "type": "mrkdwn",
+                      "text": "*Affected Farmers:*\n{{ $json.affected_farmer_count }}"
+                    }
+                  ]
+                }
+              ]
+            },
+            "options": {}
+          },
+          "typeVersion": 1,
+          "name": "Slack: Alert #mandi-ops",
+          "id": "72777a80-d6ec-4ca9-9a61-662b2c2f4a18"
+        },
+        {
+          "parameters": {
+            "message": "Mandi-Agent Alert: {{ $json.crop }} price in {{ $json.block_id }} has crashed {{ $json.drop_pct }}% to \u00e2\u201a\u00b9{{ $json.forecast_price }}. Alternative mandi: {{ $json.alternative_mandi }} at \u00e2\u201a\u00b9{{ $json.alternative_price }}.",
+            "chatId": "={{ $env.TELEGRAM_BLOCK_GROUP_ID }}",
+            "options": {}
+          },
+          "position": [
+            600,
+            600
+          ],
+          "type": "n8n-nodes-base.telegram",
+          "credentials": {
+            "telegramApi": {
+              "id": "telegram-creds",
+              "name": "Telegram Bot"
+            }
+          },
+          "name": "Telegram: Follow-up Alert",
+          "typeVersion": 1,
+          "id": "3ba04807-2d47-48cd-a730-965701b6aa7e"
+        },
+        {
+          "position": [
+            850,
+            600
+          ],
+          "type": "n8n-nodes-base.httpRequest",
+          "parameters": {
+            "url": "http://localhost:8000/api/harvest-intent/recalculate",
+            "method": "POST",
+            "sendBody": true,
+            "bodyParameters": {
+              "parameters": [
+                {
+                  "name": "block_id",
+                  "value": "={{ $json.block_id }}"
+                },
+                {
+                  "name": "crop",
+                  "value": "={{ $json.crop }}"
+                }
+              ]
+            },
+            "options": {}
+          },
+          "typeVersion": 3,
+          "name": "POST /api/harvest-intent/recalculate",
+          "id": "096902cb-6831-43c0-bf02-4ee6402c7a00"
+        }
+      ],
+      "connections": {
+        "Webhook: Price Crash Warning": {
+          "main": [
+            [
+              {
+                "node": "If drop > 25%",
+                "type": "main",
+                "index": 0
+              }
+            ]
+          ]
+        },
+        "If drop > 25%": {
+          "main": [
+            [
+              {
+                "node": "Telegram: Broadcast to Block Group",
+                "type": "main",
+                "index": 0
+              }
+            ],
+            [
+              {
+                "node": "If severe crash (>40%)",
+                "type": "main",
+                "index": 0
+              }
+            ]
+          ]
+        },
+        "Telegram: Broadcast to Block Group": {
+          "main": [
+            [
+              {
+                "node": "Notion: Log Price Crash Event",
+                "type": "main",
+                "index": 0
+              }
+            ]
+          ]
+        },
+        "Notion: Log Price Crash Event": {
+          "main": [
+            [
+              {
+                "node": "Supabase: Log Price Crash",
+                "type": "main",
+                "index": 0
+              }
+            ]
+          ]
+        },
+        "If severe crash (>40%)": {
+          "main": [
+            [
+              {
+                "node": "Slack: Alert #mandi-ops",
+                "type": "main",
+                "index": 0
+              }
+            ]
+          ]
+        },
+        "Slack: Alert #mandi-ops": {
+          "main": [
+            [
+              {
+                "node": "Telegram: Follow-up Alert",
+                "type": "main",
+                "index": 0
+              }
+            ]
+          ]
+        },
+        "Telegram: Follow-up Alert": {
+          "main": [
+            [
+              {
+                "node": "POST /api/harvest-intent/recalculate",
+                "type": "main",
+                "index": 0
+              }
+            ]
+          ]
+        }
+      },
+      "authors": "Rohan Rose",
+      "name": null,
+      "description": null,
+      "autosaved": false,
+      "workflowPublishHistory": []
+    }
+  },
+  "UsrlRv9KNr93E0Z0": {
+    "updatedAt": "2026-03-22T14:30:41.611Z",
+    "createdAt": "2026-03-20T18:23:44.605Z",
+    "id": "UsrlRv9KNr93E0Z0",
+    "name": "Scheme Eligibility Check",
+    "description": null,
+    "active": true,
+    "isArchived": false,
+    "nodes": [
+      {
+        "parameters": {
+          "httpMethod": "POST",
+          "path": "scheme-check",
+          "responseMode": "lastNode",
+          "options": {}
+        },
+        "position": [
+          100,
+          300
+        ],
+        "type": "n8n-nodes-base.webhook",
+        "webhookId": "scheme-check",
+        "name": "Webhook: New Farmer Registered",
+        "typeVersion": 1,
+        "id": "d570d40a-22e3-44b4-85e4-6e1df2bee7ca"
+      },
+      {
+        "position": [
+          350,
+          200
+        ],
+        "type": "n8n-nodes-base.httpRequest",
+        "parameters": {
+          "url": "https://pmkisan.gov.in/api/checkEligibility",
+          "method": "POST",
+          "sendBody": true,
+          "bodyParameters": {
+            "parameters": [
+              {
+                "name": "farmer_id",
+                "value": "={{ $json.farmer.farmer_id }}"
+              },
+              {
+                "name": "phone",
+                "value": "={{ $json.farmer.phone }}"
+              },
+              {
+                "name": "state",
+                "value": "={{ $json.farmer.location }}"
+              },
+              {
+                "name": "landholding",
+                "value": "={{ $json.farmer.landholding_acres }}"
+              }
+            ]
+          },
+          "options": {
+            "timeout": 30000
+          }
+        },
+        "typeVersion": 3,
+        "name": "PM-KISAN: Check Eligibility",
+        "id": "098f6a94-0bd4-4b98-b0d1-ebc307b45bc4"
+      },
+      {
+        "position": [
+          350,
+          400
+        ],
+        "type": "n8n-nodes-base.httpRequest",
+        "parameters": {
+          "url": "https://pmfby.gov.in/api/checkEligibility",
+          "method": "POST",
+          "sendBody": true,
+          "bodyParameters": {
+            "parameters": [
+              {
+                "name": "farmer_id",
+                "value": "={{ $json.farmer.farmer_id }}"
+              },
+              {
+                "name": "crops",
+                "value": "={{ JSON.stringify($json.farmer.crops) }}"
+              },
+              {
+                "name": "state",
+                "value": "={{ $json.farmer.location }}"
+              }
+            ]
+          },
+          "options": {
+            "timeout": 30000
+          }
+        },
+        "typeVersion": 3,
+        "name": "PMFBY: Check Crop Insurance Eligibility",
+        "id": "4c4f6087-0ac9-4023-8757-69afda4a5be8"
+      },
+      {
+        "position": [
+          600,
+          300
+        ],
+        "type": "n8n-nodes-base.if",
+        "parameters": {
+          "conditions": {
+            "options": {
+              "caseSensitive": true,
+              "leftValue": "",
+              "typeValidation": "strict"
+            },
+            "conditions": [
+              {
+                "id": "any-eligible",
+                "leftValue": "={{ $json.pm_kisan_eligible || $json.pmfby_eligible }}",
+                "rightValue": true,
+                "operator": {
+                  "type": "boolean",
+                  "operation": "true"
+                }
+              }
+            ],
+            "combinator": "and"
+          },
+          "options": {}
+        },
+        "typeVersion": 1,
+        "name": "If Any Scheme Eligible",
+        "id": "6c096fa7-d21e-4e48-bd9f-a2b44c23f177"
+      },
+      {
+        "position": [
+          850,
+          300
+        ],
+        "type": "n8n-nodes-base.httpRequest",
+        "parameters": {
+          "url": "http://localhost:8000/api/translate",
+          "method": "POST",
+          "sendBody": true,
+          "bodyParameters": {
+            "parameters": [
+              {
+                "name": "text",
+                "value": "={{ $json.scheme_message }}"
+              },
+              {
+                "name": "source_language",
+                "value": "en"
+              },
+              {
+                "name": "target_language",
+                "value": "={{ $json.farmer.language }}"
+              }
+            ]
+          },
+          "options": {}
+        },
+        "typeVersion": 3,
+        "name": "Bhashini: Translate to Local Language",
+        "id": "70df0115-e38c-4112-aa97-51deb11df27e"
+      },
+      {
+        "parameters": {
+          "resource": "media",
+          "channel": "whatsapp",
+          "from": "={{ $env.TWILIO_WHATSAPP_FROM }}",
+          "to": "=whatsapp:{{ $json.farmer.phone }}",
+          "messageType": "text",
+          "text": "={{ $json.translated_message }}",
+          "options": {}
+        },
+        "position": [
+          1100,
+          300
+        ],
+        "type": "n8n-nodes-base.twilio",
+        "credentials": {
+          "twilioApi": {
+            "id": "twilio-creds",
+            "name": "Twilio API"
+          }
+        },
+        "name": "Twilio: Send Scheme Advisory",
+        "typeVersion": 1,
+        "id": "b11736e3-3fa4-4f6b-9ed0-769f0d5c8b40"
+      },
+      {
+        "parameters": {
+          "operation": "append",
+          "database": "mandi_agent",
+          "table": "scheme_checks",
+          "columns": "farmer_id,pm_kisan_eligible,pmfby_eligible,checked_at",
+          "values": "={{ $json.farmer.farmer_id }},={{ $json.pm_kisan_eligible }},={{ $json.pmfby_eligible }},NOW()",
+          "options": {}
+        },
+        "position": [
+          1350,
+          300
+        ],
+        "type": "n8n-nodes-base.supabase",
+        "credentials": {
+          "supabaseApi": {
+            "id": "supabase-creds",
+            "name": "Supabase"
+          }
+        },
+        "name": "Log in Supabase",
+        "typeVersion": 1,
+        "id": "75008260-034a-4fb3-9833-ba947ea753ab"
+      }
+    ],
+    "connections": {
+      "Webhook: New Farmer Registered": {
+        "main": [
+          [
+            {
+              "node": "PM-KISAN: Check Eligibility",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          [
+            {
+              "node": "PMFBY: Check Crop Insurance Eligibility",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "PM-KISAN: Check Eligibility": {
+        "main": [
+          [
+            {
+              "node": "If Any Scheme Eligible",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "PMFBY: Check Crop Insurance Eligibility": {
+        "main": [
+          [
+            {
+              "node": "If Any Scheme Eligible",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "If Any Scheme Eligible": {
+        "main": [
+          [
+            {
+              "node": "Bhashini: Translate to Local Language",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Bhashini: Translate to Local Language": {
+        "main": [
+          [
+            {
+              "node": "Send Scheme Advisory",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Send Scheme Advisory": {
+        "main": [
+          [
+            {
+              "node": "Log in Supabase",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      }
+    },
+    "settings": {
+      "executionOrder": "v1",
+      "callerPolicy": "workflowsFromSameOwner",
+      "availableInMCP": true
+    },
+    "staticData": null,
+    "meta": null,
+    "pinData": null,
+    "versionId": "527b29fb-7a10-4d2d-b9f8-cf6ade8d67e1",
+    "activeVersionId": "527b29fb-7a10-4d2d-b9f8-cf6ade8d67e1",
+    "versionCounter": 3,
+    "triggerCount": 0,
+    "shared": [
+      {
+        "updatedAt": "2026-03-20T18:23:44.607Z",
+        "createdAt": "2026-03-20T18:23:44.607Z",
+        "role": "workflow:owner",
+        "workflowId": "UsrlRv9KNr93E0Z0",
+        "projectId": "OKLqhsJ5OBTp5dxf",
+        "project": {
+          "updatedAt": "2026-03-20T17:59:39.021Z",
+          "createdAt": "2026-03-20T17:58:58.821Z",
+          "id": "OKLqhsJ5OBTp5dxf",
+          "name": "Rohan Rose <rohanjml07@gmail.com>",
+          "type": "personal",
+          "icon": null,
+          "description": null,
+          "creatorId": "0db2a8dd-af81-47d1-a90c-71748eac0a7f"
+        }
+      }
+    ],
+    "tags": [],
+    "activeVersion": {
+      "updatedAt": "2026-03-20T18:23:44.610Z",
+      "createdAt": "2026-03-20T18:23:44.610Z",
+      "versionId": "527b29fb-7a10-4d2d-b9f8-cf6ade8d67e1",
+      "workflowId": "UsrlRv9KNr93E0Z0",
+      "nodes": [
+        {
+          "parameters": {
+            "httpMethod": "POST",
+            "path": "scheme-check",
+            "responseMode": "lastNode",
+            "options": {}
+          },
+          "position": [
+            100,
+            300
+          ],
+          "type": "n8n-nodes-base.webhook",
+          "webhookId": "scheme-check",
+          "name": "Webhook: New Farmer Registered",
+          "typeVersion": 1,
+          "id": "d570d40a-22e3-44b4-85e4-6e1df2bee7ca"
+        },
+        {
+          "position": [
+            350,
+            200
+          ],
+          "type": "n8n-nodes-base.httpRequest",
+          "parameters": {
+            "url": "https://pmkisan.gov.in/api/checkEligibility",
+            "method": "POST",
+            "sendBody": true,
+            "bodyParameters": {
+              "parameters": [
+                {
+                  "name": "farmer_id",
+                  "value": "={{ $json.farmer.farmer_id }}"
+                },
+                {
+                  "name": "phone",
+                  "value": "={{ $json.farmer.phone }}"
+                },
+                {
+                  "name": "state",
+                  "value": "={{ $json.farmer.location }}"
+                },
+                {
+                  "name": "landholding",
+                  "value": "={{ $json.farmer.landholding_acres }}"
+                }
+              ]
+            },
+            "options": {
+              "timeout": 30000
+            }
+          },
+          "typeVersion": 3,
+          "name": "PM-KISAN: Check Eligibility",
+          "id": "098f6a94-0bd4-4b98-b0d1-ebc307b45bc4"
+        },
+        {
+          "position": [
+            350,
+            400
+          ],
+          "type": "n8n-nodes-base.httpRequest",
+          "parameters": {
+            "url": "https://pmfby.gov.in/api/checkEligibility",
+            "method": "POST",
+            "sendBody": true,
+            "bodyParameters": {
+              "parameters": [
+                {
+                  "name": "farmer_id",
+                  "value": "={{ $json.farmer.farmer_id }}"
+                },
+                {
+                  "name": "crops",
+                  "value": "={{ JSON.stringify($json.farmer.crops) }}"
+                },
+                {
+                  "name": "state",
+                  "value": "={{ $json.farmer.location }}"
+                }
+              ]
+            },
+            "options": {
+              "timeout": 30000
+            }
+          },
+          "typeVersion": 3,
+          "name": "PMFBY: Check Crop Insurance Eligibility",
+          "id": "4c4f6087-0ac9-4023-8757-69afda4a5be8"
+        },
+        {
+          "position": [
+            600,
+            300
+          ],
+          "type": "n8n-nodes-base.if",
+          "parameters": {
+            "conditions": {
+              "options": {
+                "caseSensitive": true,
+                "leftValue": "",
+                "typeValidation": "strict"
+              },
+              "conditions": [
+                {
+                  "id": "any-eligible",
+                  "leftValue": "={{ $json.pm_kisan_eligible || $json.pmfby_eligible }}",
+                  "rightValue": true,
+                  "operator": {
+                    "type": "boolean",
+                    "operation": "true"
+                  }
+                }
+              ],
+              "combinator": "and"
+            },
+            "options": {}
+          },
+          "typeVersion": 1,
+          "name": "If Any Scheme Eligible",
+          "id": "6c096fa7-d21e-4e48-bd9f-a2b44c23f177"
+        },
+        {
+          "position": [
+            850,
+            300
+          ],
+          "type": "n8n-nodes-base.httpRequest",
+          "parameters": {
+            "url": "http://localhost:8000/api/translate",
+            "method": "POST",
+            "sendBody": true,
+            "bodyParameters": {
+              "parameters": [
+                {
+                  "name": "text",
+                  "value": "={{ $json.scheme_message }}"
+                },
+                {
+                  "name": "source_language",
+                  "value": "en"
+                },
+                {
+                  "name": "target_language",
+                  "value": "={{ $json.farmer.language }}"
+                }
+              ]
+            },
+            "options": {}
+          },
+          "typeVersion": 3,
+          "name": "Bhashini: Translate to Local Language",
+          "id": "70df0115-e38c-4112-aa97-51deb11df27e"
+        },
+        {
+          "parameters": {
+            "resource": "media",
+            "channel": "whatsapp",
+            "from": "={{ $env.TWILIO_WHATSAPP_FROM }}",
+            "to": "=whatsapp:{{ $json.farmer.phone }}",
+            "messageType": "text",
+            "text": "={{ $json.translated_message }}",
+            "options": {}
+          },
+          "position": [
+            1100,
+            300
+          ],
+          "type": "n8n-nodes-base.twilio",
+          "credentials": {
+            "twilioApi": {
+              "id": "twilio-creds",
+              "name": "Twilio API"
+            }
+          },
+          "name": "Twilio: Send Scheme Advisory",
+          "typeVersion": 1,
+          "id": "b11736e3-3fa4-4f6b-9ed0-769f0d5c8b40"
+        },
+        {
+          "parameters": {
+            "operation": "append",
+            "database": "mandi_agent",
+            "table": "scheme_checks",
+            "columns": "farmer_id,pm_kisan_eligible,pmfby_eligible,checked_at",
+            "values": "={{ $json.farmer.farmer_id }},={{ $json.pm_kisan_eligible }},={{ $json.pmfby_eligible }},NOW()",
+            "options": {}
+          },
+          "position": [
+            1350,
+            300
+          ],
+          "type": "n8n-nodes-base.supabase",
+          "credentials": {
+            "supabaseApi": {
+              "id": "supabase-creds",
+              "name": "Supabase"
+            }
+          },
+          "name": "Log in Supabase",
+          "typeVersion": 1,
+          "id": "75008260-034a-4fb3-9833-ba947ea753ab"
+        }
+      ],
+      "connections": {
+        "Webhook: New Farmer Registered": {
+          "main": [
+            [
+              {
+                "node": "PM-KISAN: Check Eligibility",
+                "type": "main",
+                "index": 0
+              }
+            ],
+            [
+              {
+                "node": "PMFBY: Check Crop Insurance Eligibility",
+                "type": "main",
+                "index": 0
+              }
+            ]
+          ]
+        },
+        "PM-KISAN: Check Eligibility": {
+          "main": [
+            [
+              {
+                "node": "If Any Scheme Eligible",
+                "type": "main",
+                "index": 0
+              }
+            ]
+          ]
+        },
+        "PMFBY: Check Crop Insurance Eligibility": {
+          "main": [
+            [
+              {
+                "node": "If Any Scheme Eligible",
+                "type": "main",
+                "index": 0
+              }
+            ]
+          ]
+        },
+        "If Any Scheme Eligible": {
+          "main": [
+            [
+              {
+                "node": "Bhashini: Translate to Local Language",
+                "type": "main",
+                "index": 0
+              }
+            ]
+          ]
+        },
+        "Bhashini: Translate to Local Language": {
+          "main": [
+            [
+              {
+                "node": "Send Scheme Advisory",
+                "type": "main",
+                "index": 0
+              }
+            ]
+          ]
+        },
+        "Send Scheme Advisory": {
+          "main": [
+            [
+              {
+                "node": "Log in Supabase",
+                "type": "main",
+                "index": 0
+              }
+            ]
+          ]
+        }
+      },
+      "authors": "Rohan Rose",
+      "name": null,
+      "description": null,
+      "autosaved": false,
+      "workflowPublishHistory": []
+    }
+  }
+}

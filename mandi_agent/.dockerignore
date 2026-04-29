@@ -1,0 +1,56 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+.eggs/
+dist/
+build/
+
+# Environment
+.env
+.env.local
+.venv/
+venv/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Git
+.git/
+.gitignore
+
+# Test / scratch files
+scratch/
+test_*.py
+*_test.py
+pytest.ini
+*.txt
+!requirements.txt
+
+# Docs (not needed in container)
+*.md
+*.pdf
+Mandi_Agent_Project_Structure.pdf
+
+# Scripts not needed in container
+*.ps1
+*.js
+bisect_test.ps1
+mcp_*.py
+probe_*.py
+import_workflows.py
+simplify_n8n_workflows.py
+generate_structure_pdf.py
+
+# n8n workflow SDK output
+n8n/sdk_output/
+
+# Temp data files
+*.json
+!webhook-config.json
+upload_results.json
+node_map.json

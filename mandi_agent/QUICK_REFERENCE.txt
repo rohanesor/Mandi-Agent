@@ -1,0 +1,238 @@
+╔════════════════════════════════════════════════════════════════════════════╗
+║                  🌾 MANDI AGENT - QUICK REFERENCE CARD 🌾                 ║
+║                      Farmer-Friendly Webhooks v1.0                         ║
+╚════════════════════════════════════════════════════════════════════════════╝
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ 📱 FOR FARMERS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+1. VOICE ADVISORY
+   ✓ Send WhatsApp message or voice note to: +12602613264
+   ✓ Ask any question in Hindi/English
+   ✓ Get voice reply in same language
+
+   Example: "मेरे गेहूं की कीमत क्या है?"
+   Response: 🎵 Voice message in Hindi
+
+2. PRICE CRASH ALERTS
+   ✓ Get automatic alerts in Telegram group
+   ✓ Contains current price, drop %, alternatives
+   ✓ Voice alert also sent to WhatsApp
+
+   Alert Format:
+   🚨 PRICE CRASH - गेहूं
+   Current: ₹2150/qt, Drop: 9.3%
+   Alternative: ₹2300 at गाजीपुर
+
+3. EMERGENCY ALERTS (SPOILAGE)
+   ✓ Get voice call + text + alert if crop spoils >50%
+   ✓ Includes nearest cold storage details
+   ✓ Phone number to call for help
+
+   4-Step Response:
+   1. Voice call (तुरंत कोल्ड स्टोरेज भेजें)
+   2. Text with cold storage address
+   3. Telegram broadcast (for community help)
+   4. Ops coordinator alerted
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ 👨‍💼 FOR OPS COORDINATOR
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Your WhatsApp: +916380221196
+
+ALERTS YOU'LL RECEIVE:
+
+1. PRICE CRASH ALERTS
+   🚨 PRICE CRASH: गेहूं in HARYANA-JHAJJAR dropped 9.3% to ₹2150/qt
+   Affected: 324 farmers
+   Status: Broadcasting alerts now.
+
+2. EMERGENCY ALERTS
+   🚨 CRITICAL SPOILAGE - Immediate Action
+   Farmer: F002 | Crop: प्याज | Spoilage: 65%
+   Action: कोल्ड स्टोरेज भेजें
+   Cold Storage: SafeFresh (12km away)
+
+ACTION REQUIRED:
+→ Click links in alerts
+→ Verify farmer details
+→ Coordinate with cold storage
+→ Provide feedback
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ 🔧 FOR DEVELOPERS / INTEGRATORS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+BASE URL:
+https://rohanesor.app.n8n.cloud/webhook
+
+WEBHOOK 1: VOICE ADVISORY
+POST /advisory/webhook
+{
+  "farmer_id": "F001",
+  "phone": "+919876543210",
+  "language": "hi",
+  "advisory_text": "आपके गेहूं की कीमत ₹2150 है"
+}
+
+WEBHOOK 2: PRICE CRASH BROADCAST
+POST /price-crash/broadcast
+{
+  "crop": "गेहूं",
+  "block_id": "HARYANA-JHAJJAR",
+  "current_price": 2150,
+  "forecast_price": 1950,
+  "drop_pct": 9.3,
+  "affected_farmer_count": 324
+}
+
+WEBHOOK 3: EMERGENCY SPOILAGE
+POST /emergency/spoilage
+{
+  "farmer_id": "F002",
+  "farmer_phone": "+919876543210",
+  "crop": "प्याज",
+  "spoilage_pct": 65,
+  "coordinates": {"lat": 28.7041, "lng": 77.1025},
+  "recommended_action": "तुरंत कोल्ड स्टोरेज भेजें",
+  "cold_storage_name": "SafeFresh"
+}
+
+USE JAVASCRIPT CLIENT:
+const MandiWebhookClient = require('./webhook-client');
+const client = new MandiWebhookClient({
+  baseUrl: 'https://rohanesor.app.n8n.cloud/webhook',
+  apiKey: process.env.N8N_WEBHOOK_API_KEY
+});
+
+// Send voice advisory
+const response = await client.sendVoiceAdvisory({
+  farmer_id: 'F001',
+  phone: '+919876543210',
+  language: 'hi',
+  advisory_text: 'आपके गेहूं की कीमत ₹2150 है'
+});
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ 🔐 ENVIRONMENT VARIABLES
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+REVERY_API_KEY=0a1b9d93b10c4bf1f129896347b42c98eebed041
+TWILIO_WHATSAPP_FROM=+12602613264
+TELEGRAM_BOT_TOKEN=<GET FROM @BOTFATHER>
+TELEGRAM_BLOCK_GROUP_ID=-1005258970621
+OPS_COORDINATOR_WHATSAPP=+916380221196
+GOOGLE_SHEET_ID=1WHcF43JBJiRXHs0i4SdrhhBrEr7xehfXUgopqstiV8U
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ 📊 DATA LOGGING
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+All advisories are logged to:
+📋 Google Sheet: "Advisories" tab
+  Columns: farmer_id | phone | question | response | language | timestamp | status
+
+💰 Price crashes logged to:
+📋 Google Sheet: "Price Crashes" tab
+  Columns: block_id | crop | current_price | drop_pct | affected_farmers | timestamp
+
+🚨 Emergencies logged to:
+📋 Google Sheet: "Emergencies" tab
+  Columns: timestamp | farmer_id | crop | spoilage_pct | action | status
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ ✅ STATUS CHECK
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Configured & Ready:
+  ✅ Revery Voice API
+  ✅ Twilio WhatsApp/SMS
+  ✅ Telegram Broadcasting
+  ✅ Google Sheets Logging
+  ✅ Supabase Persistence
+  ✅ n8n Automation Platform
+
+Still Needed:
+  ⏳ Telegram Bot Token (from @BotFather)
+  ⏳ Import 3 workflows to n8n
+  ⏳ Test with sample farmers
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ 📚 DOCUMENTATION
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Read these files for details:
+
+1. WEBHOOK_SETUP_GUIDE.md
+   → Step-by-step setup instructions
+   → How to import workflows to n8n
+   → How to test each webhook
+
+2. WEBHOOK_API_REFERENCE.md
+   → Complete API documentation
+   → All request/response formats
+   → Error codes and handling
+
+3. DEPLOYMENT_SUMMARY.md
+   → Overview of what's been configured
+   → Data flow architecture
+   → Next steps for deployment
+
+4. webhook-client.js
+   → JavaScript client library
+   → Ready-to-use code examples
+   → Usage in your own apps
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ 🎯 QUICK START (5 MINUTES)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+1. Get Telegram Bot Token (2 min)
+   → Open Telegram, find @BotFather
+   → Type /newbot
+   → Copy token
+   → Paste in .env as: TELEGRAM_BOT_TOKEN=...
+
+2. Import Workflows to n8n (2 min)
+   → Go to https://rohanesor.app.n8n.cloud
+   → Workflows → Import
+   → Select 3 JSON files from n8n/workflows/ folder
+   → Click Import
+
+3. Activate Webhooks (1 min)
+   → For each workflow, click the green toggle
+   → Copy webhook URL
+   → Test with curl (see WEBHOOK_API_REFERENCE.md)
+
+Done! 🎉
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ 🌾 FARMER EXPERIENCE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+STEP 1: Farmer starts using
+   "मुझे मंडी में आज कीमत क्या है?"
+   ↓ (WhatsApp message)
+
+STEP 2: Instant response
+   "आपके गेहूं की कीमत आज ₹2150 है..."
+   ↓ (Voice message in Hindi)
+
+STEP 3: Smart alerts
+   Gets automatic alerts when:
+   • Price drops >20% 📉
+   • Crop spoils >50% 🚨
+   • Schemes become available 📋
+
+STEP 4: Action support
+   Gets cold storage details,
+   coordinates with ops coordinator,
+   saves crop & money
+
+═════════════════════════════════════════════════════════════════════════════════
+                              Version 1.0
+                          Last Updated: April 13, 2026
+                       Ready for Production Deployment
+═════════════════════════════════════════════════════════════════════════════════

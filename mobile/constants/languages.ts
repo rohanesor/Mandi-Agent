@@ -1,0 +1,88 @@
+export const LANGUAGES = [
+  {
+    code: 'en',
+    nativeName: 'English',
+    englishName: 'English',
+    greeting: 'Hello',
+    states: 'National · All States',
+    farmers: 'Global',
+    voiceCode: 'en-US',
+  },
+  {
+    code: 'hi',
+    nativeName: 'हिंदी',
+    englishName: 'Hindi',
+    greeting: 'नमस्ते',
+    states: 'UP · Bihar · MP · Rajasthan',
+    farmers: '45M+',
+    voiceCode: 'hi-IN',
+  },
+  {
+    code: 'ta',
+    nativeName: 'தமிழ்',
+    englishName: 'Tamil',
+    greeting: 'வணக்கம்',
+    states: 'Tamil Nadu · Puducherry',
+    farmers: '8M+',
+    voiceCode: 'ta-IN',
+  },
+  {
+    code: 'te',
+    nativeName: 'తెలుగు',
+    englishName: 'Telugu',
+    greeting: 'నమస్కారం',
+    states: 'Andhra Pradesh · Telangana',
+    farmers: '12M+',
+    voiceCode: 'te-IN',
+  },
+  {
+    code: 'kn',
+    nativeName: 'ಕನ್ನಡ',
+    englishName: 'Kannada',
+    greeting: 'ನಮಸ್ಕಾರ',
+    states: 'Karnataka',
+    farmers: '9M+',
+    voiceCode: 'kn-IN',
+  },
+  {
+    code: 'mr',
+    nativeName: 'मराठी',
+    englishName: 'Marathi',
+    greeting: 'नमस्कार',
+    states: 'Maharashtra · Goa',
+    farmers: '15M+',
+    voiceCode: 'mr-IN',
+  },
+  {
+    code: 'bn',
+    nativeName: 'বাংলা',
+    englishName: 'Bengali',
+    greeting: 'নমস্কার',
+    states: 'West Bengal · Tripura',
+    farmers: '7M+',
+    voiceCode: 'bn-IN',
+  },
+  {
+    code: 'gu',
+    nativeName: 'ગુજરાતી',
+    englishName: 'Gujarati',
+    greeting: 'નમસ્તે',
+    states: 'Gujarat',
+    farmers: '6M+',
+    voiceCode: 'gu-IN',
+  },
+  {
+    code: 'ml',
+    nativeName: 'മലയാളം',
+    englishName: 'Malayalam',
+    greeting: 'നമസ്കാരം',
+    states: 'Kerala',
+    farmers: '4M+',
+    voiceCode: 'ml-IN',
+  },
+]
+
+export type LangCode = 'en' | 'hi' | 'ta' | 'te' | 'kn' | 'mr' | 'bn' | 'gu' | 'ml'
+
+export const getLang = (code: string) =>
+  LANGUAGES.find(l => l.code === code) ?? LANGUAGES[0]
