@@ -6,7 +6,7 @@ eNAM reports actual farmer sale prices (different from Agmarknet posted prices).
 
 import asyncio
 import logging
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 from typing import List, Optional
 
 import httpx
@@ -152,7 +152,7 @@ async def fetch_enam_prices(
         payload["state"] = state
 
     results: List[MandiPrice] = []
-    fetch_start = datetime.utcnow()
+    fetch_start = datetime.now(timezone.utc)
 
     try:
         async with httpx.AsyncClient() as client:
@@ -185,7 +185,7 @@ async def fetch_enam_prices(
     except (KeyError, ValueError) as e:
         logger.warning("eNAM parse error: %s", str(e)[:200])
 
-    fetch_duration_ms = (datetime.utcnow() - fetch_start).total_seconds() * 1000
+    fetch_duration_ms = (datetime.now(timezone.utc) - fetch_start).total_seconds() * 1000
     logger.info(
         "eNAM fetch complete: %d records in %.0fms (commodity=%s, state=%s)",
         len(results), fetch_duration_ms, commodity, state

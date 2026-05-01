@@ -8,24 +8,19 @@ import {
   StyleSheet,
   Text,
   View,
-  ActivityIndicator,
-  Alert,
 } from 'react-native';
 import Animated, {
   FadeInRight,
-  FadeInDown,
   useAnimatedStyle,
   useSharedValue,
   withRepeat,
   withTiming,
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { RefreshCw, ShieldAlert, Radio, CloudRain, Tractor } from 'lucide-react-native';
-import { LinearGradient } from 'expo-linear-gradient';
+import { RefreshCw } from 'lucide-react-native';
 import { COLORS, FONTS } from '../../constants/theme';
 import { useT } from '../../utils/useT';
 import { getAgriNews, AgriNewsArticle, AgriNewsCategory } from '../../services/agriNewsService';
-import { n8nService } from '../../services/n8nService';
 
 const CATEGORY_COLORS: Record<AgriNewsArticle['category'], string> = {
   price_alert: '#F59E0B',
@@ -156,39 +151,6 @@ export default function NewsScreen() {
   const [articles, setArticles] = useState<AgriNewsArticle[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [broadcasting, setBroadcasting] = useState<string | null>(null);
-
-  const handleBroadcast = async (type: 'news' | 'weather' | 'harvest') => {
-    setBroadcasting(type);
-    try {
-      // Get data from the top article if broadcasting news
-      const topArticle = type === 'news' && articles.length > 0 ? articles[0] : null;
-
-      const payload = {
-        type,
-        title: topArticle ? topArticle.title : `URGENT ${type.toUpperCase()} BROADCAST`,
-        summary: topArticle ? topArticle.summary : `This is a manually triggered ${type} alert for all associated farmers. Please check the app for details.`,
-        timestamp: new Date().toISOString(),
-        manual: true,
-        priority: 'high',
-        farmer_phones: ["+916380221196"] // Ops Coordinator default
-      };
-      
-      console.log(`📡 BROADCASTING ${type} (Manual)...`, payload.title);
-      await n8nService.triggerAutomation(type, payload);
-      
-      Alert.alert(
-        "Broadcast Success! 📢",
-        `${type.charAt(0).toUpperCase() + type.slice(1)} alert has been sent to all registered farmers via WhatsApp.`,
-        [{ text: "Done" }]
-      );
-    } catch (err: any) {
-      console.error(err);
-      Alert.alert("Broadcast Failed", err.message);
-    } finally {
-      setBroadcasting(null);
-    }
-  };
 
   const loadNews = useCallback(async (isRefresh = false) => {
     try {
@@ -229,7 +191,7 @@ export default function NewsScreen() {
         </Pressable>
       </View>
 
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filtersRow}>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 16 }} contentContainerStyle={styles.filtersRow}>
         {FILTER_OPTIONS.map((opt) => {
           const active = selectedFilter === opt.key;
           return (
@@ -244,48 +206,7 @@ export default function NewsScreen() {
         })}
       </ScrollView>
 
-      {/* --- ADMIN BROADCAST PANEL --- */}
-      <Animated.View entering={FadeInDown.duration(600)} style={styles.adminPanel}>
-        <View style={styles.adminHeader}>
-          <ShieldAlert color={COLORS.harvest} size={18} />
-          <Text style={styles.adminTitle}>Admin Broadcast Control</Text>
-        </View>
-        
-        <View style={styles.broadcastRow}>
-          <Pressable 
-            style={styles.broadcastBtn} 
-            onPress={() => handleBroadcast('news')}
-            disabled={!!broadcasting}
-          >
-            <LinearGradient colors={['#3B82F6', '#1E40AF']} style={styles.btnGrad}>
-              {broadcasting === 'news' ? <ActivityIndicator size="small" color="#fff" /> : <Radio color="#fff" size={20} />}
-              <Text style={styles.btnLabel}>News</Text>
-            </LinearGradient>
-          </Pressable>
 
-          <Pressable 
-            style={styles.broadcastBtn} 
-            onPress={() => handleBroadcast('weather')}
-            disabled={!!broadcasting}
-          >
-            <LinearGradient colors={['#10B981', '#065F46']} style={styles.btnGrad}>
-              {broadcasting === 'weather' ? <ActivityIndicator size="small" color="#fff" /> : <CloudRain color="#fff" size={20} />}
-              <Text style={styles.btnLabel}>Weather</Text>
-            </LinearGradient>
-          </Pressable>
-
-          <Pressable 
-            style={styles.broadcastBtn} 
-            onPress={() => handleBroadcast('harvest')}
-            disabled={!!broadcasting}
-          >
-            <LinearGradient colors={['#F59E0B', '#92400E']} style={styles.btnGrad}>
-              {broadcasting === 'harvest' ? <ActivityIndicator size="small" color="#fff" /> : <Tractor color="#fff" size={20} />}
-              <Text style={styles.btnLabel}>Harvest</Text>
-            </LinearGradient>
-          </Pressable>
-        </View>
-      </Animated.View>
 
       {loading ? (
         <View style={{ paddingHorizontal: 12 }}>
@@ -344,7 +265,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: 'rgba(255,255,255,0.12)',
   },
-  filtersRow: { paddingHorizontal: 12, paddingBottom: 8 },
+  filtersRow: { paddingHorizontal: 12, paddingBottom: 24 },
   filterPill: {
     borderRadius: 16,
     paddingHorizontal: 12,
@@ -443,27 +364,4 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.16)',
     marginTop: 8,
   },
-
-  // Admin Panel Styles
-  adminPanel: {
-    margin: 12,
-    padding: 16,
-    borderRadius: 16,
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
-  },
-  adminHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 },
-  adminTitle: { color: COLORS.white, fontFamily: FONTS.bold, fontSize: 13, textTransform: 'uppercase', letterSpacing: 0.5 },
-  broadcastRow: { flexDirection: 'row', gap: 8 },
-  broadcastBtn: { flex: 1, height: 44 },
-  btnGrad: {
-    flex: 1,
-    borderRadius: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-  },
-  btnLabel: { color: COLORS.white, fontFamily: FONTS.bold, fontSize: 13 },
 });

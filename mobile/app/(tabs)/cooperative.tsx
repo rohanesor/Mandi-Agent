@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import {
   Animated as RNAnimated,
+  Linking,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -18,7 +19,8 @@ import Animated, {
 import { LinearGradient } from 'expo-linear-gradient';
 import { COLORS, FONTS, SPRING } from '../../constants/theme';
 import { hapticLight, hapticHeavy } from '../../utils/haptics';
-import { useDeals, Deal } from '../../hooks/useDeals';
+import { useDeals, Deal, TruckAgency } from '../../hooks/useDeals';
+import { useTruckAgencies } from '../../hooks/useTruckAgencies';
 import DealCard from '../../components/DealCard';
 import DealDetailSheet from '../../components/DealDetailSheet';
 import PostDealModal from '../../components/PostDealModal';
@@ -129,6 +131,30 @@ function MyActiveDealCard({ deal, onViewDeal }: { deal: Deal; onViewDeal: () => 
             <Text style={styles.truckInfoText}>
               Pickup: {deal.truck.pickup_time}
             </Text>
+            {deal.truck.agency && (
+              <View style={styles.myDealAgencyRow}>
+                <Text style={styles.myDealAgencyName}>
+                  via {deal.truck.agency.name}
+                </Text>
+                <View style={styles.myDealAgencyBtns}>
+                  <Pressable
+                    style={styles.myDealCallBtn}
+                    onPress={() => deal.truck?.agency?.phone && Linking.openURL(`tel:${deal.truck.agency.phone}`)}
+                  >
+                    <Text style={styles.myDealBtnText}>📞 Call</Text>
+                  </Pressable>
+                  <Pressable
+                    style={styles.myDealWaBtn}
+                    onPress={() => {
+                      const num = deal.truck?.agency?.whatsapp?.replace(/\D/g, '');
+                      if (num) Linking.openURL(`https://wa.me/${num}`);
+                    }}
+                  >
+                    <Text style={styles.myDealBtnText}>💬 Chat</Text>
+                  </Pressable>
+                </View>
+              </View>
+            )}
           </View>
         )}
       </LinearGradient>
@@ -160,6 +186,62 @@ function EmptyState({ onPost }: { onPost: () => void }) {
   );
 }
 
+// ─── Nearby Truck Agency card ─────────────────────────────────────────────────
+function NearbyAgencyCard({ agency }: { agency: TruckAgency }) {
+  const scale = useSharedValue(0.95);
+  useEffect(() => {
+    scale.value = withSpring(1, SPRING.gentle);
+  }, [scale]);
+  const cardStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
+
+  const stars = '★'.repeat(Math.round(agency.rating)) + '☆'.repeat(5 - Math.round(agency.rating));
+
+  const callAgency = () => {
+    if (agency.phone) Linking.openURL(`tel:${agency.phone}`);
+  };
+  const whatsappAgency = () => {
+    const num = agency.whatsapp.replace(/\D/g, '');
+    Linking.openURL(`https://wa.me/${num}?text=Hello! I found you on KisanSabha and need truck transport for agricultural produce.`);
+  };
+
+  return (
+    <Animated.View style={[styles.agencyCard, cardStyle]}>
+      <View style={styles.agencyCardHeader}>
+        <View style={styles.agencyCardIcon}>
+          <Text style={{ fontSize: 22 }}>🚛</Text>
+        </View>
+        <View style={{ flex: 1, marginLeft: 10 }}>
+          <Text style={styles.agencyCardName} numberOfLines={1}>{agency.name}</Text>
+          <Text style={styles.agencyCardCity} numberOfLines={1}>{agency.city}</Text>
+        </View>
+        {agency.verified && (
+          <View style={styles.agencyVerified}>
+            <Text style={styles.agencyVerifiedText}>✓</Text>
+          </View>
+        )}
+      </View>
+      <View style={styles.agencyCardMeta}>
+        <Text style={styles.agencyCardRating}>{stars} {agency.rating.toFixed(1)}</Text>
+        <Text style={styles.agencyCardType}>{agency.category_name}</Text>
+      </View>
+      {agency.distance_km != null && (
+        <Text style={styles.agencyCardDist}>📍 {agency.distance_km} km away</Text>
+      )}
+      {agency.price_per_km != null && (
+        <Text style={styles.agencyCardPrice}>₹{agency.price_per_km}/km</Text>
+      )}
+      <View style={styles.agencyCardActions}>
+        <Pressable style={styles.agencyCallBtn} onPress={callAgency}>
+          <Text style={styles.agencyCallText}>📞 Call</Text>
+        </Pressable>
+        <Pressable style={styles.agencyWaBtn} onPress={whatsappAgency}>
+          <Text style={styles.agencyWaText}>💬 WhatsApp</Text>
+        </Pressable>
+      </View>
+    </Animated.View>
+  );
+}
+
 // ─── MAIN SCREEN ─────────────────────────────────────────────────────────────
 export default function CooperativeScreen() {
   const {
@@ -174,6 +256,7 @@ export default function CooperativeScreen() {
     isMyDeal,
   } = useDeals();
 
+  const { agencies: nearbyAgencies, loading: agenciesLoading } = useTruckAgencies({ state: 'Karnataka', limit: 10 });
   const [cropFilter, setCropFilter] = useState<string | null>(null);
   const [showPostModal, setShowPostModal] = useState(false);
 
@@ -278,6 +361,32 @@ export default function CooperativeScreen() {
           ))
         )}
 
+        {/* ── Nearby Truck Agencies ── */}
+        <View style={styles.nearbySection}>
+          <View style={styles.nearbyHeader}>
+            <Text style={styles.nearbyTitle}>🚛 Nearby Truck Agencies</Text>
+            <Text style={styles.nearbySubtitle}>via KisanSabha</Text>
+          </View>
+          <Text style={styles.nearbyDesc}>
+            Contact these agencies directly to arrange transport for your produce
+          </Text>
+          {agenciesLoading ? (
+            <Text style={styles.nearbyLoading}>Loading agencies...</Text>
+          ) : nearbyAgencies.length === 0 ? (
+            <Text style={styles.nearbyLoading}>No agencies found nearby</Text>
+          ) : (
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.nearbyScroll}
+            >
+              {nearbyAgencies.map((agency) => (
+                <NearbyAgencyCard key={agency.agency_id} agency={agency} />
+              ))}
+            </ScrollView>
+          )}
+        </View>
+
         {/* ── How it works strip ── */}
         <View style={styles.howSection}>
           <Text style={styles.howTitle}>How it works</Text>
@@ -365,6 +474,12 @@ const styles = StyleSheet.create({
   timelineLineDone: { backgroundColor: '#52B788' },
   timelineLabel: { position: 'absolute', top: 14, left: 0, color: COLORS.muted, fontFamily: FONTS.body, fontSize: 9 },
   truckInfoRow: { backgroundColor: '#ffffff10', borderRadius: 10, padding: 10, marginTop: 4, gap: 4 },
+  myDealAgencyRow: { marginTop: 8, borderTopWidth: 1, borderTopColor: '#ffffff15', paddingTop: 8 },
+  myDealAgencyName: { color: '#52B788', fontFamily: FONTS.body, fontSize: 12, marginBottom: 6 },
+  myDealAgencyBtns: { flexDirection: 'row', gap: 8 },
+  myDealCallBtn: { flex: 1, backgroundColor: '#166534', borderRadius: 8, paddingVertical: 6, alignItems: 'center' },
+  myDealWaBtn: { flex: 1, backgroundColor: '#16a34a', borderRadius: 8, paddingVertical: 6, alignItems: 'center' },
+  myDealBtnText: { color: '#fff', fontFamily: FONTS.bold, fontSize: 11 },
   truckInfoText: { color: COLORS.sprout, fontFamily: FONTS.body, fontSize: 12 },
 
   // Filter section
@@ -404,4 +519,32 @@ const styles = StyleSheet.create({
   howIcon: { fontSize: 18 },
   howLine: { display: 'none' }, // horizontal version not needed in column layout
   howStepText: { flex: 1, color: COLORS.muted, fontFamily: FONTS.body, fontSize: 13, paddingTop: 8 },
+
+  // Nearby agencies section
+  nearbySection: { marginHorizontal: 16, marginTop: 24, marginBottom: 8 },
+  nearbyHeader: { flexDirection: 'row', alignItems: 'baseline', gap: 8, marginBottom: 4 },
+  nearbyTitle: { color: '#fff', fontFamily: FONTS.bold, fontSize: 18 },
+  nearbySubtitle: { color: '#52B788', fontFamily: FONTS.body, fontSize: 12 },
+  nearbyDesc: { color: '#6B7280', fontFamily: FONTS.body, fontSize: 12, marginBottom: 12 },
+  nearbyLoading: { color: '#6B7280', fontFamily: FONTS.body, fontSize: 13, paddingVertical: 16, textAlign: 'center' },
+  nearbyScroll: { paddingBottom: 4, gap: 12 },
+
+  // Agency card
+  agencyCard: { width: 200, backgroundColor: '#1a2e1f', borderRadius: 16, padding: 14, borderWidth: 1, borderColor: '#2d4a2f' },
+  agencyCardHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
+  agencyCardIcon: { width: 40, height: 40, borderRadius: 12, backgroundColor: '#0d2b1f', alignItems: 'center', justifyContent: 'center' },
+  agencyCardName: { color: '#fff', fontFamily: FONTS.bold, fontSize: 13 },
+  agencyCardCity: { color: '#9CA3AF', fontFamily: FONTS.body, fontSize: 11, marginTop: 2 },
+  agencyVerified: { backgroundColor: '#3B82F620', borderRadius: 8, width: 24, height: 24, alignItems: 'center', justifyContent: 'center' },
+  agencyVerifiedText: { color: '#60A5FA', fontFamily: FONTS.bold, fontSize: 12 },
+  agencyCardMeta: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 },
+  agencyCardRating: { color: '#F59E0B', fontFamily: FONTS.body, fontSize: 11 },
+  agencyCardType: { color: '#52B788', fontFamily: FONTS.body, fontSize: 10, backgroundColor: '#52B78815', borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2 },
+  agencyCardDist: { color: '#6B7280', fontFamily: FONTS.body, fontSize: 11, marginBottom: 2 },
+  agencyCardPrice: { color: '#52B788', fontFamily: FONTS.medium, fontSize: 12, marginBottom: 10 },
+  agencyCardActions: { flexDirection: 'row', gap: 6 },
+  agencyCallBtn: { flex: 1, backgroundColor: '#166534', borderRadius: 8, paddingVertical: 7, alignItems: 'center' },
+  agencyCallText: { color: '#fff', fontFamily: FONTS.bold, fontSize: 11 },
+  agencyWaBtn: { flex: 1, backgroundColor: '#16a34a', borderRadius: 8, paddingVertical: 7, alignItems: 'center' },
+  agencyWaText: { color: '#fff', fontFamily: FONTS.bold, fontSize: 11 },
 });

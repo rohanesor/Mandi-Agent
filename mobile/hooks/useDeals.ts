@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react';
 import { n8nService } from '../services/n8nService';
+import { apiClient } from '../services/api';
 import { useAppStore } from '../store';
 
 // ─────────────────────────────────────────────
@@ -25,12 +26,35 @@ export type DealMember = {
   joined_at: string;
 };
 
+export type TruckAgency = {
+  agency_id: string;
+  kisansabha_id: string;
+  name: string;
+  state: string;
+  city: string;
+  phone: string;
+  whatsapp: string;
+  category_type: number;       // 18=Booking Agent, 19=Broker, 20=Truck Owner, 21=Transporter
+  category_name: string;
+  rating: number;              // 1-5
+  total_trips: number;
+  vehicle_types: string[];
+  price_per_km: number | null;
+  distance_km: number | null;  // populated when lat/lon provided
+  profile_url: string;
+  verified: boolean;
+  source: string;              // 'kisansabha' | 'kisansabha_fallback'
+};
+
 export type TruckInfo = {
   driver_name: string;
   driver_phone: string;
   pickup_time: string;
   eta_mandi: string;
   vehicle_no: string;
+  agency: TruckAgency;         // full agency record from KisanSabha
+  booking_id: string;
+  estimated_cost: number;
 };
 
 export type Deal = {
@@ -240,29 +264,45 @@ async function autoTriggerOnConfirmed(
     await n8nService.triggerBundleNotification({
       bundle_id: deal.deal_id,
       crop: deal.crop,
-      message: `🎉 Deal confirmed! ${deal.current_quantity} quintals of ${deal.crop} heading to ${deal.target_mandi}. Truck booking in progress.`,
+      message: `Deal confirmed! ${deal.current_quantity} quintals of ${deal.crop} heading to ${deal.target_mandi}. Truck booking in progress.`,
       language: 'hi',
       farmer_phones: phones,
     });
 
-    // Step 2: Book truck
+    // Step 2: Match a KisanSabha truck agency via backend
+    const matchRes = await apiClient.post('/api/truck/match', {
+      crop: deal.crop,
+      weight_tons: deal.current_quantity / 10,
+      pickup_block: deal.block_id,
+      destination_mandi: deal.target_mandi,
+      state: 'Karnataka',
+    });
+    const matchData = matchRes.data;
+
+    // Step 3: Trigger n8n booking workflow with real agency info
     await n8nService.triggerAutomation('truck_booking', {
       bundle_id: deal.deal_id,
-      mandi: deal.target_mandi,
+      cooperative_size_tons: deal.current_quantity / 10,
+      farmer_count: deal.members.length,
+      pickup_block: deal.block_id,
+      destination_mandi: deal.target_mandi,
       crop: deal.crop,
-      weight: (deal.current_quantity / 10).toFixed(1) + ' tons',
-      pickup_date: deal.proposed_date,
       farmer_phones: phones,
-      driver_phone: '+916380221196',
+      farmer_phone: phones[0] || '',
+      driver_phone: matchData.driver_phone,
+      agency_name: matchData.agency?.name,
     });
 
-    // Update deal status to truck_booked with mock driver info
+    // Step 4: Attach full TruckInfo (with KisanSabha agency) to the deal
     const truck: TruckInfo = {
-      driver_name: 'Anand Transport',
-      driver_phone: '+916380221196',
-      pickup_time: deal.proposed_date + ' 07:00 AM',
-      eta_mandi: deal.proposed_date + ' 10:30 AM',
-      vehicle_no: 'KA-02-AB-' + Math.floor(1000 + Math.random() * 9000),
+      driver_name: matchData.driver_name,
+      driver_phone: matchData.driver_phone,
+      pickup_time: matchData.pickup_time,
+      eta_mandi: matchData.eta_mandi,
+      vehicle_no: matchData.vehicle_no,
+      agency: matchData.agency,
+      booking_id: matchData.booking_id,
+      estimated_cost: matchData.estimated_cost,
     };
 
     setDeals((prev) =>
@@ -271,10 +311,10 @@ async function autoTriggerOnConfirmed(
       )
     );
 
-    addToast('🚛 Truck booked! All farmers notified via SMS & call.', 'success');
+    addToast(`Truck booked via ${matchData.agency?.name || 'KisanSabha'}! All farmers notified.`, 'success');
   } catch (err) {
-    addToast('Deal confirmed! Truck booking pending — check network.', 'info');
-    // Still mark as confirmed even if n8n fails
+    addToast('Deal confirmed! Truck booking pending -- check network.', 'info');
+    // Still mark as confirmed even if API/n8n fails
     setDeals((prev) =>
       prev.map((d) =>
         d.deal_id === deal.deal_id ? { ...d, status: 'confirmed' } : d

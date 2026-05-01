@@ -46,7 +46,7 @@
     },
     {
       "parameters": {
-        "message": "🚨 *Price Crash Alert — {{ $json.block_id }}*\n\nCrop: *{{ $json.crop }}*\nCurrent Price: *₹{{ $json.current_price }}/quintal*\nForecast Price: *₹{{ $json.forecast_price }}/quintal}*\nPrice Drop: *{{ $json.drop_pct }}%*\n\nAffected Farmers: {{ $json.affected_farmer_count }}\n\nAlternative Mandi: *{{ $json.alternative_mandi }}*\nPrice There: *₹{{ $json.alternative_price }}/quintal}*",
+        "message": "🚨 *Price Crash Alert — {{ $json.block_id }}*\n\nCrop: *{{ $json.crop }}*\nCurrent Price: *₹{{ $json.current_price }}/quintal*\nForecast Price: *₹{{ $json.forecast_price }}/quintal*\nPrice Drop: *{{ $json.drop_pct }}%*\n\nAffected Farmers: {{ $json.affected_farmer_count }}\n\nAlternative Mandi: *{{ $json.alternative_mandi }}*\nPrice There: *₹{{ $json.alternative_price }}/quintal*",
         "chatId": "={{ $env.TELEGRAM_BLOCK_GROUP_ID }}",
         "additionalFields": {
           "parse_mode": "Markdown"

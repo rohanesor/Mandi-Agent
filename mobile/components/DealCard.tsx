@@ -180,6 +180,15 @@ export default function DealCard({ deal, isJoined, onPress }: DealCardProps) {
           </View>
         </View>
 
+        {/* Agency pill — shown when truck is booked */}
+        {deal.truck?.agency && (
+          <View style={styles.agencyPill}>
+            <Text style={styles.agencyPillText}>
+              🚛 {deal.truck.agency.name} · {deal.truck.agency.city}
+            </Text>
+          </View>
+        )}
+
         {/* CTA */}
         <View style={[styles.ctaRow]}>
           <Animated.View style={[styles.ctaBtn, isJoined && styles.ctaBtnJoined, { opacity: isConfirmed ? 1 : 1 }]}>
@@ -244,6 +253,8 @@ const styles = StyleSheet.create({
   metaRight: { alignItems: 'flex-end', gap: 2 },
   metaText: { color: COLORS.muted, fontFamily: FONTS.body, fontSize: 11 },
   ctaRow: {},
+  agencyPill: { backgroundColor: '#16653420', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 5, marginBottom: 10, borderWidth: 1, borderColor: '#52B78840' },
+  agencyPillText: { color: '#52B788', fontFamily: FONTS.body, fontSize: 11 },
   ctaBtn: {
     backgroundColor: COLORS.harvest,
     borderRadius: 12,

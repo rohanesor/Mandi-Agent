@@ -60,7 +60,7 @@ mandi_agent/
 ### 1. Install Dependencies
 
 ```bash
-pip install -r requirements.txt
+pip install -r backend/requirements.txt
 ```
 
 ### 2. Configure Environment
@@ -105,42 +105,7 @@ CREATE INDEX ON rag_documents USING ivfflat (embedding vector_cosine_ops)
 WITH (lists = 100);
 
 -- 4. Create semantic search function (RPC)
-CREATE OR REPLACE FUNCTION match_rag_documents (
-  query_embedding VECTOR(1024),
-  match_threshold FLOAT,
-  match_count INT,
-  match_crop TEXT DEFAULT NULL,
-  match_state TEXT DEFAULT NULL
-)
-RETURNS TABLE (
-  id UUID,
-  content TEXT,
-  source TEXT,
-  crop TEXT,
-  mandi TEXT,
-  state TEXT,
-  similarity FLOAT
-)
-LANGUAGE plpgsql
-AS $$
-BEGIN
-  RETURN QUERY
-  SELECT
-    rag_documents.id,
-    rag_documents.content,
-    rag_documents.source,
-    rag_documents.crop,
-    rag_documents.mandi,
-    rag_documents.state,
-    1 - (rag_documents.embedding <=> query_embedding) AS similarity
-  FROM rag_documents
-  WHERE (match_crop IS NULL OR rag_documents.crop = match_crop)
-    AND (match_state IS NULL OR rag_documents.state = match_state)
-    AND (1 - (rag_documents.embedding <=> query_embedding)) > match_threshold
-  ORDER BY rag_documents.embedding <=> query_embedding
-  LIMIT match_count;
-END;
-$$;
+-- Execute the SQL provided in backend/db/supabase_match_function.sql
 ```
 
 ### 4. Verify Installation
@@ -206,4 +171,4 @@ ruff check mandi_agent/
 4. **Phase 4**: AI Agents ✓ (price prediction, oversupply, spoilage)
 5. **Phase 5**: Voice Interface ✓ (Reverie integration)
 6. **Phase 6**: LangGraph Orchestration ✓ (advisory generation)
-7. **Phase 7**: Integration & Testing (In progress)
+7. **Phase 7**: Integration & Testing ✓ (n8n Webhooks, system tests)

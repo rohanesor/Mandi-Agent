@@ -5,11 +5,12 @@ Implements 4 rule-based checks and logs to Braintrust.
 
 import asyncio
 import logging
-import math
 from datetime import date, datetime, timedelta
 from typing import Any, Optional
 
 import httpx
+
+from mandi_agent.backend.utils.geo import haversine_distance as _haversine_distance
 
 from mandi_agent.backend.models.schemas import (
     FarmerAdvisory,
@@ -90,15 +91,7 @@ async def _check_distance(
     return dist <= 150.0, dist
 
 
-def _haversine_distance(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
-    """Calculate great-circle distance between two points in km."""
-    R = 6371.0
-    lat1_rad, lat2_rad = math.radians(lat1), math.radians(lat2)
-    delta_lat = math.radians(lat2 - lat1)
-    delta_lon = math.radians(lon2 - lon1)
-    a = (math.sin(delta_lat / 2) ** 2 +
-         math.cos(lat1_rad) * math.cos(lat2_rad) * math.sin(delta_lon / 2) ** 2)
-    return R * 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+# _haversine_distance imported from utils.geo at top of file
 
 
 # =============================================================================
@@ -325,7 +318,7 @@ async def _log_to_braintrust(
                         "farmer_id": farmer.farmer_id,
                         "crop": intent.crop,
                         "block_id": farmer.block_id,
-                        "timestamp": datetime.utcnow().isoformat(),
+                        "timestamp": datetime.now(timezone.utc).isoformat(),
                     },
                 },
                 timeout=10.0,

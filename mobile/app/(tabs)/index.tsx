@@ -316,16 +316,29 @@ export default function HomeScreen() {
   const sessionHistory = useAppStore(selectSessionHistory);
   const lastAdvisory = (sessionHistory[0] as any)?.advisory ?? null;
 
-  const DEMO_DEFAULTS = { forecastPrice: 34, currentPrice: 28, spoilageRisk: 31 };
-  const displayAdvisory = {
-    advisoryType: lastAdvisory
-      ? (lastAdvisory.decision === 'harvest_now' ? 'harvest_now'
-         : lastAdvisory.decision === 'redirect_mandi' ? 'redirect' : 'hold') as 'harvest_now' | 'hold' | 'redirect'
-      : 'harvest_now' as const,
-    forecastPrice: lastAdvisory ? Math.round(lastAdvisory.forecast_price) : DEMO_DEFAULTS.forecastPrice,
-    currentPrice: lastAdvisory ? Math.round(lastAdvisory.forecast_price - 6) : DEMO_DEFAULTS.currentPrice,
-    spoilageRisk: lastAdvisory ? Math.round(lastAdvisory.spoilage_risk_pct) : DEMO_DEFAULTS.spoilageRisk,
+  const displayAdvisory = lastAdvisory ? {
+    hasData: true,
+    advisoryType: (lastAdvisory.decision === 'harvest_now' ? 'harvest_now'
+       : lastAdvisory.decision?.startsWith('hold') ? 'hold' : 'redirect') as 'harvest_now' | 'hold' | 'redirect',
+    decision: lastAdvisory.decision as string,
+    forecastPrice: Math.round(lastAdvisory.forecast_price),
+    currentPrice: Math.round((lastAdvisory.forecast_price ?? 0) - 6),
+    spoilageRisk: Math.round(lastAdvisory.spoilage_risk_pct),
+    crop: lastAdvisory.crop as string | undefined,
+  } : { hasData: false, advisoryType: 'harvest_now' as const, decision: '', forecastPrice: 0, currentPrice: 0, spoilageRisk: 0, crop: undefined };
+
+  const BADGE_LABELS: Record<string, string> = {
+    harvest_now: '🌾 ' + t('harvestNow'),
+    redirect: '🗺️ ' + t('redirect'),
+    hold_3_days: '⏳ Wait 3 days',
+    hold_5_days: '⏳ Wait 5 days',
+    hold_7_days: '⏳ Wait 7 days',
   };
+  const BADGE_COLORS: Record<string, string> = {
+    harvest_now: '#EF4444', redirect: '#3B82F6', hold: '#F59E0B',
+  };
+  const badgeLabel = BADGE_LABELS[displayAdvisory.decision] || BADGE_LABELS[displayAdvisory.advisoryType] || '🌾 Advisory';
+  const badgeColor = BADGE_COLORS[displayAdvisory.advisoryType] || '#166534';
 
   useEffect(() => {
     if (!DEMO_MODE || newsAlerts.length > 0) return;
@@ -547,34 +560,47 @@ export default function HomeScreen() {
         </View>
 
         <AnimatedView style={[styles.advisoryCard, advisoryStyle]}>
-          <View style={styles.advisoryLeft}>
-            <AdvisoryVisual type={advisoryType} />
-          </View>
-          <View style={styles.advisoryRight}>
-            <View style={styles.badgeGreen}>
-              <Text style={styles.badgeText}>{t('harvestNow').toUpperCase()}</Text>
-            </View>
-            <View style={styles.row}>
-              <Text style={styles.oldPrice}>₹{displayAdvisory.currentPrice}/kg</Text>
-              <Text style={styles.newPrice}>₹{displayAdvisory.forecastPrice}/kg</Text>
-            </View>
-            <Text style={styles.gain}>+₹{displayAdvisory.forecastPrice - displayAdvisory.currentPrice} in 5 days ↑ · लाभ</Text>
-            <View style={styles.rowBetween}>
-              <Text style={styles.spoilLabel}>{t('spoilageRisk')}</Text>
-              <Text style={styles.spoilLabel}>{displayAdvisory.spoilageRisk}%</Text>
-            </View>
-            <View style={styles.spoilBar}>
-              <AnimatedView style={[styles.spoilFill, spoilFill]} />
-            </View>
-            <Pressable
-              onPress={async () => {
-                hapticLight();
-                router.push('/advisory');
-              }}
-            >
-              <AnimatedText style={[styles.hint, arrowStyle]}>{t('viewFarm')} →</AnimatedText>
+          {!displayAdvisory.hasData ? (
+            /* ── No advisory yet — prompt to speak ── */
+            <Pressable style={styles.noAdvisoryWrap} onPress={() => { hapticLight(); router.push('/advisory'); }}>
+              <Text style={styles.noAdvisoryEmoji}>🎤</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.noAdvisoryTitle}>Get harvest advice</Text>
+                <Text style={styles.noAdvisoryHindi}>फसल की सलाह पाएं</Text>
+                <Text style={styles.noAdvisoryHint}>Tap mic · बोलिए →</Text>
+              </View>
             </Pressable>
-          </View>
+          ) : (
+            /* ── Real advisory data ── */
+            <>
+              <View style={styles.advisoryLeft}>
+                <AdvisoryVisual type={advisoryType} />
+              </View>
+              <View style={styles.advisoryRight}>
+                <View style={[styles.badgeGreen, { backgroundColor: badgeColor + '22', borderColor: badgeColor, borderWidth: 1 }]}>
+                  <Text style={[styles.badgeText, { color: badgeColor }]}>{badgeLabel.toUpperCase()}</Text>
+                </View>
+                {displayAdvisory.crop && (
+                  <Text style={styles.cropLabel}>{displayAdvisory.crop}</Text>
+                )}
+                <View style={styles.row}>
+                  <Text style={styles.oldPrice}>₹{displayAdvisory.currentPrice}/kg</Text>
+                  <Text style={styles.newPrice}>₹{displayAdvisory.forecastPrice}/kg</Text>
+                </View>
+                <Text style={styles.gain}>+₹{displayAdvisory.forecastPrice - displayAdvisory.currentPrice} in 5 days ↑ · लाभ</Text>
+                <View style={styles.rowBetween}>
+                  <Text style={styles.spoilLabel}>{t('spoilageRisk')}</Text>
+                  <Text style={styles.spoilLabel}>{displayAdvisory.spoilageRisk}%</Text>
+                </View>
+                <View style={styles.spoilBar}>
+                  <AnimatedView style={[styles.spoilFill, spoilFill]} />
+                </View>
+                <Pressable onPress={() => { hapticLight(); router.push('/advisory'); }}>
+                  <AnimatedText style={[styles.hint, arrowStyle]}>{t('viewFarm')} →</AnimatedText>
+                </Pressable>
+              </View>
+            </>
+          )}
         </AnimatedView>
 
         <AnimatedView style={[styles.bundleCardWrap, coopStyle]}>
@@ -661,8 +687,14 @@ const styles = StyleSheet.create({
   },
   advisoryLeft: { width: 80, marginRight: 12 },
   advisoryRight: { flex: 1 },
-  badgeGreen: { backgroundColor: '#166534', borderRadius: 999, paddingHorizontal: 10, paddingVertical: 5, alignSelf: 'flex-start' },
-  badgeText: { color: '#DCFCE7', fontFamily: FONTS.display, fontSize: 12 },
+  badgeGreen: { borderRadius: 999, paddingHorizontal: 10, paddingVertical: 5, alignSelf: 'flex-start' },
+  badgeText: { fontFamily: FONTS.display, fontSize: 11 },
+  cropLabel: { color: COLORS.sprout, fontFamily: FONTS.body, fontSize: 11, marginTop: 3 },
+  noAdvisoryWrap: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 14, padding: 4 },
+  noAdvisoryEmoji: { fontSize: 44 },
+  noAdvisoryTitle: { color: COLORS.white, fontFamily: FONTS.bold, fontSize: 16 },
+  noAdvisoryHindi: { color: '#9CA3AF', fontFamily: FONTS.body, fontSize: 13, marginTop: 2 },
+  noAdvisoryHint: { color: COLORS.harvest, fontFamily: FONTS.medium, fontSize: 13, marginTop: 6 },
   row: { flexDirection: 'row', alignItems: 'flex-end', marginTop: 10, gap: 8 },
   rowBetween: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   oldPrice: { color: '#9CA3AF', fontSize: 14, textDecorationLine: 'line-through', fontFamily: FONTS.body },

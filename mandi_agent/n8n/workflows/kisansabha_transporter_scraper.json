@@ -1,0 +1,235 @@
+{
+  "name": "KisanSabha Transporter Scraper",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 6
+            }
+          ]
+        }
+      },
+      "id": "schedule-trigger",
+      "name": "Schedule: Every 6 Hours",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [100, 300]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "kisansabha/scrape-now",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "webhook-manual-trigger",
+      "name": "Webhook: Manual Scrape Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [100, 500],
+      "webhookId": "kisansabha-scrape-now"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://backend:8000/api/truck/scrape-kisansabha",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "states",
+              "value": "={{ $json.states || ['Karnataka', 'Andhra Pradesh', 'Telangana', 'Tamil Nadu', 'Maharashtra'] }}"
+            },
+            {
+              "name": "category_types",
+              "value": "[18, 19, 20, 21]"
+            },
+            {
+              "name": "max_pages",
+              "value": "10"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 120000
+        }
+      },
+      "id": "backend-scrape",
+      "name": "Backend: Scrape KisanSabha",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [400, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "check-success",
+              "leftValue": "={{ $json.success }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equal"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-scrape-success",
+      "name": "If Scrape Succeeded",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/rpc/upsert_truck_agencies",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.SUPABASE_SERVICE_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "return=representation"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "agencies",
+              "value": "={{ $json.agencies }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "supabase-upsert-agencies",
+      "name": "Supabase: Upsert Agencies",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [900, 200]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/scraper_logs",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.SUPABASE_SERVICE_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"source\": \"kisansabha\",\n  \"status\": \"success\",\n  \"agencies_scraped\": {{ $('Backend: Scrape KisanSabha').json.count }},\n  \"ran_at\": \"{{ new Date().toISOString() }}\"\n}",
+        "options": {}
+      },
+      "id": "log-success",
+      "name": "Supabase: Log Success",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [1150, 200]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/scraper_logs",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.SUPABASE_SERVICE_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"source\": \"kisansabha\",\n  \"status\": \"failed\",\n  \"error\": \"{{ $('Backend: Scrape KisanSabha').json.error || 'Unknown error' }}\",\n  \"ran_at\": \"{{ new Date().toISOString() }}\"\n}",
+        "options": {}
+      },
+      "id": "log-failure",
+      "name": "Supabase: Log Failure",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [900, 450]
+    },
+    {
+      "parameters": {
+        "statusCode": 200,
+        "responseBody": "={{ JSON.stringify({ success: $('Backend: Scrape KisanSabha').json.success, count: $('Backend: Scrape KisanSabha').json.count }) }}"
+      },
+      "id": "webhook-response",
+      "name": "Response: Scrape Result",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1150, 450]
+    }
+  ],
+  "connections": {
+    "Schedule: Every 6 Hours": {
+      "main": [[{ "node": "Backend: Scrape KisanSabha", "type": "main", "index": 0 }]]
+    },
+    "Webhook: Manual Scrape Trigger": {
+      "main": [[{ "node": "Backend: Scrape KisanSabha", "type": "main", "index": 0 }]]
+    },
+    "Backend: Scrape KisanSabha": {
+      "main": [[{ "node": "If Scrape Succeeded", "type": "main", "index": 0 }]]
+    },
+    "If Scrape Succeeded": {
+      "main": [
+        [{ "node": "Supabase: Upsert Agencies", "type": "main", "index": 0 }],
+        [{ "node": "Supabase: Log Failure", "type": "main", "index": 0 }]
+      ]
+    },
+    "Supabase: Upsert Agencies": {
+      "main": [[{ "node": "Supabase: Log Success", "type": "main", "index": 0 }]]
+    },
+    "Supabase: Log Failure": {
+      "main": [[{ "node": "Response: Scrape Result", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": { "executionOrder": "v1" },
+  "staticData": null,
+  "tags": ["scraper", "kisansabha", "truck-agencies", "logistics", "scheduled"],
+  "triggerCount": 2,
+  "updatedAt": "2026-05-02T00:00:00.000Z",
+  "versionId": "1",
+  "meta": {
+    "description": "Scrapes KisanSabha transporter directory every 6 hours. Upserts agencies into Supabase truck_agencies table. Can also be triggered manually via POST /webhook/kisansabha/scrape-now."
+  }
+}

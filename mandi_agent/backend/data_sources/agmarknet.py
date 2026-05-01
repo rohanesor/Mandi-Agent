@@ -5,7 +5,7 @@ API: https://api.data.gov.in/resource/9ef84268-d588-465a-a308-a864a43d0070
 
 import asyncio
 import logging
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 from typing import List, Optional
 
 import httpx
@@ -210,7 +210,7 @@ async def fetch_agmarknet_prices(
         params["filters[state]"] = state
 
     results: List[MandiPrice] = []
-    fetch_start = datetime.utcnow()
+    fetch_start = datetime.now(timezone.utc)
 
     async with httpx.AsyncClient() as client:
         data = await _fetch_with_retry(client, AGMARKNET_API_URL, params)
@@ -230,7 +230,7 @@ async def fetch_agmarknet_prices(
             if mandi_price is not None:
                 results.append(mandi_price)
 
-    fetch_duration_ms = (datetime.utcnow() - fetch_start).total_seconds() * 1000
+    fetch_duration_ms = (datetime.now(timezone.utc) - fetch_start).total_seconds() * 1000
     logger.info(
         "Agmarknet fetch complete: %d records in %.0fms (date=%s, commodity=%s, state=%s)",
         len(results), fetch_duration_ms, from_date, commodity, state

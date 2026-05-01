@@ -5,7 +5,7 @@ Orchestrates multiple farmers into a collective sale.
 
 import asyncio
 import logging
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 from typing import Any, Optional
 from typing_extensions import TypedDict
 
@@ -48,16 +48,8 @@ class NegotiationState(TypedDict, total=False):
 # Helper functions
 # =============================================================================
 
-def _haversine_distance(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
-    """Calculate distance between two lat/lng points in km."""
-    import math
-    R = 6371.0
-    lat1_rad, lat2_rad = math.radians(lat1), math.radians(lat2)
-    delta_lat = math.radians(lat2 - lat1)
-    delta_lon = math.radians(lon2 - lon1)
-    a = (math.sin(delta_lat / 2) ** 2 +
-         math.cos(lat1_rad) * math.cos(lat2_rad) * math.sin(delta_lon / 2) ** 2)
-    return R * 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+# Re-export for backward compatibility; canonical implementation in utils.geo
+from mandi_agent.backend.utils.geo import haversine_distance as _haversine_distance
 
 
 def _group_farmers_by_location(
@@ -466,7 +458,7 @@ def finalize_bundle(state: NegotiationState) -> NegotiationState:
         forecast_price=proposed["forecast_price"],
         transport_saving_per_quintal=proposed["transport_saving_per_quintal"],
         status=BundleStatus.CONFIRMED,
-        created_at=datetime.utcnow(),
+        created_at=datetime.now(timezone.utc),
     )
 
     logger.info(

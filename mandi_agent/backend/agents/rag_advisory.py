@@ -13,7 +13,7 @@ Result: Deterministic, testable, WhatsApp-friendly advisories.
 
 import logging
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Optional
 
 from mandi_agent.backend.agents.decision_engine import make_decision
@@ -96,7 +96,7 @@ async def generate_advisory(
             full_text_local=rendered.full_text,  # Translation done separately
             confidence=structured_decision.decision_confidence,
             guardrail_status=GuardrailStatus.APPROVED,
-            created_at=datetime.utcnow(),
+            created_at=datetime.now(timezone.utc),
         )
 
         logger.info(

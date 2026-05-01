@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import {
   Animated as RNAnimated,
   Dimensions,
+  Linking,
   Modal,
   Pressable,
   ScrollView,
@@ -19,7 +20,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
 import { COLORS, FONTS, SPRING } from '../constants/theme';
-import { Deal, DealMember } from '../hooks/useDeals';
+import { Deal, DealMember, TruckAgency } from '../hooks/useDeals';
 import { hapticHeavy, hapticLight, hapticSuccess } from '../utils/haptics';
 import SuccessParticles from './SuccessParticles';
 
@@ -97,6 +98,69 @@ function QuantitySlider({ value, onChange, max = 100 }: { value: number; onChang
   );
 }
 
+function AgencyContactRow({ agency }: { agency: TruckAgency }) {
+  const callAgency = () => {
+    if (agency.phone) Linking.openURL(`tel:${agency.phone}`);
+  };
+  const whatsappAgency = () => {
+    const num = agency.whatsapp.replace(/\D/g, '');
+    Linking.openURL(`https://wa.me/${num}?text=Hello, I found your contact via KisanSabha and would like to discuss a truck booking for agricultural produce.`);
+  };
+  const openKisanSabha = () => {
+    if (agency.profile_url) Linking.openURL(agency.profile_url);
+    else Linking.openURL('https://kisansabha.in/Directory.aspx?Category=Transporter&CategoryType=21');
+  };
+
+  const stars = '★'.repeat(Math.round(agency.rating)) + '☆'.repeat(5 - Math.round(agency.rating));
+
+  return (
+    <View style={styles.agencyBlock}>
+      <View style={styles.agencyHeader}>
+        <View style={styles.agencyBadge}>
+          <Text style={styles.agencyBadgeText}>{agency.category_name}</Text>
+        </View>
+        {agency.verified && (
+          <View style={styles.verifiedBadge}>
+            <Text style={styles.verifiedText}>✓ Verified</Text>
+          </View>
+        )}
+      </View>
+      <Text style={styles.agencyName}>{agency.name}</Text>
+      <Text style={styles.agencyCity}>{agency.city}, {agency.state}</Text>
+      <View style={styles.agencyMetaRow}>
+        <Text style={styles.agencyRating}>{stars} {agency.rating.toFixed(1)}</Text>
+        {agency.total_trips > 0 && (
+          <Text style={styles.agencyTrips}>{agency.total_trips} trips</Text>
+        )}
+        {agency.price_per_km != null && (
+          <Text style={styles.agencyPrice}>₹{agency.price_per_km}/km</Text>
+        )}
+      </View>
+      {agency.vehicle_types.length > 0 && (
+        <View style={styles.vehicleTypesRow}>
+          {agency.vehicle_types.map((v) => (
+            <View key={v} style={styles.vehiclePill}>
+              <Text style={styles.vehiclePillText}>{v}</Text>
+            </View>
+          ))}
+        </View>
+      )}
+      <View style={styles.agencyActionRow}>
+        <Pressable style={styles.callBtn} onPress={callAgency}>
+          <Text style={styles.callBtnText}>📞 Call Agency</Text>
+        </Pressable>
+        <Pressable style={styles.waBtn} onPress={whatsappAgency}>
+          <Text style={styles.waBtnText}>💬 WhatsApp</Text>
+        </Pressable>
+      </View>
+      <Pressable style={styles.kisanSabhaLink} onPress={openKisanSabha}>
+        <Text style={styles.kisanSabhaLinkText}>View on KisanSabha →</Text>
+      </Pressable>
+    </View>
+  );
+}
+
+
 function TruckStatusCard({ deal }: { deal: Deal }) {
   const pulse = useSharedValue(1);
 
@@ -125,11 +189,21 @@ function TruckStatusCard({ deal }: { deal: Deal }) {
         <Text style={styles.truckTitle}>🚛 Transport Status</Text>
         {deal.truck && (
           <View style={styles.truckInfo}>
-            <Text style={styles.truckDriver}>Driver: {deal.truck.driver_name}</Text>
-            <Text style={styles.truckPhone}>{deal.truck.driver_phone}</Text>
-            <Text style={styles.truckMeta}>Pickup: {deal.truck.pickup_time}</Text>
-            <Text style={styles.truckMeta}>ETA Mandi: {deal.truck.eta_mandi}</Text>
-            <Text style={styles.truckMeta}>Vehicle: {deal.truck.vehicle_no}</Text>
+            <View style={styles.truckDriverRow}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.truckDriver}>{deal.truck.driver_name}</Text>
+                <Text style={styles.truckMeta}>Vehicle: {deal.truck.vehicle_no}</Text>
+                <Text style={styles.truckMeta}>Pickup: {deal.truck.pickup_time}</Text>
+                <Text style={styles.truckMeta}>ETA Mandi: {deal.truck.eta_mandi}</Text>
+              </View>
+              {deal.truck.estimated_cost > 0 && (
+                <View style={styles.costBadge}>
+                  <Text style={styles.costLabel}>Est. Cost</Text>
+                  <Text style={styles.costValue}>₹{deal.truck.estimated_cost.toLocaleString()}</Text>
+                </View>
+              )}
+            </View>
+            {deal.truck.agency && <AgencyContactRow agency={deal.truck.agency} />}
           </View>
         )}
         <View style={styles.stepsRow}>
@@ -363,22 +437,6 @@ const styles = StyleSheet.create({
   milestoneLabels: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 4 },
   milestoneTxt: { color: COLORS.muted, fontFamily: FONTS.body, fontSize: 10 },
 
-  truckCard: { marginHorizontal: 16, marginBottom: 12, borderRadius: 18, overflow: 'hidden' },
-  truckGradient: { padding: 16 },
-  truckTitle: { color: COLORS.white, fontFamily: FONTS.bold, fontSize: 15, marginBottom: 10 },
-  truckInfo: { marginBottom: 14, gap: 4 },
-  truckDriver: { color: COLORS.white, fontFamily: FONTS.bodyMed, fontSize: 14 },
-  truckPhone: { color: COLORS.sprout, fontFamily: FONTS.body, fontSize: 12 },
-  truckMeta: { color: COLORS.muted, fontFamily: FONTS.body, fontSize: 12 },
-  stepsRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
-  stepItem: { alignItems: 'center', flex: 1 },
-  stepCircle: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center', marginBottom: 6 },
-  stepDone: { backgroundColor: '#16653488' },
-  stepPending: { backgroundColor: '#37415166' },
-  stepIcon: { fontSize: 14 },
-  stepLine: { position: 'absolute', top: 15, left: '60%', right: '-40%', height: 2 },
-  stepLabel: { color: COLORS.muted, fontFamily: FONTS.body, fontSize: 9, textAlign: 'center' },
-
   triggeringBanner: { backgroundColor: '#D97706', marginHorizontal: 16, borderRadius: 12, padding: 12, marginBottom: 12 },
   triggeringText: { color: COLORS.night, fontFamily: FONTS.bold, fontSize: 13, textAlign: 'center' },
 
@@ -413,4 +471,50 @@ const styles = StyleSheet.create({
 
   alreadyJoinedBanner: { marginHorizontal: 16, backgroundColor: '#16653444', borderRadius: 14, padding: 14, borderWidth: 1, borderColor: '#52B788' },
   alreadyJoinedText: { color: '#52B788', fontFamily: FONTS.bodyMed, fontSize: 14, textAlign: 'center' },
+
+  // TruckStatusCard
+  truckCard: { marginHorizontal: 16, marginBottom: 16, borderRadius: 20, overflow: 'hidden' },
+  truckGradient: { flex: 1, padding: 20, borderRadius: 20 },
+  truckTitle: { color: '#fff', fontFamily: FONTS.bold, fontSize: 16, marginBottom: 12 },
+  truckInfo: { marginBottom: 16 },
+  truckDriverRow: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 12 },
+  truckDriver: { color: '#fff', fontFamily: FONTS.bold, fontSize: 15, marginBottom: 4 },
+  truckPhone: { color: '#52B788', fontFamily: FONTS.body, fontSize: 13, marginBottom: 4 },
+  truckMeta: { color: '#9CA3AF', fontFamily: FONTS.body, fontSize: 12, marginBottom: 2 },
+  costBadge: { backgroundColor: '#52B78820', borderRadius: 10, padding: 10, alignItems: 'center', minWidth: 88 },
+  costLabel: { color: '#52B788', fontFamily: FONTS.medium, fontSize: 10, marginBottom: 2 },
+  costValue: { color: '#fff', fontFamily: FONTS.bold, fontSize: 15 },
+
+  stepsRow: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' },
+  stepItem: { alignItems: 'center', flex: 1 },
+  stepCircle: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center', marginBottom: 4 },
+  stepDone: { backgroundColor: '#52B78830', borderWidth: 1.5, borderColor: '#52B788' },
+  stepPending: { backgroundColor: '#37415130', borderWidth: 1.5, borderColor: '#374151' },
+  stepIcon: { fontSize: 14 },
+  stepLine: { position: 'absolute', top: 15, left: '60%' as any, right: '-60%' as any, height: 2 },
+  stepLabel: { color: '#9CA3AF', fontFamily: FONTS.body, fontSize: 9, textAlign: 'center' },
+
+  // AgencyContactRow
+  agencyBlock: { backgroundColor: '#0a1f14', borderRadius: 12, padding: 14, marginTop: 4 },
+  agencyHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6 },
+  agencyBadge: { backgroundColor: '#52B78820', borderRadius: 6, paddingHorizontal: 8, paddingVertical: 2 },
+  agencyBadgeText: { color: '#52B788', fontFamily: FONTS.medium, fontSize: 10 },
+  verifiedBadge: { backgroundColor: '#3B82F620', borderRadius: 6, paddingHorizontal: 8, paddingVertical: 2 },
+  verifiedText: { color: '#60A5FA', fontFamily: FONTS.medium, fontSize: 10 },
+  agencyName: { color: '#fff', fontFamily: FONTS.bold, fontSize: 15, marginBottom: 2 },
+  agencyCity: { color: '#9CA3AF', fontFamily: FONTS.body, fontSize: 12, marginBottom: 6 },
+  agencyMetaRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 8 },
+  agencyRating: { color: '#F59E0B', fontFamily: FONTS.medium, fontSize: 12 },
+  agencyTrips: { color: '#6B7280', fontFamily: FONTS.body, fontSize: 12 },
+  agencyPrice: { color: '#52B788', fontFamily: FONTS.medium, fontSize: 12 },
+  vehicleTypesRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 12 },
+  vehiclePill: { backgroundColor: '#1F2937', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3 },
+  vehiclePillText: { color: '#D1D5DB', fontFamily: FONTS.body, fontSize: 11 },
+  agencyActionRow: { flexDirection: 'row', gap: 8, marginBottom: 8 },
+  callBtn: { flex: 1, backgroundColor: '#166534', borderRadius: 10, paddingVertical: 10, alignItems: 'center' },
+  callBtnText: { color: '#fff', fontFamily: FONTS.bold, fontSize: 13 },
+  waBtn: { flex: 1, backgroundColor: '#16a34a', borderRadius: 10, paddingVertical: 10, alignItems: 'center' },
+  waBtnText: { color: '#fff', fontFamily: FONTS.bold, fontSize: 13 },
+  kisanSabhaLink: { alignItems: 'center', paddingVertical: 6 },
+  kisanSabhaLinkText: { color: '#60A5FA', fontFamily: FONTS.medium, fontSize: 12 },
 });

@@ -160,8 +160,8 @@ async def fetch_soil_moisture(
 
             # Parse MOSDAC response — exact field names depend on API
             soil_moisture_pct = float(data.get("soil_moisture_percent", 0.0))
-            reading_date_str = data.get("date", datetime.utcnow().isoformat())
-            pass_time_str = data.get("satellite_pass_utc", datetime.utcnow().isoformat())
+            reading_date_str = data.get("date", datetime.now(timezone.utc).isoformat())
+            pass_time_str = data.get("satellite_pass_utc", datetime.now(timezone.utc).isoformat())
 
             # Parse dates
             reading_date = datetime.fromisoformat(reading_date_str.replace("Z", "+00:00")).date()

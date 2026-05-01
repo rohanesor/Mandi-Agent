@@ -49,7 +49,7 @@ export default function PricesScreen() {
   const maxModal = Math.max(...filteredPrices.map((p) => p.modal), 1);
 
   return (
-    <View style={styles.container}>
+    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
       <View style={styles.header}>
         <View>
           <Text style={styles.headerTitle}>Mandi Prices</Text>
@@ -110,7 +110,7 @@ export default function PricesScreen() {
         </ScrollView>
       </View>
 
-      <ScrollView contentContainerStyle={styles.cardsWrap}>
+      <View style={styles.cardsWrap}>
         {filteredPrices.map((item) => (
           <Pressable key={`${selectedCrop}-card-${item.mandi}`} style={styles.card}>
             <View style={{ flex: 1 }}>
@@ -129,8 +129,8 @@ export default function PricesScreen() {
             </View>
           </Pressable>
         ))}
-      </ScrollView>
-    </View>
+      </View>
+    </ScrollView>
   );
 }
 

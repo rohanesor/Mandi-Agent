@@ -20,13 +20,13 @@
 
 **Overview:**
 
-Farmers interact via the React Native mobile app or WhatsApp. Voice/text requests are routed through n8n automation to the FastAPI backend, where AI agents (PydanticAI + LangGraph + Gemini 2.0) process the intent. The backend fetches live mandi data from Agmarknet/eNAM, enriches it with weather (IMD, ISRO MOSDAC), and queries the RAG pipeline (Supabase pgvector + Cohere embeddings) for contextual advisories. Responses are delivered back via WhatsApp voice (Reverie SDK) or mobile push notifications.
+Farmers interact via WhatsApp. Voice/text requests are routed through n8n automation to the FastAPI backend, where AI agents (PydanticAI + LangGraph + Gemini 2.0) process the intent. The backend fetches live mandi data from Agmarknet/eNAM, enriches it with weather (IMD, ISRO MOSDAC), and queries the RAG pipeline (Supabase pgvector + Cohere embeddings) for contextual advisories. Responses are delivered back via WhatsApp voice (Reverie SDK) or SMS.
 
 ```
 ┌────────────┐     ┌──────────┐     ┌───────────────┐     ┌─────────────────┐
 │  Farmer    │────▶│  n8n /   │────▶│  FastAPI      │────▶│  AI Agents       │
-│  (App /    │◀────│  Twilio  │◀────│  Backend      │◀────│  (LangGraph +    │
-│  WhatsApp) │     │  Reverie │     │               │     │   Gemini 2.0)    │
+│ (WhatsApp) │◀────│  Twilio  │◀────│  Backend      │◀────│  (LangGraph +    │
+│            │     │  Reverie │     │               │     │   Gemini 2.0)    │
 └────────────┘     └──────────┘     └───────┬───────┘     └────────┬────────┘
                                             │                      │
                                      ┌──────┴──────┐        ┌──────┴──────┐
@@ -54,13 +54,6 @@ Farmers interact via the React Native mobile app or WhatsApp. Voice/text request
 * Reverie SDK (22-language voice synthesis)
 * n8n (workflow automation)
 
-**Frontend:**
-
-* Expo SDK 54 / React Native
-* TypeScript
-* Zustand + React Query (state management)
-* NativeWind (Tailwind styling)
-
 **DevOps:**
 
 * Docker + Docker Compose
@@ -73,7 +66,6 @@ Farmers interact via the React Native mobile app or WhatsApp. Voice/text request
 * AI-powered mandi price forecasting with RAG-enriched context
 * Virtual cooperatives — bundle produce across farmers to reach full truckloads
 * Voice advisories in 22 Indian languages via WhatsApp
-* Multi-language mobile app (Hindi, Tamil, Telugu, Kannada, Marathi, Bengali, Gujarati, Malayalam)
 * Oversupply detection & spoilage risk alerts
 * Real-time data from Agmarknet, eNAM, IMD weather, ISRO MOSDAC
 * n8n-powered automation for scheduled broadcasts and emergency alerts
@@ -84,7 +76,7 @@ Farmers interact via the React Native mobile app or WhatsApp. Voice/text request
 
 | Metric | Value |
 | --- | --- |
-| Languages Supported | 22 (voice) / 8 (UI) |
+| Languages Supported | 22 (voice) |
 | Data Sources | 5 (Agmarknet, eNAM, IMD, MOSDAC, Fusion) |
 | AI Agents | 8+ (price, spoilage, oversupply, advisory, negotiation, etc.) |
 | n8n Workflows | 10+ automated pipelines |
@@ -97,7 +89,6 @@ Farmers interact via the React Native mobile app or WhatsApp. Voice/text request
 * Supabase over self-hosted Postgres → managed service reduces DevOps overhead
 * pgvector over Pinecone/Weaviate → co-locates vector search with transactional data
 * n8n over custom cron jobs → visual workflow builder enables non-technical ops staff
-* React Native over Flutter → Expo ecosystem, OTA updates, easier hot reload
 
 ---
 
@@ -143,7 +134,7 @@ python -m venv .venv
 source .venv/bin/activate  # Windows: .venv\Scripts\activate
 
 # Dependencies
-pip install -r requirements.txt
+pip install -r backend/requirements.txt
 
 # Configure environment
 cp .env.example .env
@@ -156,21 +147,12 @@ docker compose up -d
 uvicorn backend.main:app --reload --port 8000
 ```
 
-### Mobile
-
-```bash
-cd mobile
-
-npm install
-npx expo start
-```
-
 ---
 
 ## 📁 Folder Structure
 
 ```
-├── mandi_agent/          # Backend
+├── mandi_agent/          # Backend & Automation
 │   ├── backend/
 │   │   ├── agents/       # AI agents (price, spoilage, oversupply, etc.)
 │   │   ├── data_sources/ # Agmarknet, eNAM, IMD, MOSDAC connectors
@@ -182,16 +164,7 @@ npx expo start
 │   │   └── main.py
 │   ├── n8n/              # Workflow configurations
 │   ├── Dockerfile
-│   ├── docker-compose.yml
-│   └── requirements.txt
-│
-├── mobile/               # React Native app
-│   ├── app/              # Expo Router pages
-│   ├── components/       # Reusable UI
-│   ├── services/         # API clients
-│   ├── store/            # Zustand state
-│   ├── context/          # LanguageContext (i18n)
-│   └── assets/
+│   └── docker-compose.yml
 │
 └── README.md
 ```

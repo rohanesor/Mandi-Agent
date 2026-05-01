@@ -39,12 +39,6 @@ Mandi_Agent_Project_Structure.pdf
 # Scripts not needed in container
 *.ps1
 *.js
-bisect_test.ps1
-mcp_*.py
-probe_*.py
-import_workflows.py
-simplify_n8n_workflows.py
-generate_structure_pdf.py
 
 # n8n workflow SDK output
 n8n/sdk_output/
