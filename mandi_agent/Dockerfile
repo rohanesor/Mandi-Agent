@@ -21,7 +21,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # ---------------------------------------------------------------------------
 # Dependencies layer (cached unless requirements.txt changes)
 # ---------------------------------------------------------------------------
-COPY requirements.txt .
+COPY backend/requirements.txt .
 RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir -r requirements.txt
 
