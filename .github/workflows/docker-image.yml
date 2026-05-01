@@ -15,4 +15,4 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     - name: Build the Docker image
-      run: docker build -t mandi_agent-backend ./mandi_agent .
+      run: docker build -t mandi_agent-backend ./mandi_agent
