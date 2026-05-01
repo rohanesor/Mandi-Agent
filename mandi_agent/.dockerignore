@@ -52,5 +52,6 @@ n8n/sdk_output/
 # Temp data files
 *.json
 !webhook-config.json
+!n8n/workflows/*.json
 upload_results.json
 node_map.json

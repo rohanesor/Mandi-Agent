@@ -69,6 +69,7 @@ nul
 !cloud_workflows_v2.json
 !workflows.json
 !workflows_utf8.json
+!mandi_agent/n8n/workflows/*.json
 
 # Claude / AI assistant settings
 .claude/settings.local.json

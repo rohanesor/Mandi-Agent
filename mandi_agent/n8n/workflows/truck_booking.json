@@ -1,0 +1,424 @@
+{
+  "name": "Custom Webhook - Truck Booking",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "truck-booking/book",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "webhook-truck-booking",
+      "name": "Webhook: Truck Booking",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [100, 300],
+      "webhookId": "truck-booking"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "check-cooperative-size",
+              "leftValue": "={{ $json.cooperative_size_tons }}",
+              "rightValue": 5,
+              "operator": {
+                "type": "number",
+                "operation": "gte"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-minimum-load",
+      "name": "If Load >= 5 Tons",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [300, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://backend:8000/api/truck/match",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "crop",
+              "value": "={{ $json.crop }}"
+            },
+            {
+              "name": "weight_tons",
+              "value": "={{ $json.cooperative_size_tons }}"
+            },
+            {
+              "name": "pickup_block",
+              "value": "={{ $json.pickup_block }}"
+            },
+            {
+              "name": "destination_mandi",
+              "value": "={{ $json.destination_mandi }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "find-available-truck",
+      "name": "Backend: Find Available Truck",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [550, 200]
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "channel": "whatsapp",
+        "from": "={{ $env.TWILIO_WHATSAPP_FROM }}",
+        "to": "=whatsapp:{{ $json.farmer_phone }}",
+        "messageType": "text",
+        "text": "🚛 *Truck Booking Confirmed!*\n\n📦 Crop: {{ $json.crop }}\n⚖️ Load: {{ $json.cooperative_size_tons }} tons\n👥 Farmers in Cooperative: {{ $json.farmer_count }}\n📍 Pickup: {{ $json.pickup_block }}\n🏭 Delivery: {{ $json.destination_mandi }}\n\n🚚 Driver: {{ $('Find Available Truck').json.driver_name }}\n📞 Driver Contact: {{ $('Find Available Truck').json.driver_phone }}\n⏰ ETA: {{ $('Find Available Truck').json.eta_minutes }} minutes\n\nYour cooperative produce is ready for transport!",
+        "additionalFields": {
+          "parse_mode": "Markdown"
+        },
+        "options": {}
+      },
+      "id": "confirm-farmer-whatsapp",
+      "name": "Twilio: Confirm to Farmer",
+      "type": "n8n-nodes-base.twilio",
+      "typeVersion": 1,
+      "position": [800, 200],
+      "credentials": {
+        "twilioApi": {
+          "id": "twilio-creds",
+          "name": "Twilio API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "channel": "whatsapp",
+        "from": "={{ $env.TWILIO_WHATSAPP_FROM }}",
+        "to": "=whatsapp:{{ $('Find Available Truck').json.driver_phone }}",
+        "messageType": "text",
+        "text": "🚛 *New Truck Assignment!*\n\n📦 Cargo: {{ $json.crop }} ({{ $json.cooperative_size_tons }} tons)\n📍 Pickup: {{ $json.pickup_block }}\n🏭 Destination: {{ $json.destination_mandi }}\n\n👥 Cooperative of {{ $json.farmer_count }} farmers\n📞 Farmer Contact: {{ $json.farmer_phone }}\n\nPlease confirm availability and head to pickup location.",
+        "additionalFields": {
+          "parse_mode": "Markdown"
+        },
+        "options": {}
+      },
+      "id": "assign-driver-whatsapp",
+      "name": "Twilio: Assign to Driver",
+      "type": "n8n-nodes-base.twilio",
+      "typeVersion": 1,
+      "position": [1050, 200],
+      "credentials": {
+        "twilioApi": {
+          "id": "twilio-creds",
+          "name": "Twilio API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "message": "🚛 *New Truck Booking*\n\n📦 Crop: {{ $json.crop }}\n⚖️ Weight: {{ $json.cooperative_size_tons }} tons\n👥 Farmers: {{ $json.farmer_count }}\n📍 Route: {{ $json.pickup_block }} → {{ $json.destination_mandi }}\n\n🚚 Driver: {{ $('Find Available Truck').json.driver_name }}\n📞 Driver Phone: {{ $('Find Available Truck').json.driver_phone }}\n⏰ ETA: {{ $('Find Available Truck').json.eta_minutes }} min\n\n🕐 Time: {{ new Date().toLocaleString() }}",
+        "chatId": "={{ $env.TELEGRAM_BLOCK_GROUP_ID }}",
+        "additionalFields": {
+          "parse_mode": "Markdown"
+        },
+        "options": {}
+      },
+      "id": "telegram-log-booking",
+      "name": "Telegram: Log to Ops Group",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1,
+      "position": [1300, 200],
+      "credentials": {
+        "telegramApi": {
+          "id": "telegram-creds",
+          "name": "Telegram Bot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "spreadsheetId": "={{ $env.GOOGLE_SHEET_ID }}",
+        "range": "={{ $env.GOOGLE_SHEETS_TRUCK_BOOKINGS_TAB }}!A:Z",
+        "operation": "append",
+        "values": "{{ [[ $json.crop, $json.cooperative_size_tons, $json.farmer_count, $json.pickup_block, $json.destination_mandi, $('Find Available Truck').json.driver_name, $('Find Available Truck').json.driver_phone, $('Find Available Truck').json.eta_minutes, new Date().toISOString(), 'confirmed' ]] }}"
+      },
+      "id": "google-sheets-log-booking",
+      "name": "Google Sheets: Log Truck Booking",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [1550, 200],
+      "credentials": {
+        "googleSheetsApi": {
+          "id": "google-sheets-creds",
+          "name": "Google Sheets API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsonParameters": true,
+        "requestBody": "={\n  \"event_type\": \"truck_booking\",\n  \"crop\": \"{{ $json.crop }}\",\n  \"weight_tons\": {{ $json.cooperative_size_tons }},\n  \"farmer_count\": {{ $json.farmer_count }},\n  \"pickup_block\": \"{{ $json.pickup_block }}\",\n  \"destination_mandi\": \"{{ $json.destination_mandi }}\",\n  \"driver_name\": \"{{ $('Find Available Truck').json.driver_name }}\",\n  \"driver_phone\": \"{{ $('Find Available Truck').json.driver_phone }}\",\n  \"eta_minutes\": {{ $('Find Available Truck').json.eta_minutes }},\n  \"status\": \"confirmed\",\n  \"timestamp\": \"{{ new Date().toISOString() }}\"\n}"
+      },
+      "id": "supabase-log-booking",
+      "name": "Supabase: Log Truck Booking Event",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [1800, 200],
+      "url": "={{ $env.SUPABASE_URL }}/rest/v1/truck_booking_events",
+      "method": "POST",
+      "sendBody": true,
+      "headers": {
+        "Authorization": "Bearer {{ $env.SUPABASE_SERVICE_KEY }}",
+        "Content-Type": "application/json",
+        "Prefer": "return=representation"
+      }
+    },
+    {
+      "parameters": {
+        "statusCode": 200,
+        "responseBody": "={\n  \"success\": true,\n  \"message\": \"Truck booking confirmed\",\n  \"booking_id\": \"{{ $('Find Available Truck').json.booking_id }}\",\n  \"crop\": \"{{ $json.crop }}\",\n  \"weight_tons\": {{ $json.cooperative_size_tons }},\n  \"driver_name\": \"{{ $('Find Available Truck').json.driver_name }}\",\n  \"driver_phone\": \"{{ $('Find Available Truck').json.driver_phone }}\",\n  \"eta_minutes\": {{ $('Find Available Truck').json.eta_minutes }},\n  \"farmer_count\": {{ $json.farmer_count }}\n}"
+      },
+      "id": "response-booking-success",
+      "name": "Response: Booking Success",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [2050, 200]
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "channel": "whatsapp",
+        "from": "={{ $env.TWILIO_WHATSAPP_FROM }}",
+        "to": "=whatsapp:{{ $env.OPS_COORDINATOR_WHATSAPP }}",
+        "messageType": "text",
+        "text": "⚠️ *Truck Booking Rejected*\n\nLoad too small: {{ $json.cooperative_size_tons }} tons (min 5 tons)\nCrop: {{ $json.crop }}\nPickup: {{ $json.pickup_block }}\n\nCooperative needs more farmers to bundle produce.",
+        "additionalFields": {
+          "parse_mode": "Markdown"
+        },
+        "options": {}
+      },
+      "id": "alert-ops-rejection",
+      "name": "Twilio: Alert Ops (Rejection)",
+      "type": "n8n-nodes-base.twilio",
+      "typeVersion": 1,
+      "position": [550, 400],
+      "credentials": {
+        "twilioApi": {
+          "id": "twilio-creds",
+          "name": "Twilio API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "channel": "whatsapp",
+        "from": "={{ $env.TWILIO_WHATSAPP_FROM }}",
+        "to": "=whatsapp:{{ $json.farmer_phone }}",
+        "messageType": "text",
+        "text": "⚠️ *Truck Booking Not Available*\n\nYour cooperative load of {{ $json.cooperative_size_tons }} tons is below the minimum 5-ton requirement.\n\n📌 Keep bundling produce with other farmers to reach full truck capacity. You'll be notified when enough farmers join your cooperative!",
+        "additionalFields": {
+          "parse_mode": "Markdown"
+        },
+        "options": {}
+      },
+      "id": "notify-farmer-rejection",
+      "name": "Twilio: Notify Farmer (Rejection)",
+      "type": "n8n-nodes-base.twilio",
+      "typeVersion": 1,
+      "position": [800, 400],
+      "credentials": {
+        "twilioApi": {
+          "id": "twilio-creds",
+          "name": "Twilio API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "statusCode": 400,
+        "responseBody": "={\n  \"success\": false,\n  \"message\": \"Cooperative load below minimum (5 tons). Bundle more produce to book a truck.\",\n  \"current_load_tons\": {{ $json.cooperative_size_tons }},\n  \"minimum_required_tons\": 5\n}"
+      },
+      "id": "response-booking-rejected",
+      "name": "Response: Booking Rejected",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1050, 400]
+    },
+    {
+      "parameters": {
+        "jsonParameters": true,
+        "requestBody": "={\n  \"event_type\": \"truck_booking_failed\",\n  \"crop\": \"{{ $json.crop }}\",\n  \"weight_tons\": {{ $json.cooperative_size_tons }},\n  \"farmer_count\": {{ $json.farmer_count }},\n  \"pickup_block\": \"{{ $json.pickup_block }}\",\n  \"reason\": \"load_too_small\",\n  \"minimum_required_tons\": 5,\n  \"timestamp\": \"{{ new Date().toISOString() }}\"\n}"
+      },
+      "id": "supabase-log-failed-booking",
+      "name": "Supabase: Log Failed Booking",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [550, 550],
+      "url": "={{ $env.SUPABASE_URL }}/rest/v1/truck_booking_events",
+      "method": "POST",
+      "sendBody": true,
+      "headers": {
+        "Authorization": "Bearer {{ $env.SUPABASE_SERVICE_KEY }}",
+        "Content-Type": "application/json",
+        "Prefer": "return=representation"
+      }
+    }
+  ],
+  "connections": {
+    "Webhook: Truck Booking": {
+      "main": [
+        [
+          {
+            "node": "If Load >= 5 Tons",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If Load >= 5 Tons": {
+      "main": [
+        [
+          {
+            "node": "Backend: Find Available Truck",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Twilio: Alert Ops (Rejection)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Backend: Find Available Truck": {
+      "main": [
+        [
+          {
+            "node": "Twilio: Confirm to Farmer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Twilio: Confirm to Farmer": {
+      "main": [
+        [
+          {
+            "node": "Twilio: Assign to Driver",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Twilio: Assign to Driver": {
+      "main": [
+        [
+          {
+            "node": "Telegram: Log to Ops Group",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Telegram: Log to Ops Group": {
+      "main": [
+        [
+          {
+            "node": "Google Sheets: Log Truck Booking",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Sheets: Log Truck Booking": {
+      "main": [
+        [
+          {
+            "node": "Supabase: Log Truck Booking Event",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Supabase: Log Truck Booking Event": {
+      "main": [
+        [
+          {
+            "node": "Response: Booking Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Twilio: Alert Ops (Rejection)": {
+      "main": [
+        [
+          {
+            "node": "Twilio: Notify Farmer (Rejection)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Twilio: Notify Farmer (Rejection)": {
+      "main": [
+        [
+          {
+            "node": "Supabase: Log Failed Booking",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Supabase: Log Failed Booking": {
+      "main": [
+        [
+          {
+            "node": "Response: Booking Rejected",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": ["webhook", "truck-booking", "cooperative", "logistics", "whatsapp", "twilio"],
+  "triggerCount": 1,
+  "updatedAt": "2026-04-30T00:00:00.000Z",
+  "versionId": "2",
+  "meta": {
+    "templateCredsSetup": ["telegram-creds", "twilio-creds", "google-sheets-creds"]
+  }
+}
