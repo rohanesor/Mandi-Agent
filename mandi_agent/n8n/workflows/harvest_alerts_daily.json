@@ -1,0 +1,164 @@
+﻿{
+  "name": "Daily Harvest Alerts",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 6,
+              "triggerAtMinute": 0,
+              "timezone": "Asia/Kolkata"
+            }
+          ]
+        }
+      },
+      "id": "cron-daily-6am",
+      "name": "Cron — 6:00 AM IST Daily",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [100, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://backend:8000/api/harvest-alerts-due",
+        "method": "GET",
+        "options": {}
+      },
+      "id": "http-get-alerts-due",
+      "name": "GET /api/harvest-alerts-due",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [350, 300]
+    },
+    {
+      "parameters": {
+        "operation": "manual",
+        "batchSize": 10,
+        "options": {}
+      },
+      "id": "split-in-batches",
+      "name": "Loop over farmers",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 2,
+      "position": [600, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://backend:8000/api/advisory",
+        "method": "POST",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "farmer_id",
+              "value": "={{ $json.farmer_id }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "id": "http-generate-advisory",
+      "name": "Generate Advisory",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [850, 200]
+    },
+    {
+      "parameters": {
+        "resource": "media",
+        "channel": "whatsapp",
+        "from": "={{ $env.TWILIO_WHATSAPP_FROM }}",
+        "to": "=whatsapp:{{ $json.farmer_phone }}",
+        "messageType": "audio",
+        "mediaUrl": "={{ $json.response_audio_url }}",
+        "options": {}
+      },
+      "id": "twilio-send-proactive",
+      "name": "Send Proactive Voice Note",
+      "type": "n8n-nodes-base.twilio",
+      "typeVersion": 1,
+      "position": [1100, 200],
+      "credentials": {
+        "twilioApi": {
+          "id": "twilio-creds",
+          "name": "Twilio API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "database": "mandi_agent",
+        "table": "advisories",
+        "columns": "sent_via",
+        "values": "proactive_whatsapp",
+        "options": {
+          "where": "advisory_id"
+        }
+      },
+      "id": "mark-advisory-sent",
+      "name": "Mark Advisory Sent",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [1350, 200]
+    }
+  ],
+  "connections": {
+    "Cron — 6:00 AM IST Daily": {
+      "main": [
+        [{
+          "node": "GET /api/harvest-alerts-due",
+          "type": "main",
+          "index": 0
+        }]
+      ]
+    },
+    "GET /api/harvest-alerts-due": {
+      "main": [
+        [{
+          "node": "Loop over farmers",
+          "type": "main",
+          "index": 0
+        }]
+      ]
+    },
+    "Loop over farmers": {
+      "main": [
+        [{
+          "node": "Generate Advisory",
+          "type": "main",
+          "index": 0
+        }]
+      ]
+    },
+    "Generate Advisory": {
+      "main": [
+        [{
+          "node": "Send Proactive Voice Note",
+          "type": "main",
+          "index": 0
+        }]
+      ]
+    },
+    "Send Proactive Voice Note": {
+      "main": [
+        [{
+          "node": "Mark Advisory Sent",
+          "type": "main",
+          "index": 0
+        }]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": ["harvest", "proactive", "cron"],
+  "triggerCount": 1,
+  "updatedAt": "2026-03-20T00:00:00.000Z",
+  "versionId": "1"
+}

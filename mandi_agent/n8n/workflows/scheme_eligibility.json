@@ -1,0 +1,253 @@
+﻿{
+  "name": "Scheme Eligibility Check",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "scheme-check",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "webhook-scheme-check",
+      "name": "Webhook: New Farmer Registered",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [100, 300],
+      "webhookId": "scheme-check"
+    },
+    {
+      "parameters": {
+        "url": "https://pmkisan.gov.in/api/checkEligibility",
+        "method": "POST",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "farmer_id",
+              "value": "={{ $json.farmer.farmer_id }}"
+            },
+            {
+              "name": "phone",
+              "value": "={{ $json.farmer.phone }}"
+            },
+            {
+              "name": "state",
+              "value": "={{ $json.farmer.location }}"
+            },
+            {
+              "name": "landholding",
+              "value": "={{ $json.farmer.landholding_acres }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "pmkisan-check",
+      "name": "PM-KISAN: Check Eligibility",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [350, 200]
+    },
+    {
+      "parameters": {
+        "url": "https://pmfby.gov.in/api/checkEligibility",
+        "method": "POST",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "farmer_id",
+              "value": "={{ $json.farmer.farmer_id }}"
+            },
+            {
+              "name": "crops",
+              "value": "={{ JSON.stringify($json.farmer.crops) }}"
+            },
+            {
+              "name": "state",
+              "value": "={{ $json.farmer.location }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "pmfby-check",
+      "name": "PMFBY: Check Crop Insurance Eligibility",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [350, 400]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "any-eligible",
+              "leftValue": "={{ $json.pm_kisan_eligible || $json.pmfby_eligible }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-any-eligible",
+      "name": "If Any Scheme Eligible",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [600, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://backend:8000/api/translate",
+        "method": "POST",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "text",
+              "value": "={{ $json.scheme_message }}"
+            },
+            {
+              "name": "source_language",
+              "value": "en"
+            },
+            {
+              "name": "target_language",
+              "value": "={{ $json.farmer.language }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "reverie-translate",
+      "name": "Reverie: Translate to Local Language",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [850, 300]
+    },
+    {
+      "parameters": {
+        "resource": "media",
+        "channel": "whatsapp",
+        "from": "={{ $env.TWILIO_WHATSAPP_FROM }}",
+        "to": "=whatsapp:{{ $json.farmer.phone }}",
+        "messageType": "text",
+        "text": "={{ $json.translated_message }}",
+        "options": {}
+      },
+      "id": "twilio-scheme-msg",
+      "name": "Twilio: Send Scheme Advisory",
+      "type": "n8n-nodes-base.twilio",
+      "typeVersion": 1,
+      "position": [1100, 300],
+      "credentials": {
+        "twilioApi": {
+          "id": "twilio-creds",
+          "name": "Twilio API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "database": "mandi_agent",
+        "table": "scheme_checks",
+        "columns": "farmer_id,pm_kisan_eligible,pmfby_eligible,checked_at",
+        "values": "={{ $json.farmer.farmer_id }},={{ $json.pm_kisan_eligible }},={{ $json.pmfby_eligible }},NOW()",
+        "options": {}
+      },
+      "id": "supabase-log-scheme",
+      "name": "Log in Supabase",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [1350, 300],
+      "credentials": {
+        "supabaseApi": {
+          "id": "supabase-creds",
+          "name": "Supabase"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Webhook: New Farmer Registered": {
+      "main": [
+        [{
+          "node": "PM-KISAN: Check Eligibility",
+          "type": "main",
+          "index": 0
+        }],
+        [{
+          "node": "PMFBY: Check Crop Insurance Eligibility",
+          "type": "main",
+          "index": 0
+        }]
+      ]
+    },
+    "PM-KISAN: Check Eligibility": {
+      "main": [
+        [{
+          "node": "If Any Scheme Eligible",
+          "type": "main",
+          "index": 0
+        }]
+      ]
+    },
+    "PMFBY: Check Crop Insurance Eligibility": {
+      "main": [
+        [{
+          "node": "If Any Scheme Eligible",
+          "type": "main",
+          "index": 0
+        }]
+      ]
+    },
+    "If Any Scheme Eligible": {
+      "main": [
+        [{
+          "node": "Reverie: Translate to Local Language",
+          "type": "main",
+          "index": 0
+        }]
+      ]
+    },
+    "Reverie: Translate to Local Language": {
+      "main": [
+        [{
+          "node": "Twilio: Send Scheme Advisory",
+          "type": "main",
+          "index": 0
+        }]
+      ]
+    },
+    "Twilio: Send Scheme Advisory": {
+      "main": [
+        [{
+          "node": "Log in Supabase"
+        }]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": ["schemes", "pm-kisan", "pmfby", "farmer-registration"],
+  "triggerCount": 1,
+  "updatedAt": "2026-03-20T00:00:00.000Z",
+  "versionId": "1"
+}

@@ -1,0 +1,322 @@
+﻿{
+  "name": "Spoilage Emergency",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "spoilage-emergency",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "webhook-spoilage",
+      "name": "Webhook: Spoilage Emergency",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [100, 300],
+      "webhookId": "spoilage-emergency"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "spoilage-threshold",
+              "leftValue": "={{ $json.spoilage_pct }}",
+              "rightValue": 65,
+              "operator": {
+                "type": "boolean",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-high-spoilage",
+      "name": "If spoilage_pct > 65%",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [350, 300]
+    },
+    {
+      "parameters": {
+        "resource": "media",
+        "channel": "whatsapp",
+        "from": "={{ $env.TWILIO_WHATSAPP_FROM }}",
+        "to": "=whatsapp:{{ $json.farmer_phone }}",
+        "messageType": "text",
+        "text": "={{ $json.recommended_action }}",
+        "options": {}
+      },
+      "id": "twilio-emergency-msg",
+      "name": "Twilio: Send Emergency WhatsApp",
+      "type": "n8n-nodes-base.twilio",
+      "typeVersion": 1,
+      "position": [600, 200],
+      "credentials": {
+        "twilioApi": {
+          "id": "twilio-creds",
+          "name": "Twilio API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "http://backend:8000/api/cold-storage/nearest",
+        "method": "GET",
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "lat",
+              "value": "={{ $json.farmer_lat }}"
+            },
+            {
+              "name": "lng",
+              "value": "={{ $json.farmer_lng }}"
+            },
+            {
+              "name": "crop",
+              "value": "={{ $json.crop }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "nic-cold-storage",
+      "name": "NIC Cold Storage API: Find Nearest",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [850, 200]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "cold-storage-available",
+              "leftValue": "={{ $json.available }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-cold-storage-avail",
+      "name": "If Cold Storage Available",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [1100, 200]
+    },
+    {
+      "parameters": {
+        "url": "http://backend:8000/api/cold-storage/book",
+        "method": "POST",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "farmer_id",
+              "value": "={{ $json.farmer_id }}"
+            },
+            {
+              "name": "storage_id",
+              "value": "={{ $json.storage_id }}"
+            },
+            {
+              "name": "crop",
+              "value": "={{ $json.crop }}"
+            },
+            {
+              "name": "quantity",
+              "value": "={{ $json.quantity_quintals }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "book-cold-storage",
+      "name": "Book Cold Storage Slot",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [1350, 150]
+    },
+    {
+      "parameters": {
+        "resource": "media",
+        "channel": "whatsapp",
+        "from": "={{ $env.TWILIO_WHATSAPP_FROM }}",
+        "to": "=whatsapp:{{ $json.farmer_phone }}",
+        "messageType": "text",
+        "text": "={{ 'Cold storage booked! Location: ' + $json.storage_name + '. Contact: ' + $json.storage_contact }}",
+        "options": {}
+      },
+      "id": "twilio-storage-confirm",
+      "name": "Twilio: Confirm Cold Storage Booking",
+      "type": "n8n-nodes-base.twilio",
+      "typeVersion": 1,
+      "position": [1600, 150],
+      "credentials": {
+        "twilioApi": {
+          "id": "twilio-creds",
+          "name": "Twilio API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "media",
+        "channel": "whatsapp",
+        "from": "={{ $env.TWILIO_WHATSAPP_FROM }}",
+        "to": "=whatsapp:{{ $json.farmer_phone }}",
+        "messageType": "text",
+        "text": "={{ 'Redirect to nearest mandi: ' + $json.alternate_mandi + '. Price there: ₹' + $json.alternate_price + '/q. Distance: ' + $json.distance_km + 'km.' }}",
+        "options": {}
+      },
+      "id": "twilio-redirect-msg",
+      "name": "Twilio: Redirect SMS",
+      "type": "n8n-nodes-base.twilio",
+      "typeVersion": 1,
+      "position": [1350, 350],
+      "credentials": {
+        "twilioApi": {
+          "id": "twilio-creds",
+          "name": "Twilio API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "webhookUrl": "={{ $env.SLACK_WEBHOOK_URL }}",
+        "channel": "#mandi-ops",
+        "blocks": {
+          "blocks": [
+            {
+              "type": "header",
+              "text": {
+                "type": "plain_text",
+                "text": "🚨 Spoilage Emergency Alert"
+              }
+            },
+            {
+              "type": "section",
+              "fields": [
+                {
+                  "type": "mrkdwn",
+                  "text": "*Farmer:*\n{{ $json.farmer_id }}"
+                },
+                {
+                  "type": "mrkdwn",
+                  "text": "*Crop:*\n{{ $json.crop }}"
+                },
+                {
+                  "type": "mrkdwn",
+                  "text": "*Spoilage Risk:*\n{{ $json.spoilage_pct }}%"
+                },
+                {
+                  "type": "mrkdwn",
+                  "text": "*Recommended Action:*\n{{ $json.recommended_action }}"
+                }
+              ]
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "slack-alert",
+      "name": "Slack: Alert #mandi-ops",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 1,
+      "position": [1850, 200]
+    }
+  ],
+  "connections": {
+    "Webhook: Spoilage Emergency": {
+      "main": [
+        [{
+          "node": "If spoilage_pct > 65%",
+          "type": "main",
+          "index": 0
+        }]
+      ]
+    },
+    "If spoilage_pct > 65%": {
+      "main": [
+        [{
+          "node": "Twilio: Send Emergency WhatsApp",
+          "type": "main",
+          "index": 0
+        }],
+        [{
+          "node": "Slack: Alert #mandi-ops",
+          "type": "main",
+          "index": 0
+        }]
+      ]
+    },
+    "Twilio: Send Emergency WhatsApp": {
+      "main": [
+        [{
+          "node": "NIC Cold Storage API: Find Nearest",
+          "type": "main",
+          "index": 0
+        }]
+      ]
+    },
+    "NIC Cold Storage API: Find Nearest": {
+      "main": [
+        [{
+          "node": "If Cold Storage Available",
+          "type": "main",
+          "index": 0
+        }]
+      ]
+    },
+    "If Cold Storage Available": {
+      "main": [
+        [{
+          "node": "Book Cold Storage Slot",
+          "type": "main",
+          "index": 0
+        }],
+        [{
+          "node": "Twilio: Redirect SMS",
+          "type": "main",
+          "index": 0
+        }]
+      ]
+    },
+    "Book Cold Storage Slot": {
+      "main": [
+        [{
+          "node": "Twilio: Confirm Cold Storage Booking",
+          "type": "main",
+          "index": 0
+        }]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": ["spoilage", "emergency", "cold-storage"],
+  "triggerCount": 1,
+  "updatedAt": "2026-03-20T00:00:00.000Z",
+  "versionId": "1"
+}

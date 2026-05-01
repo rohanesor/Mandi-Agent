@@ -1,0 +1,249 @@
+﻿{
+  "name": "FPO Weekly Digest",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 8,
+              "triggerAtMinute": 0,
+              "dayOfWeek": "monday",
+              "timezone": "Asia/Kolkata"
+            }
+          ]
+        }
+      },
+      "id": "cron-monday-8am",
+      "name": "Cron — Monday 8:00 AM IST",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [100, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://backend:8000/api/fpo/list",
+        "method": "GET",
+        "options": {}
+      },
+      "id": "http-get-fpo-list",
+      "name": "GET /api/fpo/list",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [350, 300]
+    },
+    {
+      "parameters": {
+        "operation": "manual",
+        "batchSize": 5,
+        "options": {}
+      },
+      "id": "split-fpo",
+      "name": "Loop: Per FPO",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 2,
+      "position": [600, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://backend:8000/api/fpo/weekly-stats",
+        "method": "GET",
+        "sendQueryParameters": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "fpo_id",
+              "value": "={{ $json.fpo_id }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "http-get-weekly-stats",
+      "name": "GET FPO Weekly Stats",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [850, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://backend:8000/api/fpo/report",
+        "method": "POST",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            { "name": "fpo_id", "value": "={{ $json.fpo_id }}" },
+            { "name": "fpo_name", "value": "={{ $json.fpo_name }}" },
+            { "name": "week_start", "value": "={{ $json.week_start }}" },
+            { "name": "week_end", "value": "={{ $json.week_end }}" },
+            { "name": "advisories_sent", "value": "={{ $json.advisories_sent }}" },
+            { "name": "bundles_formed", "value": "={{ $json.bundles_formed }}" },
+            { "name": "total_transport_savings", "value": "={{ $json.total_transport_savings }}" }
+          ]
+        },
+        "options": {}
+      },
+      "id": "supabase-log-report",
+      "name": "Log Report in Supabase",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [1100, 300]
+    },
+    {
+      "parameters": {
+        "pageContent": "={{ $json.fpo_name }} Weekly Report\n\nWeek: {{ $json.week_start }} to {{ $json.week_end }}\n\nAdvisories Sent: {{ $json.advisories_sent }}\nBundles Formed: {{ $json.bundles_formed }}\nTotal Transport Savings: ₹{{ $json.total_transport_savings }}\nPrice Crashes Detected: {{ $json.price_crashes_detected }}\nSpoilage Emergencies: {{ $json.spoilage_emergencies }}\nActive Farmers: {{ $json.active_farmers }}",
+        "pageTitle": "={{ 'Weekly Report - ' + $json.fpo_name + ' - ' + $json.week_start }}",
+        "parentPageId": "={{ $env.NOTION_FPO_REPORTS_PAGE_ID }}",
+        "options": {}
+      },
+      "id": "notion-create-report",
+      "name": "Notion: Create Weekly Report Page",
+      "type": "n8n-nodes-base.notion",
+      "typeVersion": 1,
+      "position": [1350, 300],
+      "credentials": {
+        "notionApi": {
+          "id": "notion-creds",
+          "name": "Notion API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "to": "={{ $json.coordinator_email }}",
+        "subject": "={{ 'Mandi-Agent Weekly Report - ' + $json.fpo_name + ' (' + $json.week_start + ')' }}",
+        "emailFormat": "html",
+        "html": "<h2>{{ $json.fpo_name }} — Weekly Report</h2>\n<p><b>Week:</b> {{ $json.week_start }} to {{ $json.week_end }}</p>\n<table border='1'>\n<tr><td>Advisories Sent</td><td>{{ $json.advisories_sent }}</td></tr>\n<tr><td>Bundles Formed</td><td>{{ $json.bundles_formed }}</td></tr>\n<tr><td>Total Transport Savings</td><td>₹{{ $json.total_transport_savings }}</td></tr>\n<tr><td>Price Crashes Detected</td><td>{{ $json.price_crashes_detected }}</td></tr>\n<tr><td>Spoilage Emergencies</td><td>{{ $json.spoilage_emergencies }}</td></tr>\n<tr><td>Active Farmers</td><td>{{ $json.active_farmers }}</td></tr>\n</table>",
+        "options": {}
+      },
+      "id": "gmail-send-digest",
+      "name": "Gmail: Send Digest to Coordinator",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 1,
+      "position": [1600, 300],
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "gmail-creds",
+          "name": "Gmail"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "webhookUrl": "={{ $env.SLACK_WEBHOOK_URL }}",
+        "channel": "#mandi-ops",
+        "blocks": {
+          "blocks": [
+            {
+              "type": "header",
+              "text": {
+                "type": "plain_text",
+                "text": "📊 FPO Weekly Digest — {{ $json.fpo_name }}"
+              }
+            },
+            {
+              "type": "section",
+              "fields": [
+                {
+                  "type": "mrkdwn",
+                  "text": "*Advisories:*\n{{ $json.advisories_sent }}"
+                },
+                {
+                  "type": "mrkdwn",
+                  "text": "*Bundles:*\n{{ $json.bundles_formed }}"
+                },
+                {
+                  "type": "mrkdwn",
+                  "text": "*Savings:*\n₹{{ $json.total_transport_savings }}"
+                },
+                {
+                  "type": "mrkdwn",
+                  "text": "*Active Farmers:*\n{{ $json.active_farmers }}"
+                }
+              ]
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "slack-post-summary",
+      "name": "Slack: Post Summary",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 1,
+      "position": [1850, 300]
+    }
+  ],
+  "connections": {
+    "Cron — Monday 8:00 AM IST": {
+      "main": [
+        [{
+          "node": "GET /api/fpo/list",
+          "type": "main",
+          "index": 0
+        }]
+      ]
+    },
+    "GET /api/fpo/list": {
+      "main": [
+        [{
+          "node": "Loop: Per FPO",
+          "type": "main",
+          "index": 0
+        }]
+      ]
+    },
+    "Loop: Per FPO": {
+      "main": [
+        [{
+          "node": "GET FPO Weekly Stats",
+          "type": "main",
+          "index": 0
+        }]
+      ]
+    },
+    "GET FPO Weekly Stats": {
+      "main": [
+        [{
+          "node": "Log Report in Supabase",
+          "type": "main",
+          "index": 0
+        }]
+      ]
+    },
+    "Log Report in Supabase": {
+      "main": [
+        [{
+          "node": "Notion: Create Weekly Report Page",
+          "type": "main",
+          "index": 0
+        }]
+      ]
+    },
+    "Notion: Create Weekly Report Page": {
+      "main": [
+        [{
+          "node": "Gmail: Send Digest to Coordinator",
+          "type": "main",
+          "index": 0
+        }]
+      ]
+    },
+    "Gmail: Send Digest to Coordinator": {
+      "main": [
+        [{
+          "node": "Slack: Post Summary",
+          "type": "main",
+          "index": 0
+        }]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": ["fpo", "weekly", "digest", "reporting"],
+  "triggerCount": 1,
+  "updatedAt": "2026-03-20T00:00:00.000Z",
+  "versionId": "1"
+}

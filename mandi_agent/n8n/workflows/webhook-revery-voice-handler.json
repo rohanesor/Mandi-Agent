@@ -1,0 +1,251 @@
+{
+  "name": "Custom Webhook - Revery Voice Advisory Handler",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "advisory/webhook",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "webhook-custom-advisory",
+      "name": "Custom Webhook: Farmer Advisory Request",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [100, 300],
+      "webhookId": "custom-advisory-webhook"
+    },
+    {
+      "parameters": {
+        "operation": "validate",
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "check-farmer-id",
+              "leftValue": "={{ $json.farmer_id }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "neq"
+              }
+            },
+            {
+              "id": "check-phone",
+              "leftValue": "={{ $json.phone }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "neq"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "validate-input",
+      "name": "Validate Input",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [300, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://backend:8000/api/tts/synthesize",
+        "method": "POST",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "httpHeaderAuth",
+        "headers": {
+          "Authorization": "Bearer {{ $env.REVERIE_API_KEY }}",
+          "Content-Type": "application/json"
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "app_id",
+              "value": "={{ $env.REVERIE_APP_ID }}"
+            },
+            {
+              "name": "text",
+              "value": "={{ $json.advisory_text || $json.text_input }}"
+            },
+            {
+              "name": "language",
+              "value": "={{ $json.language || $env.REVERIE_VOICE_LANG }}"
+            },
+            {
+              "name": "voice_config",
+              "value": "={\n  \"gender\": \"{{ $env.REVERIE_VOICE_GENDER }}\",\n  \"speed\": 1.0,\n  \"pitch\": 1.0\n}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "revery-voice-synthesis",
+      "name": "Revery: Generate Voice Advisory",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [550, 300]
+    },
+    {
+      "parameters": {
+        "url": "=whatsapp:{{ $json.phone }}",
+        "resource": "media",
+        "channel": "whatsapp",
+        "from": "={{ $env.TWILIO_WHATSAPP_FROM }}",
+        "to": "=whatsapp:{{ $json.phone }}",
+        "messageType": "audio",
+        "mediaUrl": "={{ $json.audio_url || $json.body.audio_url }}",
+        "options": {}
+      },
+      "id": "twilio-send-voice",
+      "name": "Twilio: Send Voice Reply to Farmer",
+      "type": "n8n-nodes-base.twilio",
+      "typeVersion": 1,
+      "position": [800, 300],
+      "credentials": {
+        "twilioApi": {
+          "id": "twilio-creds",
+          "name": "Twilio API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "spreadsheetId": "={{ $env.GOOGLE_SHEET_ID }}",
+        "range": "={{ $env.GOOGLE_SHEETS_ADVISORIES_TAB }}!A:Z",
+        "operation": "append",
+        "values": "{{ [[ $json.farmer_id, $json.phone, $json.text_input, $json.advisory_text, $json.language, new Date().toISOString(), 'completed' ]] }}"
+      },
+      "id": "google-sheets-log",
+      "name": "Google Sheets: Log Advisory",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [1050, 300],
+      "credentials": {
+        "googleSheetsApi": {
+          "id": "google-sheets-creds",
+          "name": "Google Sheets API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsonParameters": true,
+        "requestBody": "={\n  \"farmer_id\": \"{{ $json.farmer_id }}\",\n  \"session_id\": \"{{ $json.session_id }}\",\n  \"input_text\": \"{{ $json.text_input }}\",\n  \"response_text\": \"{{ $json.advisory_text }}\",\n  \"response_audio_url\": \"{{ $json.audio_url }}\",\n  \"language\": \"{{ $json.language }}\",\n  \"processing_time_ms\": {{ Date.now() - new Date($json.timestamp).getTime() }},\n  \"channel\": \"whatsapp\",\n  \"status\": \"completed\"\n}"
+      },
+      "id": "supabase-log-session",
+      "name": "Supabase: Log Voice Session",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [1300, 300],
+      "url": "={{ $env.SUPABASE_URL }}/rest/v1/voice_sessions",
+      "method": "POST",
+      "sendBody": true,
+      "headers": {
+        "Authorization": "Bearer {{ $env.SUPABASE_SERVICE_KEY }}",
+        "Content-Type": "application/json",
+        "Prefer": "return=representation"
+      }
+    },
+    {
+      "parameters": {
+        "statusCode": 200,
+        "responseBody": "={\n  \"success\": true,\n  \"message\": \"Advisory delivered successfully\",\n  \"farmer_id\": \"{{ $json.farmer_id }}\",\n  \"audio_url\": \"{{ $json.audio_url }}\",\n  \"session_id\": \"{{ $json.session_id }}\",\n  \"language\": \"{{ $json.language }}\"\n}"
+      },
+      "id": "response-success",
+      "name": "Response: Success",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1550, 300]
+    }
+  ],
+  "connections": {
+    "Custom Webhook: Farmer Advisory Request": {
+      "main": [
+        [
+          {
+            "node": "Validate Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Input": {
+      "main": [
+        [
+          {
+            "node": "Revery: Generate Voice Advisory",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Revery: Generate Voice Advisory": {
+      "main": [
+        [
+          {
+            "node": "Twilio: Send Voice Reply to Farmer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Twilio: Send Voice Reply to Farmer": {
+      "main": [
+        [
+          {
+            "node": "Google Sheets: Log Advisory",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Sheets: Log Advisory": {
+      "main": [
+        [
+          {
+            "node": "Supabase: Log Voice Session",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Supabase: Log Voice Session": {
+      "main": [
+        [
+          {
+            "node": "Response: Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "errorHandler": "notify-ops"
+  },
+  "staticData": null,
+  "tags": ["webhook", "revery", "voice", "advisory", "whatsapp"],
+  "triggerCount": 1,
+  "updatedAt": "2026-04-13T00:00:00.000Z",
+  "versionId": "1",
+  "meta": {
+    "templateCredsSetup": ["twilio-creds", "google-sheets-creds"]
+  }
+}

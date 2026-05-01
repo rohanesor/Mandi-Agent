@@ -1,392 +1,407 @@
-import { useEffect, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions, Platform } from 'react-native';
-import Animated, { useAnimatedStyle, useSharedValue, withDelay, withRepeat, withSequence, withSpring, withTiming, SharedValue } from 'react-native-reanimated';
-import { hapticHeavy, hapticLight } from '../../utils/haptics';
+import { useEffect, useRef, useState } from 'react';
+import {
+  Animated as RNAnimated,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withRepeat,
+  withSequence,
+  withSpring,
+  withTiming,
+} from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useBlockStatus, useJoinBundle } from '../../hooks';
-import { useAppStore } from '../../store';
 import { COLORS, FONTS, SPRING } from '../../constants/theme';
-import { useT } from '../../utils/useT';
-import { n8nService } from '../../services/n8nService';
-import { Alert } from 'react-native';
+import { hapticLight, hapticHeavy } from '../../utils/haptics';
+import { useDeals, Deal } from '../../hooks/useDeals';
+import DealCard from '../../components/DealCard';
+import DealDetailSheet from '../../components/DealDetailSheet';
+import PostDealModal from '../../components/PostDealModal';
 
-const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
-const AnimatedView = Animated.createAnimatedComponent(View);
-
-type Farmer = {
-  name: string;
-  distance: string;
-  crop: string;
-  qty: string;
-  status: 'confirmed' | 'pending' | 'invited';
-  avatar: string;
-  x: number;
-  y: number;
-  kind: 'user' | 'bundle' | 'other';
-};
-
-const mockFarmers: Farmer[] = [
-  { name: 'You', distance: '', crop: 'Tomato', qty: '12q', status: 'confirmed', avatar: '👨‍🌾', x: 60, y: 80, kind: 'user' },
-  { name: 'Ramesh', distance: '0.8km', crop: 'Tomato', qty: '8q', status: 'confirmed', avatar: '👨‍🌾', x: 140, y: 140, kind: 'bundle' },
-  { name: 'Sunita', distance: '1.2km', crop: 'Tomato', qty: '15q', status: 'confirmed', avatar: '👩‍🌾', x: 200, y: 80, kind: 'bundle' },
-  { name: 'Govind', distance: '2.1km', crop: 'Tomato', qty: '6q', status: 'pending', avatar: '👨‍🌾', x: 100, y: 200, kind: 'bundle' },
-  { name: 'Lakshmi', distance: '3.4km', crop: 'Onion', qty: '20q', status: 'invited', avatar: '👩‍🌾', x: 280, y: 160, kind: 'other' },
+// ─── Crop filter pills ────────────────────────────────────────────────────────
+const CROP_FILTERS = [
+  { label: 'All',    emoji: '🌾' },
+  { label: 'Tomato', emoji: '🍅' },
+  { label: 'Onion',  emoji: '🧅' },
+  { label: 'Potato', emoji: '🥔' },
+  { label: 'Chilli', emoji: '🌶️' },
 ];
 
-function TimelineStep({ label, state, activePulse }: { label: string; state: 'done' | 'active' | 'pending'; activePulse: SharedValue<number> }) {
-  const style = useAnimatedStyle(() => ({ transform: [{ scale: state === 'active' ? activePulse.value : 1 }] }));
+// ─── Header stats strip ───────────────────────────────────────────────────────
+function StatsStrip({ deals }: { deals: Deal[] }) {
+  const openDeals = deals.filter((d) => d.status === 'open' || d.status === 'filling').length;
+  const confirmedDeals = deals.filter((d) => d.status === 'confirmed' || d.status === 'truck_booked').length;
+  const totalFarmers = deals.reduce((s, d) => s + d.members.length, 0);
+
+  const statAnim = useSharedValue(0);
+  useEffect(() => {
+    statAnim.value = withTiming(1, { duration: 700 });
+  }, [statAnim]);
+  const statStyle = useAnimatedStyle(() => ({ opacity: statAnim.value }));
+
   return (
-    <View style={styles.stepItem}>
-      <AnimatedView style={[styles.stepCircle, state === 'done' ? styles.stepDone : state === 'active' ? styles.stepActive : styles.stepPending, style]}>
-        {state === 'done' ? <Text style={styles.check}>✓</Text> : state === 'active' ? <View style={styles.spinDot} /> : null}
-      </AnimatedView>
-      <Text style={styles.stepLabel}>{label}</Text>
+    <Animated.View style={[styles.statsStrip, statStyle]}>
+      <View style={styles.statItem}>
+        <Text style={styles.statNum}>{openDeals}</Text>
+        <Text style={styles.statLabel}>Active Deals</Text>
+      </View>
+      <View style={styles.statDivider} />
+      <View style={styles.statItem}>
+        <Text style={styles.statNum}>{totalFarmers}</Text>
+        <Text style={styles.statLabel}>Farmers In</Text>
+      </View>
+      <View style={styles.statDivider} />
+      <View style={styles.statItem}>
+        <Text style={[styles.statNum, { color: '#52B788' }]}>{confirmedDeals}</Text>
+        <Text style={styles.statLabel}>Confirmed</Text>
+      </View>
+    </Animated.View>
+  );
+}
+
+// ─── My Active Deal status card ───────────────────────────────────────────────
+function MyActiveDealCard({ deal, onViewDeal }: { deal: Deal; onViewDeal: () => void }) {
+  const pulse = useSharedValue(1);
+  useEffect(() => {
+    if (deal.status === 'truck_booked') {
+      pulse.value = withRepeat(
+        withSequence(withSpring(1.02, SPRING.gentle), withSpring(1, SPRING.gentle)),
+        -1,
+        true
+      );
+    }
+  }, [deal.status, pulse]);
+  const pulseStyle = useAnimatedStyle(() => ({ transform: [{ scale: pulse.value }] }));
+
+  const isTruckBooked = deal.status === 'truck_booked' || deal.status === 'departed';
+  const isConfirmed = deal.status === 'confirmed' || isTruckBooked;
+
+  const statusSteps = [
+    { label: 'Joined',    done: true },
+    { label: 'Confirmed', done: isConfirmed },
+    { label: 'Truck',     done: isTruckBooked },
+    { label: 'At Mandi',  done: deal.status === 'settled' },
+  ];
+
+  return (
+    <Animated.View style={[styles.myDealCard, pulseStyle]}>
+      <LinearGradient
+        colors={isConfirmed ? ['#1a4a2e', '#0d2b1f'] : ['#2d4a1e', '#1b3320']}
+        style={styles.myDealGradient}
+      >
+        <View style={styles.myDealHeader}>
+          <Text style={styles.myDealTitle}>My Active Deal</Text>
+          <Pressable onPress={onViewDeal} style={styles.myDealViewBtn}>
+            <Text style={styles.myDealViewText}>View →</Text>
+          </Pressable>
+        </View>
+
+        <View style={styles.myDealMeta}>
+          <Text style={styles.myDealCrop}>{deal.crop_emoji} {deal.crop}</Text>
+          <Text style={styles.myDealMandi}>→ {deal.target_mandi}</Text>
+        </View>
+
+        {/* Timeline */}
+        <View style={styles.myDealTimeline}>
+          {statusSteps.map((step, i) => (
+            <View key={step.label} style={styles.timelineItem}>
+              <View style={[styles.timelineDot, step.done && styles.timelineDotDone]} />
+              {i < statusSteps.length - 1 && (
+                <View style={[styles.timelineLine, step.done && styles.timelineLineDone]} />
+              )}
+              <Text style={[styles.timelineLabel, step.done && { color: COLORS.sprout }]}>
+                {step.label}
+              </Text>
+            </View>
+          ))}
+        </View>
+
+        {isTruckBooked && deal.truck && (
+          <View style={styles.truckInfoRow}>
+            <Text style={styles.truckInfoText}>
+              🚛 {deal.truck.driver_name} · {deal.truck.vehicle_no}
+            </Text>
+            <Text style={styles.truckInfoText}>
+              Pickup: {deal.truck.pickup_time}
+            </Text>
+          </View>
+        )}
+      </LinearGradient>
+    </Animated.View>
+  );
+}
+
+// ─── Empty state ──────────────────────────────────────────────────────────────
+function EmptyState({ onPost }: { onPost: () => void }) {
+  const bounce = useSharedValue(0);
+  useEffect(() => {
+    bounce.value = withRepeat(
+      withSequence(withTiming(-8, { duration: 700 }), withTiming(0, { duration: 700 })),
+      -1,
+      true
+    );
+  }, [bounce]);
+  const bounceStyle = useAnimatedStyle(() => ({ transform: [{ translateY: bounce.value }] }));
+
+  return (
+    <View style={styles.emptyState}>
+      <Animated.Text style={[styles.emptyEmoji, bounceStyle]}>🌾</Animated.Text>
+      <Text style={styles.emptyTitle}>No deals for this crop yet</Text>
+      <Text style={styles.emptySubtitle}>Be the first to post a deal and invite nearby farmers</Text>
+      <Pressable onPress={onPost} style={styles.emptyBtn}>
+        <Text style={styles.emptyBtnText}>Post First Deal →</Text>
+      </Pressable>
     </View>
   );
 }
 
-function Breakdown({ label, amount, style, color }: { label: string; amount: string; style: object; color: string }) {
-  return (
-    <View style={styles.breakdownRow}>
-      <Text style={styles.breakdownLabel}>{label}</Text>
-      <Text style={styles.breakdownAmount}>{amount}</Text>
-      <AnimatedView style={[styles.breakdownBar, { backgroundColor: color }, style as any]} />
-    </View>
-  );
-}
-
+// ─── MAIN SCREEN ─────────────────────────────────────────────────────────────
 export default function CooperativeScreen() {
-  const { t } = useT();
-  const { width } = useWindowDimensions();
-  const activePulse = useSharedValue(1);
-  const userPinPulse = useSharedValue(1);
-  const shimmer = useSharedValue(0.6);
-  const progress = useSharedValue(0);
-  const joinScale = useSharedValue(1);
-  const [quantity, setQuantity] = useState(8);
-  const [saving, setSaving] = useState(0);
-  const [members, setMembers] = useState(23);
-  const [joining, setJoining] = useState(false);
-  const [joined, setJoined] = useState(false);
-  
-  const [notified, setNotified] = useState(false);
-  const [truckBooking, setTruckBooking] = useState(false);
-  const [truckBooked, setTruckBooked] = useState(false);
+  const {
+    deals,
+    selectedDeal,
+    myJoinedDealIds,
+    triggeringDealId,
+    joinDeal,
+    postDeal,
+    openDeal,
+    closeDeal,
+    isMyDeal,
+  } = useDeals();
 
-  const bar1 = useSharedValue(0);
-  const bar2 = useSharedValue(0);
-  const bar3 = useSharedValue(0);
+  const [cropFilter, setCropFilter] = useState<string | null>(null);
+  const [showPostModal, setShowPostModal] = useState(false);
 
-  const farmer = useAppStore((s) => s.farmer);
-  const blockId = farmer?.block || null;
-  const { blockStatus } = useBlockStatus(blockId);
-  const { joinBundle } = useJoinBundle();
-
+  // Header entrance animation
+  const headerY = useSharedValue(-30);
+  const headerOpacity = useSharedValue(0);
   useEffect(() => {
-    shimmer.value = withRepeat(withSequence(withTiming(0.8, { duration: 1600 }), withTiming(0.6, { duration: 1600 })), -1, true);
-    activePulse.value = withRepeat(withSequence(withSpring(1.3, SPRING.bouncy), withSpring(1, SPRING.gentle)), -1, true);
-    progress.value = withTiming(0.46, { duration: 1500 });
-    bar1.value = withTiming(67, { duration: 1200 });
-    bar2.value = withTiming(22, { duration: 1200 });
-    bar3.value = withTiming(11, { duration: 1200 });
-    let s = 0;
-    const t = setInterval(() => {
-      s += 6;
-      if (s >= 180) { s = 180; clearInterval(t); }
-      setSaving(s);
-    }, 40);
-    return () => clearInterval(t);
-  }, [activePulse, bar1, bar2, bar3, progress, shimmer]);
+    headerY.value = withSpring(0, SPRING.gentle);
+    headerOpacity.value = withTiming(1, { duration: 500 });
+  }, [headerY, headerOpacity]);
+  const headerStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: headerY.value }],
+    opacity: headerOpacity.value,
+  }));
 
-  useEffect(() => {
-    if (blockStatus) {
-      setMembers(blockStatus.active_intents);
-    }
-  }, [blockStatus]);
+  // Filtered deals
+  const filteredDeals = cropFilter
+    ? deals.filter((d) => d.crop === cropFilter)
+    : deals;
 
-  const riverStyle = useAnimatedStyle(() => ({ opacity: shimmer.value }));
-  const joinStyle = useAnimatedStyle(() => ({ transform: [{ scale: joinScale.value }] }));
-  const bar1Style = useAnimatedStyle(() => ({ width: `${bar1.value}%` }));
-  const bar2Style = useAnimatedStyle(() => ({ width: `${bar2.value}%` }));
-  const bar3Style = useAnimatedStyle(() => ({ width: `${bar3.value}%` }));
+  // Find the deal I'm currently in (for the status card)
+  const myActiveDeal = deals.find((d) => myJoinedDealIds.includes(d.deal_id));
 
-  const membersBundle = mockFarmers.filter((f) => f.kind === 'bundle');
-  const bundleTarget = blockStatus?.active_intents || 50;
-  const progressValue = members / bundleTarget;
-
-  const onJoin = async () => {
-    joinScale.value = withSpring(0.96, SPRING.snappy);
-    hapticHeavy();
-    setJoining(true);
-
-    if (blockStatus?.active_bundles && blockStatus.active_bundles.length > 0) {
-      try {
-        await joinBundle(blockStatus.active_bundles[0].bundle_id, quantity, new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString());
-        setJoined(true);
-        setMembers((v) => v + 1);
-      } catch {
-        setJoined(false);
-      }
-    } else {
-      setTimeout(() => { setJoined(true); setMembers((v) => v + 1); }, 1500);
-    }
-
-    setTimeout(() => { joinScale.value = withSpring(1, SPRING.gentle); }, 120);
-    setTimeout(() => { setJoining(false); }, 1500);
-
-    userPinPulse.value = withRepeat(withSequence(withSpring(1.14, SPRING.bouncy), withSpring(1, SPRING.gentle)), 4, true);
+  const handleFilterPress = (label: string) => {
+    hapticLight();
+    setCropFilter(label === 'All' ? null : label === cropFilter ? null : label);
   };
-
-  const onBookTruck = async () => {
-    hapticHeavy();
-    setTruckBooking(true);
-
-    try {
-      const payload = {
-        bundle_id: "BNDL-TRANSPORT-" + Math.random().toString(36).substr(2, 4).toUpperCase(),
-        mandi: "Kolar Mandi",
-        weight: (quantity * members / 10).toFixed(1) + " tons",
-        driver_phone: "+916380221196" // Using your number for the test call
-      };
-
-      const result = await n8nService.triggerAutomation('truck_booking', payload);
-
-      if (result.status === "success" || result.status_code === 200) {
-        setTruckBooked(true);
-        Alert.alert(
-          "Call Initiated! 🚛",
-          "Automated booking call is reaching the driver (Anand Transport) now.",
-          [{ text: "Monitor Status" }]
-        );
-      } else {
-        Alert.alert("Booking Status", `Webhook response: ${result.status || 'unknown'}`);
-      }
-    } catch (err: any) {
-      Alert.alert("Booking Failed", err?.message || "Check backend connection for truck-booking workflow.");
-    } finally {
-      setTruckBooking(false);
-    }
-  };
-
-  const onNotifyFarmers = async () => {
-    hapticHeavy();
-    setJoining(true);
-    
-    try {
-      const phoneNum = "+916380221196"; 
-      
-      const payload = {
-        bundle_id: "BNDL-" + Math.random().toString(36).substr(2, 6).toUpperCase(),
-        crop: "Tomato",
-        message: "Great news! Our tomato cooperative bundle is confirmed. You saved ₹180/quintal on transport.",
-        language: "hi",
-        farmer_phones: [phoneNum]
-      };
-      
-      const result = await n8nService.triggerBundleNotification(payload);
-      
-      if (result.status === "success" || result.status_code === 200) {
-        setNotified(true);
-        Alert.alert(
-          "Notifications Sent! 🚀",
-          `Localized alerts sent to ${phoneNum}.\nNow you can book transport.`,
-          [{ text: "Great!" }]
-        );
-      }
-    } catch (err: any) {
-      Alert.alert("Process Failed", "Check n8n Executions or terminal for bridge logs.");
-    } finally {
-      setJoining(false);
-    }
-  };
-
-  const progressDegrees = progressValue * 360;
 
   return (
     <View style={styles.container}>
-      <ScrollView contentContainerStyle={{ paddingBottom: 120 }}>
-        <View style={styles.mapSection}>
-          <View style={styles.mapBackground}>
-            <View style={styles.gridLines}>
-              {[1, 2, 3, 4].map((i) => <View key={`h-${i}`} style={[styles.gridH, { top: 70 * i }]} />)}
-              {[1, 2, 3, 4].map((i) => <View key={`v-${i}`} style={[styles.gridV, { left: width * i / 5 }]} />)}
+      {/* ── Hero header ── */}
+      <Animated.View style={[styles.header, headerStyle]}>
+        <LinearGradient colors={['#0d2b1f', '#1B4332']} style={styles.headerGrad}>
+          <View style={styles.headerTop}>
+            <View>
+              <Text style={styles.headerTitle}>Virtual Cooperative 🤝</Text>
+              <Text style={styles.headerSub}>Pool produce · Best price · Shared truck</Text>
             </View>
-            <View style={styles.riverPath} />
+            <Pressable
+              onPress={() => { hapticHeavy(); setShowPostModal(true); }}
+              style={styles.postBtn}
+            >
+              <LinearGradient colors={[COLORS.harvest, '#D97706']} style={styles.postBtnGrad}>
+                <Text style={styles.postBtnText}>+ Post Deal</Text>
+              </LinearGradient>
+            </Pressable>
           </View>
 
-          {mockFarmers.map((f, i) => (
-            <View key={f.name} style={[styles.farmerPin, { left: f.x - 20, top: f.y - 20 }]}>
-              <Text style={styles.farmerAvatar}>{f.avatar}</Text>
-              {f.kind === 'user' && <View style={styles.pulseRing} />}
-            </View>
-          ))}
+          <StatsStrip deals={deals} />
+        </LinearGradient>
+      </Animated.View>
 
-          <View style={styles.mapControls}>
-            <Pressable style={styles.ctrlBtn}><Text style={styles.ctrlTxt}>+</Text></Pressable>
-            <Pressable style={styles.ctrlBtn}><Text style={styles.ctrlTxt}>-</Text></Pressable>
-            <View style={styles.compass}><Text style={styles.ctrlTxt}>N</Text></View>
-          </View>
-        </View>
-
-        <View style={styles.statusCard}>
-          <View style={styles.progressRow}>
-            <View style={styles.progressRing}>
-              <View style={[styles.progressFill, { transform: [{ rotate: `${progressDegrees}deg` }] }]} />
-              <View style={styles.progressCenter}>
-                <Text style={styles.progressNum}>{members}/{bundleTarget}</Text>
-                <Text style={styles.progressSub}>{t('farmers')}</Text>
-              </View>
-            </View>
-            <View style={{ flex: 1, marginLeft: 16 }}>
-              <Text style={styles.formTitle}>
-                {blockStatus?.oversupply_crops?.length ? `${t('cooperativeSection')}: ${blockStatus.oversupply_crops.join(', ')}` : t('cooperativeSection')}
-              </Text>
-              <Text style={styles.formSub}>
-                {bundleTarget - members} {t('moreForSavings')}
-              </Text>
-            </View>
-          </View>
-
-          <View style={styles.timeline}>
-            <TimelineStep label={t('intents')} state="done" activePulse={activePulse} />
-            <View style={[styles.connect, { backgroundColor: '#52B788' }]} />
-            <TimelineStep label={t('aiNegotiating')} state="done" activePulse={activePulse} />
-            <View style={[styles.connect, { backgroundColor: '#52B788' }]} />
-            <TimelineStep label={t('mandiSelected')} state="done" activePulse={activePulse} />
-            <View style={[styles.connect, { backgroundColor: notified ? '#52B788' : '#374151' }]} />
-            <TimelineStep label={t('truckBooked')} state={truckBooked ? "done" : truckBooking ? "active" : "pending"} activePulse={activePulse} />
-          </View>
-        </View>
-
-        <View style={styles.listWrap}>
-          {mockFarmers.map((f, i) => (
-            <View key={f.name} style={styles.farmerRow}>
-              <Text style={styles.farmerAvatarSmall}>{f.avatar}</Text>
-              <View style={{ flex: 1, marginLeft: 12 }}>
-                <Text style={styles.farmerName}>{f.name}</Text>
-                <Text style={styles.farmerInfo}>{f.distance} · {f.crop} · {f.qty}</Text>
-              </View>
-              <View style={[styles.statusBadge, { backgroundColor: f.status === 'confirmed' ? '#52B788' : f.status === 'pending' ? COLORS.harvest : '#6B7280' }]}>
-                <Text style={styles.statusText}>{f.status}</Text>
-              </View>
-            </View>
-          ))}
-        </View>
-
-        <View style={styles.saveCard}>
-          <Text style={styles.saveHead}>{t('yourSavings')}</Text>
-          <Text style={styles.saveValue}>₹{saving}/quintal</Text>
-
-          <Breakdown label={t('transportSaved')} amount="₹120" style={bar1Style} color="#52B788" />
-          <Breakdown label={t('betterPrice')} amount="₹40" style={bar2Style} color={COLORS.harvest} />
-          <Breakdown label={t('lessWastage')} amount="₹20" style={bar3Style} color={COLORS.sprout} />
-
-          <Text style={styles.qty}>{t('yourQuantity')}: {quantity} qtl</Text>
-          <Pressable style={styles.sliderTrack} onPress={(e) => { hapticLight(); const x = e.nativeEvent.locationX; const q = Math.max(1, Math.min(100, Math.round((x / 260) * 100))); setQuantity(q); }}>
-            <View style={[styles.sliderFill, { width: `${quantity}%` }]} />
-            <View style={[styles.sliderThumb, { left: `${quantity}%` }]} />
-          </Pressable>
-          <Text style={styles.total}>{t('totalSaving')}: ₹{(quantity * 180).toLocaleString()}</Text>
-        </View>
-
-
-        <AnimatedPressable style={[styles.joinBtn, joinStyle, joined && { backgroundColor: '#52B788' }]} onPress={onJoin}>
-          <LinearGradient colors={joined ? ['#52B788', '#52B788'] : [COLORS.harvest, '#D97706']} style={styles.joinGrad}>
-            <Text style={styles.joinText}>
-              {joining ? t('joining') : joined ? t('joined') : t('joinBundle')}
-            </Text>
-          </LinearGradient>
-        </AnimatedPressable>
-
-        {joined && !notified && (
-          <AnimatedPressable 
-            style={[styles.notifyBtn, { transform: [{ scale: activePulse.value }] }]} 
-            onPress={onNotifyFarmers}
-            disabled={joining}
-          >
-            <LinearGradient colors={['#52B788', '#2D6A4F']} style={styles.joinGrad}>
-              <Text style={styles.notifyText}>
-                {joining ? "Sending Alerts..." : "Confirm & Notify All 🚀"}
-              </Text>
-            </LinearGradient>
-          </AnimatedPressable>
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* ── My Active Deal card ── */}
+        {myActiveDeal && (
+          <MyActiveDealCard
+            deal={myActiveDeal}
+            onViewDeal={() => openDeal(myActiveDeal)}
+          />
         )}
 
-        {joined && (
-          <AnimatedPressable
-            style={[styles.bookTruckBtn, { transform: [{ scale: activePulse.value }] }]}
-            onPress={onBookTruck}
-            disabled={truckBooking || truckBooked}
+        {/* ── Crop filter pills ── */}
+        <View style={styles.filterSection}>
+          <Text style={styles.filterTitle}>Deals Near You</Text>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.filterRow}
           >
-            <LinearGradient colors={truckBooked ? ['#BFC0C0', '#9EA1A1'] : ['#E63946', '#A8202A']} style={styles.joinGrad}>
-              <Text style={styles.notifyText}>
-                {truckBooking ? "Calling Driver..." : truckBooked ? "Truck Booked! 🚛" : "Book Truck Now 🚛"}
-              </Text>
-            </LinearGradient>
-          </AnimatedPressable>
+            {CROP_FILTERS.map((f) => {
+              const isActive = (f.label === 'All' && !cropFilter) || f.label === cropFilter;
+              return (
+                <Pressable
+                  key={f.label}
+                  onPress={() => handleFilterPress(f.label)}
+                  style={[styles.filterPill, isActive && styles.filterPillActive]}
+                >
+                  <Text style={styles.filterEmoji}>{f.emoji}</Text>
+                  <Text style={[styles.filterLabel, isActive && styles.filterLabelActive]}>
+                    {f.label}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </ScrollView>
+        </View>
+
+        {/* ── Deal cards ── */}
+        {filteredDeals.length === 0 ? (
+          <EmptyState onPost={() => setShowPostModal(true)} />
+        ) : (
+          filteredDeals.map((deal) => (
+            <DealCard
+              key={deal.deal_id}
+              deal={deal}
+              isJoined={isMyDeal(deal.deal_id)}
+              onPress={openDeal}
+            />
+          ))
         )}
+
+        {/* ── How it works strip ── */}
+        <View style={styles.howSection}>
+          <Text style={styles.howTitle}>How it works</Text>
+          <View style={styles.howSteps}>
+            {[
+              { icon: '📋', text: 'Browse deals or post your own' },
+              { icon: '🤝', text: 'Join a deal — add your quantity' },
+              { icon: '🎯', text: 'Target hit → all farmers notified' },
+              { icon: '🚛', text: 'Truck auto-booked, goods shipped' },
+            ].map((s, i) => (
+              <View key={i} style={styles.howStep}>
+                <View style={styles.howIconCircle}>
+                  <Text style={styles.howIcon}>{s.icon}</Text>
+                </View>
+                {i < 3 && <View style={styles.howLine} />}
+                <Text style={styles.howStepText}>{s.text}</Text>
+              </View>
+            ))}
+          </View>
+        </View>
       </ScrollView>
+
+      {/* ── Deal Detail Bottom Sheet ── */}
+      <DealDetailSheet
+        deal={selectedDeal}
+        visible={!!selectedDeal}
+        isJoined={selectedDeal ? isMyDeal(selectedDeal.deal_id) : false}
+        isTriggering={selectedDeal ? triggeringDealId === selectedDeal.deal_id : false}
+        onClose={closeDeal}
+        onJoin={joinDeal}
+      />
+
+      {/* ── Post Deal Modal ── */}
+      <PostDealModal
+        visible={showPostModal}
+        onClose={() => setShowPostModal(false)}
+        onPost={postDeal}
+      />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.night },
-  mapSection: { height: 280, backgroundColor: '#0D2B1F', position: 'relative' },
-  mapBackground: { ...StyleSheet.absoluteFillObject },
-  gridLines: { ...StyleSheet.absoluteFillObject },
-  gridH: { position: 'absolute', left: 0, right: 0, height: 6, backgroundColor: '#374151', opacity: 0.6 },
-  gridV: { position: 'absolute', top: 0, bottom: 0, width: 6, backgroundColor: '#374151', opacity: 0.6 },
-  riverPath: { position: 'absolute', left: 10, right: 14, bottom: 0, height: 200, borderTopWidth: 8, borderTopColor: '#1E40AF', borderRadius: 4, opacity: 0.6 },
-  farmerPin: { position: 'absolute', width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
-  farmerAvatar: { fontSize: 28 },
-  pulseRing: { position: 'absolute', width: 50, height: 50, borderRadius: 25, borderWidth: 2, borderColor: COLORS.harvest },
-  mapControls: { position: 'absolute', right: 12, top: 12, gap: 8 },
-  ctrlBtn: { width: 36, height: 36, backgroundColor: COLORS.forest, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
-  ctrlTxt: { color: COLORS.white, fontSize: 18, fontFamily: FONTS.bold },
-  compass: { width: 36, height: 36, backgroundColor: COLORS.forest, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
-  statusCard: { backgroundColor: COLORS.forest, borderRadius: 20, margin: 12, padding: 16 },
-  progressRow: { flexDirection: 'row', alignItems: 'center' },
-  progressRing: { width: 120, height: 120, alignItems: 'center', justifyContent: 'center' },
-  progressFill: { position: 'absolute', width: 120, height: 120, borderRadius: 60, borderWidth: 10, borderColor: COLORS.harvest, borderTopColor: 'transparent', borderRightColor: 'transparent' },
-  progressCenter: { alignItems: 'center' },
-  progressNum: { color: COLORS.white, fontFamily: FONTS.mono, fontSize: 24 },
-  progressSub: { color: COLORS.muted, fontFamily: FONTS.body, fontSize: 12 },
-  formTitle: { color: COLORS.white, fontFamily: FONTS.bold, fontSize: 16 },
-  formSub: { color: COLORS.muted, fontFamily: FONTS.body, fontSize: 12, marginTop: 4 },
-  timeline: { flexDirection: 'row', alignItems: 'center', marginTop: 16, justifyContent: 'space-between' },
-  stepItem: { alignItems: 'center' },
-  stepCircle: { width: 28, height: 28, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
-  stepDone: { backgroundColor: '#52B788' },
-  stepActive: { backgroundColor: COLORS.harvest },
-  stepPending: { backgroundColor: '#374151' },
-  check: { color: '#FFF', fontSize: 14 },
-  spinDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: '#FFF' },
-  stepLabel: { color: COLORS.muted, fontFamily: FONTS.body, fontSize: 10, marginTop: 4, textAlign: 'center' },
-  connect: { flex: 1, height: 2, marginHorizontal: 4 },
-  listWrap: { margin: 12 },
-  farmerRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.forest, borderRadius: 12, padding: 12, marginBottom: 8 },
-  farmerAvatarSmall: { fontSize: 24 },
-  farmerName: { color: COLORS.white, fontFamily: FONTS.bold, fontSize: 14 },
-  farmerInfo: { color: COLORS.muted, fontFamily: FONTS.body, fontSize: 11 },
-  statusBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999 },
-  statusText: { color: '#FFF', fontFamily: FONTS.bodyMed, fontSize: 10 },
-  saveCard: { backgroundColor: COLORS.forest, borderRadius: 20, margin: 12, padding: 16 },
-  saveHead: { color: COLORS.sprout, fontFamily: FONTS.bodyMed, fontSize: 14, textAlign: 'center' },
-  saveValue: { color: COLORS.harvest, fontFamily: FONTS.mono, fontSize: 36, textAlign: 'center', marginVertical: 12 },
-  breakdownRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
-  breakdownLabel: { flex: 1, color: COLORS.muted, fontFamily: FONTS.body, fontSize: 12 },
-  breakdownAmount: { color: COLORS.white, fontFamily: FONTS.bodyMed, fontSize: 12, marginRight: 12, width: 50, textAlign: 'right' },
-  breakdownBar: { height: 6, borderRadius: 3, width: 80 },
-  qty: { color: COLORS.white, fontFamily: FONTS.bodyMed, fontSize: 14, marginTop: 16 },
-  sliderTrack: { height: 8, backgroundColor: COLORS.night, borderRadius: 4, marginVertical: 12, position: 'relative' },
-  sliderFill: { height: '100%', backgroundColor: COLORS.harvest, borderRadius: 4 },
-  sliderThumb: { position: 'absolute', top: -8, width: 24, height: 24, borderRadius: 12, backgroundColor: COLORS.harvest, marginLeft: -12 },
-  total: { color: COLORS.sprout, fontFamily: FONTS.bold, fontSize: 16, textAlign: 'center', marginTop: 8 },
-  joinBtn: { margin: 12, borderRadius: 16, overflow: 'hidden' },
-  notifyBtn: { margin: 12, marginTop: 4, borderRadius: 16, overflow: 'hidden', borderWidth: 2, borderColor: '#52B788' },
-  bookTruckBtn: { margin: 12, marginTop: 4, borderRadius: 16, overflow: 'hidden', borderWidth: 2, borderColor: '#E63946' },
-  joinGrad: { paddingVertical: 18, alignItems: 'center' },
-  joinText: { color: COLORS.night, fontFamily: FONTS.bold, fontSize: 16 },
-  notifyText: { color: COLORS.white, fontFamily: FONTS.bold, fontSize: 16 },
+
+  header: { overflow: 'hidden' },
+  headerGrad: { paddingTop: 52, paddingHorizontal: 16, paddingBottom: 0 },
+  headerTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 },
+  headerTitle: { color: COLORS.white, fontFamily: FONTS.bold, fontSize: 20 },
+  headerSub: { color: COLORS.sprout, fontFamily: FONTS.body, fontSize: 12, marginTop: 3 },
+  postBtn: { borderRadius: 12, overflow: 'hidden' },
+  postBtnGrad: { paddingHorizontal: 16, paddingVertical: 10 },
+  postBtnText: { color: COLORS.night, fontFamily: FONTS.bold, fontSize: 13 },
+
+  statsStrip: {
+    flexDirection: 'row',
+    backgroundColor: COLORS.forest,
+    borderRadius: 14,
+    marginBottom: 0,
+    padding: 14,
+    marginTop: 0,
+  },
+  statItem: { flex: 1, alignItems: 'center' },
+  statNum: { color: COLORS.harvest, fontFamily: FONTS.mono, fontSize: 22 },
+  statLabel: { color: COLORS.muted, fontFamily: FONTS.body, fontSize: 11, marginTop: 2 },
+  statDivider: { width: 1, backgroundColor: COLORS.canopy, marginVertical: 4 },
+
+  scrollContent: { paddingBottom: 120, paddingTop: 12 },
+
+  // My active deal card
+  myDealCard: { marginHorizontal: 16, marginBottom: 14, borderRadius: 18, overflow: 'hidden' },
+  myDealGradient: { padding: 16 },
+  myDealHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
+  myDealTitle: { color: COLORS.white, fontFamily: FONTS.bold, fontSize: 14 },
+  myDealViewBtn: { backgroundColor: '#ffffff20', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 4 },
+  myDealViewText: { color: COLORS.sprout, fontFamily: FONTS.bodyMed, fontSize: 12 },
+  myDealMeta: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 },
+  myDealCrop: { color: COLORS.white, fontFamily: FONTS.bodyMed, fontSize: 15 },
+  myDealMandi: { color: COLORS.sprout, fontFamily: FONTS.body, fontSize: 13 },
+  myDealTimeline: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
+  timelineItem: { flexDirection: 'row', alignItems: 'center', flex: 1 },
+  timelineDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: COLORS.canopy, marginRight: 0 },
+  timelineDotDone: { backgroundColor: '#52B788' },
+  timelineLine: { flex: 1, height: 2, backgroundColor: COLORS.canopy, marginHorizontal: 2 },
+  timelineLineDone: { backgroundColor: '#52B788' },
+  timelineLabel: { position: 'absolute', top: 14, left: 0, color: COLORS.muted, fontFamily: FONTS.body, fontSize: 9 },
+  truckInfoRow: { backgroundColor: '#ffffff10', borderRadius: 10, padding: 10, marginTop: 4, gap: 4 },
+  truckInfoText: { color: COLORS.sprout, fontFamily: FONTS.body, fontSize: 12 },
+
+  // Filter section
+  filterSection: { marginBottom: 16, paddingHorizontal: 16 },
+  filterTitle: { color: COLORS.white, fontFamily: FONTS.bold, fontSize: 18, marginBottom: 10 },
+  filterRow: { gap: 8 },
+  filterPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: COLORS.forest,
+    borderRadius: 24,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderWidth: 1.5,
+    borderColor: 'transparent',
+  },
+  filterPillActive: { borderColor: COLORS.harvest, backgroundColor: COLORS.canopy },
+  filterEmoji: { fontSize: 16 },
+  filterLabel: { color: COLORS.muted, fontFamily: FONTS.bodyMed, fontSize: 13 },
+  filterLabelActive: { color: COLORS.white },
+
+  // Empty state
+  emptyState: { alignItems: 'center', paddingVertical: 48, paddingHorizontal: 32 },
+  emptyEmoji: { fontSize: 64, marginBottom: 16 },
+  emptyTitle: { color: COLORS.white, fontFamily: FONTS.bold, fontSize: 18, textAlign: 'center', marginBottom: 8 },
+  emptySubtitle: { color: COLORS.muted, fontFamily: FONTS.body, fontSize: 14, textAlign: 'center', marginBottom: 24 },
+  emptyBtn: { backgroundColor: COLORS.harvest, borderRadius: 12, paddingHorizontal: 24, paddingVertical: 12 },
+  emptyBtnText: { color: COLORS.night, fontFamily: FONTS.bold, fontSize: 14 },
+
+  // How it works
+  howSection: { marginHorizontal: 16, marginTop: 24, backgroundColor: COLORS.forest, borderRadius: 20, padding: 16 },
+  howTitle: { color: COLORS.white, fontFamily: FONTS.bold, fontSize: 15, marginBottom: 16 },
+  howSteps: { gap: 16 },
+  howStep: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
+  howIconCircle: { width: 36, height: 36, borderRadius: 18, backgroundColor: COLORS.canopy, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
+  howIcon: { fontSize: 18 },
+  howLine: { display: 'none' }, // horizontal version not needed in column layout
+  howStepText: { flex: 1, color: COLORS.muted, fontFamily: FONTS.body, fontSize: 13, paddingTop: 8 },
 });

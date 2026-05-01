@@ -1,0 +1,95 @@
+﻿{
+  "name": "Daily Weather Alerts",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 5,
+              "triggerAtMinute": 0,
+              "timezone": "Asia/Kolkata"
+            }
+          ]
+        }
+      },
+      "id": "cron-5am",
+      "name": "Cron — 5:00 AM IST Daily",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [120, 280]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://backend:8000/api/weather/alerts/check",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            { "name": "state", "value": "Karnataka" },
+            { "name": "district", "value": "Kolar" },
+            { "name": "block_id", "value": "KA-KOL-06" },
+            { "name": "crop", "value": "Tomato" },
+            { "name": "forecast_rain_mm", "value": "42" },
+            { "name": "hail_probability", "value": "0.2" },
+            { "name": "wind_kmph", "value": "26" }
+          ]
+        }
+      },
+      "id": "check-weather",
+      "name": "Check Weather Alert",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [360, 280]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.push_sent }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "if-alert",
+      "name": "Alert Needed?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [600, 280]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://backend:8000/api/news/notify",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            { "name": "article_id", "value": "={{ $json.alert_id }}" },
+            { "name": "urgency", "value": "={{ $json.severity }}" }
+          ]
+        }
+      },
+      "id": "push-notify",
+      "name": "Push Notification Trigger",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [860, 220]
+    }
+  ],
+  "connections": {
+    "Cron — 5:00 AM IST Daily": {
+      "main": [[{ "node": "Check Weather Alert", "type": "main", "index": 0 }]]
+    },
+    "Check Weather Alert": {
+      "main": [[{ "node": "Alert Needed?", "type": "main", "index": 0 }]]
+    },
+    "Alert Needed?": {
+      "main": [[{ "node": "Push Notification Trigger", "type": "main", "index": 0 }], []]
+    }
+  },
+  "settings": { "executionOrder": "v1" },
+  "tags": ["weather", "alerts", "push", "cron"],
+  "versionId": "1"
+}

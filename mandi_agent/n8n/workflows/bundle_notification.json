@@ -1,0 +1,221 @@
+﻿{
+  "name": "Bundle Notification",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "bundle-formed",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "webhook-bundle-formed",
+      "name": "Webhook: Bundle Formed",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [100, 300],
+      "webhookId": "bundle-formed"
+    },
+    {
+      "parameters": {
+        "operation": "manual",
+        "batchSize": 5,
+        "options": {}
+      },
+      "id": "split-farmers",
+      "name": "Loop: Per Farmer",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 2,
+      "position": [350, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://backend:8000/api/translate",
+        "method": "POST",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "text",
+              "value": "={{ $json.message }}"
+            },
+            {
+              "name": "source_language",
+              "value": "en"
+            },
+            {
+              "name": "target_language",
+              "value": "={{ $json.language }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "reverie-translate",
+      "name": "Reverie: Translate to Local Language",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [600, 300]
+    },
+    {
+      "parameters": {
+        "resource": "media",
+        "channel": "whatsapp",
+        "from": "={{ $env.TWILIO_WHATSAPP_FROM }}",
+        "to": "=whatsapp:{{ $json.farmer_phone }}",
+        "messageType": "text",
+        "mediaUrl": "",
+        "options": {}
+      },
+      "id": "twilio-bundle-msg",
+      "name": "Send Bundle Confirmation WhatsApp",
+      "type": "n8n-nodes-base.twilio",
+      "typeVersion": 1,
+      "position": [850, 300],
+      "credentials": {
+        "twilioApi": {
+          "id": "twilio-creds",
+          "name": "Twilio API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "database": "mandi_agent",
+        "table": "bundles",
+        "columns": "bundle_id,block_id,crop,farmer_ids,total_quantity,status,created_at",
+        "values": "={{ $json.bundle.bundle_id }},={{ $json.bundle.block_id }},={{ $json.bundle.crop }},={{ JSON.stringify($json.bundle.farmer_ids) }},={{ $json.bundle.total_quantity_quintals }},confirmed,NOW()",
+        "options": {}
+      },
+      "id": "supabase-create-bundle",
+      "name": "Create Bundle in Supabase",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [1100, 300],
+      "credentials": {
+        "supabaseApi": {
+          "id": "supabase-creds",
+          "name": "Supabase"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "spreadsheetId": "={{ $env.GOOGLE_SHEETS_BUNDLE_ID }}",
+        "sheet": "Transport Manifests",
+        "options": {
+          "valueInputMode": "USER_ENTERED"
+        },
+        "values": {
+          "values": ["={{ $json.bundle.bundle_id }}", "={{ $json.bundle.crop }}", "={{ $json.bundle.target_mandi }}", "={{ $json.bundle.delivery_window_start }}", "={{ $json.bundle.total_quantity_quintals }}", "={{ $json.bundle.transport_saving_per_quintal }}", "={{ $json.bundle.farmer_ids }}", "={{ $json.triggered_at }}"]
+        }
+      },
+      "id": "google-sheets-manifest",
+      "name": "Google Sheets: Create Transport Manifest",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 3,
+      "position": [1350, 300]
+    },
+    {
+      "parameters": {
+        "url": "={{ $env.PORTER_API_URL }}/bookings",
+        "method": "POST",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "from_location",
+              "value": "={{ $json.bundle.block_id }}"
+            },
+            {
+              "name": "to_location",
+              "value": "={{ $json.bundle.target_mandi }}"
+            },
+            {
+              "name": "cargo_type",
+              "value": "={{ $json.bundle.crop }}"
+            },
+            {
+              "name": "quantity_tonnes",
+              "value": "={{ $json.bundle.total_quantity_quintals / 10 }}"
+            },
+            {
+              "name": "pickup_date",
+              "value": "={{ $json.bundle.delivery_window_start }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "porter-booking",
+      "name": "Porter API: Create Truck Booking",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [1600, 300]
+    }
+  ],
+  "connections": {
+    "Webhook: Bundle Formed": {
+      "main": [
+        [{
+          "node": "Loop: Per Farmer",
+          "type": "main",
+          "index": 0
+        }]
+      ]
+    },
+    "Loop: Per Farmer": {
+      "main": [
+        [{
+          "node": "Reverie: Translate to Local Language",
+          "type": "main",
+          "index": 0
+        }]
+      ]
+    },
+    "Reverie: Translate to Local Language": {
+      "main": [
+        [{
+          "node": "Send Bundle Confirmation WhatsApp",
+          "type": "main",
+          "index": 0
+        }]
+      ]
+    },
+    "Send Bundle Confirmation WhatsApp": {
+      "main": [
+        [{
+          "node": "Create Bundle in Supabase",
+          "type": "main",
+          "index": 0
+        }]
+      ]
+    },
+    "Create Bundle in Supabase": {
+      "main": [
+        [{
+          "node": "Google Sheets: Create Transport Manifest",
+          "type": "main",
+          "index": 0
+        }]
+      ]
+    },
+    "Google Sheets: Create Transport Manifest": {
+      "main": [
+        [{
+          "node": "Porter API: Create Truck Booking",
+          "type": "main",
+          "index": 0
+        }]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": ["bundle", "whatsapp", "transport"],
+  "triggerCount": 1,
+  "updatedAt": "2026-03-20T00:00:00.000Z",
+  "versionId": "1"
+}

@@ -1,0 +1,313 @@
+﻿{
+  "name": "Price Crash Broadcast",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "price-crash",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "webhook-price-crash",
+      "name": "Webhook: Price Crash Warning",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [100, 300],
+      "webhookId": "price-crash"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "drop-threshold",
+              "leftValue": "={{ $json.drop_pct }}",
+              "rightValue": 25,
+              "operator": {
+                "type": "boolean",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-drop-gt-25",
+      "name": "If drop > 25%",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [350, 300]
+    },
+    {
+      "parameters": {
+        "message": "🚨 *Price Crash Alert — {{ $json.block_id }}*\n\nCrop: *{{ $json.crop }}*\nCurrent Price: *₹{{ $json.current_price }}/quintal*\nForecast Price: *₹{{ $json.forecast_price }}/quintal}*\nPrice Drop: *{{ $json.drop_pct }}%*\n\nAffected Farmers: {{ $json.affected_farmer_count }}\n\nAlternative Mandi: *{{ $json.alternative_mandi }}*\nPrice There: *₹{{ $json.alternative_price }}/quintal}*",
+        "chatId": "={{ $env.TELEGRAM_BLOCK_GROUP_ID }}",
+        "additionalFields": {
+          "parse_mode": "Markdown"
+        },
+        "options": {}
+      },
+      "id": "telegram-broadcast",
+      "name": "Telegram: Broadcast to Block Group",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1,
+      "position": [600, 200],
+      "credentials": {
+        "telegramApi": {
+          "id": "telegram-creds",
+          "name": "Telegram Bot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "database": "mandi_agent",
+        "table": "price_crash_events",
+        "columns": "block_id,crop,current_price,forecast_price,drop_pct,alternative_mandi,alternative_price,affected_farmers,created_at",
+        "values": "={{ $json.block_id }},={{ $json.crop }},={{ $json.current_price }},={{ $json.forecast_price }},={{ $json.drop_pct }},={{ $json.alternative_mandi }},={{ $json.alternative_price }},={{ $json.affected_farmer_count }},NOW()",
+        "options": {}
+      },
+      "id": "notion-log-crash",
+      "name": "Notion: Log Price Crash Event",
+      "type": "n8n-nodes-base.notion",
+      "typeVersion": 1,
+      "position": [850, 200],
+      "credentials": {
+        "notionApi": {
+          "id": "notion-creds",
+          "name": "Notion API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "database": "mandi_agent",
+        "table": "price_crash_events",
+        "columns": "block_id,crop,current_price,forecast_price,drop_pct,created_at",
+        "values": "={{ $json.block_id }},={{ $json.crop }},={{ $json.current_price }},={{ $json.forecast_price }},={{ $json.drop_pct }},NOW()",
+        "options": {}
+      },
+      "id": "supabase-log-crash",
+      "name": "Supabase: Log Price Crash",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [1100, 200],
+      "credentials": {
+        "supabaseApi": {
+          "id": "supabase-creds",
+          "name": "Supabase"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "severe-crash",
+              "leftValue": "={{ $json.drop_pct }}",
+              "rightValue": 40,
+              "operator": {
+                "type": "boolean",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-severe-crash",
+      "name": "If severe crash (>40%)",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [600, 400]
+    },
+    {
+      "parameters": {
+        "webhookUrl": "={{ $env.SLACK_WEBHOOK_URL }}",
+        "channel": "#mandi-ops",
+        "blocks": {
+          "blocks": [
+            {
+              "type": "header",
+              "text": {
+                "type": "plain_text",
+                "text": "⚠️ Price Crash Alert"
+              }
+            },
+            {
+              "type": "section",
+              "fields": [
+                {
+                  "type": "mrkdwn",
+                  "text": "*Block:*\n{{ $json.block_id }}"
+                },
+                {
+                  "type": "mrkdwn",
+                  "text": "*Crop:*\n{{ $json.crop }}"
+                },
+                {
+                  "type": "mrkdwn",
+                  "text": "*Current Price:*\n₹{{ $json.current_price }}"
+                },
+                {
+                  "type": "mrkdwn",
+                  "text": "*Forecast:*\n₹{{ $json.forecast_price }}"
+                },
+                {
+                  "type": "mrkdwn",
+                  "text": "*Drop:*\n{{ $json.drop_pct }}%"
+                },
+                {
+                  "type": "mrkdwn",
+                  "text": "*Affected Farmers:*\n{{ $json.affected_farmer_count }}"
+                }
+              ]
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "slack-crash-alert",
+      "name": "Slack: Alert #mandi-ops",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 1,
+      "position": [850, 400]
+    },
+    {
+      "parameters": {
+        "message": "Mandi-Agent Alert: {{ $json.crop }} price in {{ $json.block_id }} has crashed {{ $json.drop_pct }}% to ₹{{ $json.forecast_price }}. Alternative mandi: {{ $json.alternative_mandi }} at ₹{{ $json.alternative_price }}.",
+        "chatId": "={{ $env.TELEGRAM_BLOCK_GROUP_ID }}",
+        "options": {}
+      },
+      "id": "telegram-followup",
+      "name": "Telegram: Follow-up Alert",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1,
+      "position": [600, 600],
+      "credentials": {
+        "telegramApi": {
+          "id": "telegram-creds",
+          "name": "Telegram Bot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "http://backend:8000/api/harvest-intent/recalculate",
+        "method": "POST",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "block_id",
+              "value": "={{ $json.block_id }}"
+            },
+            {
+              "name": "crop",
+              "value": "={{ $json.crop }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "http-recalculate",
+      "name": "POST /api/harvest-intent/recalculate",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [850, 600]
+    }
+  ],
+  "connections": {
+    "Webhook: Price Crash Warning": {
+      "main": [
+        [{
+          "node": "If drop > 25%",
+          "type": "main",
+          "index": 0
+        }]
+      ]
+    },
+    "If drop > 25%": {
+      "main": [
+        [{
+          "node": "Telegram: Broadcast to Block Group",
+          "type": "main",
+          "index": 0
+        }],
+        [{
+          "node": "If severe crash (>40%)",
+          "type": "main",
+          "index": 0
+        }]
+      ]
+    },
+    "Telegram: Broadcast to Block Group": {
+      "main": [
+        [{
+          "node": "Notion: Log Price Crash Event",
+          "type": "main",
+          "index": 0
+        }]
+      ]
+    },
+    "Notion: Log Price Crash Event": {
+      "main": [
+        [{
+          "node": "Supabase: Log Price Crash",
+          "type": "main",
+          "index": 0
+        }]
+      ]
+    },
+    "If severe crash (>40%)": {
+      "main": [
+        [{
+          "node": "Slack: Alert #mandi-ops",
+          "type": "main",
+          "index": 0
+        }]
+      ]
+    },
+    "Slack: Alert #mandi-ops": {
+      "main": [
+        [{
+          "node": "Telegram: Follow-up Alert",
+          "type": "main",
+          "index": 0
+        }]
+      ]
+    },
+    "Telegram: Follow-up Alert": {
+      "main": [
+        [{
+          "node": "POST /api/harvest-intent/recalculate",
+          "type": "main",
+          "index": 0
+        }]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": ["price-crash", "broadcast", "telegram", "alert"],
+  "triggerCount": 1,
+  "updatedAt": "2026-03-20T00:00:00.000Z",
+  "versionId": "1"
+}

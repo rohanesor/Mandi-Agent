@@ -69,3 +69,7 @@ export type { UseAnimatedPricesReturn } from './useAnimatedPrices';
 
 // Notifications
 export { useNewsNotifications } from './useNewsNotifications';
+
+// Deals (Virtual Cooperative)
+export { useDeals } from './useDeals';
+export type { Deal, DealMember, DealStatus, TruckInfo } from './useDeals';
