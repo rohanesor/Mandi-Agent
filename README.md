@@ -213,14 +213,6 @@ npx expo start
 
 Pull requests are welcome. For major changes, open an issue first.
 
-### Daily Commit Workflow
-
-```bash
-git add .
-git commit -m "feat: description of changes"
-git push origin main
-```
-
 ---
 
 ## 📜 License
