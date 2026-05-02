@@ -45,7 +45,7 @@ feedparser>=6.0.0
 numpy>=1.26.0
 pydantic-ai>=0.0.1  # Assuming this exists based on the root list
 redis>=5.0.0
-reverie-sdk>=1.0.0  # Assuming this exists based on the root list
+reverie-sdk  # Assuming this exists based on the root list
 twilio>=8.0.0
 
 # --- Web scraping (KisanSabha transporter directory) ---
