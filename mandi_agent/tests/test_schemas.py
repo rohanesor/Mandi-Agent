@@ -6,7 +6,7 @@ from datetime import date, datetime, timezone
 
 import pytest
 
-from mandi_agent.backend.models.schemas import (
+from mandi_agent.backend.api.core_schemas import (
     Decision,
     FarmerAdvisory,
     FarmerProfile,

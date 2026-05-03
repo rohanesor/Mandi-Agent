@@ -14,7 +14,7 @@ import pytest
 from mandi_agent.backend.agents.decision_engine import make_decision
 from mandi_agent.backend.agents.explanation_extractor import extract_explanation
 from mandi_agent.backend.agents.advisory_renderer import render_advisory
-from mandi_agent.backend.models.schemas import (
+from mandi_agent.backend.api.core_schemas import (
     PriceDirection,
     PriceForecast,
     RiskLevel,

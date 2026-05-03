@@ -9,7 +9,7 @@ from datetime import datetime, timedelta, timezone
 from fastapi import APIRouter
 
 from mandi_agent.backend.api.schemas import WeatherAlertRequest
-from mandi_agent.backend.models.schemas import WeatherAlert, WeatherAlertType, Severity
+from mandi_agent.backend.api.core_schemas import WeatherAlert, WeatherAlertType, Severity
 
 router = APIRouter(tags=["Weather"])
 logger = logging.getLogger(__name__)
@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 @router.post("/api/weather/alerts/check", response_model=WeatherAlert)
 async def weather_alert_check(req: WeatherAlertRequest) -> WeatherAlert:
     """Evaluate weather forecast and emit proactive weather alert payload with real weather data."""
-    from mandi_agent.backend.data_sources.imd_weather import fetch_weather_forecast
+    from mandi_agent.backend.services.data_sources.imd_weather import fetch_weather_forecast
 
     # If manual forecast params provided, use them (for testing)
     if req.forecast_rain_mm is not None and req.hail_probability is not None:
@@ -102,7 +102,7 @@ async def weather_alert_check(req: WeatherAlertRequest) -> WeatherAlert:
     )
 
     if alert.push_sent or alert.sms_fallback_sent:
-        from mandi_agent.backend.automations.n8n_triggers import trigger_weather_alert
+        from mandi_agent.backend.services.automations.n8n_triggers import trigger_weather_alert
 
         await trigger_weather_alert(
             state=alert.state,

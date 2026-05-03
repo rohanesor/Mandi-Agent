@@ -15,7 +15,7 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Optional
 
-from mandi_agent.backend.models.schemas import (
+from mandi_agent.backend.api.core_schemas import (
     Decision,
     PriceDirection,
     RiskLevel,

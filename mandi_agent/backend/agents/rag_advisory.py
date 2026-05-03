@@ -19,7 +19,7 @@ from typing import Any, Optional
 from mandi_agent.backend.agents.decision_engine import make_decision
 from mandi_agent.backend.agents.explanation_extractor import extract_explanation
 from mandi_agent.backend.agents.advisory_renderer import render_advisory
-from mandi_agent.backend.models.schemas import (
+from mandi_agent.backend.api.core_schemas import (
     CooperativeBundle,
     FarmerAdvisory,
     FarmerProfile,
@@ -117,7 +117,7 @@ if __name__ == "__main__":
     # Integration test with 3-stage pipeline
     import asyncio
     from datetime import date as date_cls
-    from mandi_agent.backend.models.schemas import RiskLevel, PriceDirection
+    from mandi_agent.backend.api.core_schemas import RiskLevel, PriceDirection
 
     logging.basicConfig(level=logging.INFO)
 

@@ -9,7 +9,7 @@ import uuid
 
 import google.generativeai as genai
 
-from mandi_agent.backend.models.schemas import DiseaseDiagnosis, Severity
+from mandi_agent.backend.api.core_schemas import DiseaseDiagnosis, Severity
 
 logger = logging.getLogger(__name__)
 

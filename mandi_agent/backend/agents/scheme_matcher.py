@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from mandi_agent.backend.models.schemas import FarmerProfile, GovtScheme
+from mandi_agent.backend.api.core_schemas import FarmerProfile, GovtScheme
 
 
 def _score_land_smallholder(acres: float) -> float:

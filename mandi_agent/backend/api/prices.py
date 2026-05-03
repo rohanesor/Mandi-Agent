@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 async def get_prices(commodity: str, state: Optional[str] = None) -> list[dict]:
     """Get recent mandi prices for a commodity."""
     try:
-        from mandi_agent.backend.data_sources.agmarknet import fetch_agmarknet_prices
+        from mandi_agent.backend.services.data_sources.agmarknet import fetch_agmarknet_prices
 
         prices = await fetch_agmarknet_prices(commodity=commodity, state=state)
         return [p.model_dump(mode="json") for p in prices]

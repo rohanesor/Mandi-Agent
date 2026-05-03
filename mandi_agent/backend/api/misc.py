@@ -16,7 +16,7 @@ from mandi_agent.backend.api.schemas import (
     FAQVoiceRequest,
     HealthResponse,
 )
-from mandi_agent.backend.models.schemas import GovtScheme, DemandForecast, FAQVoiceItem
+from mandi_agent.backend.api.core_schemas import GovtScheme, DemandForecast, FAQVoiceItem
 
 router = APIRouter(tags=["Misc"])
 logger = logging.getLogger(__name__)

@@ -37,10 +37,8 @@ import { useRouter } from 'expo-router';
 import { useAnimatedPrices } from '../../hooks';
 import { COLORS, FONTS, SPRING } from '../../constants/theme';
 import { useT } from '../../utils/useT';
-import { DEMO_MODE } from '../../constants/demoConfig';
 import NotificationBell from '../../components/NotificationBell';
 import NewsAlertBanner from '../../components/NewsAlertBanner';
-import { DemoShowcaseButton } from '../../components/DemoShowcaseButton';
 import { useAppStore, NewsAlert, selectSessionHistory } from '../../store/useAppStore';
 
 const HEADER_HEIGHT = 280;
@@ -294,7 +292,6 @@ function TabIcon({ tabKey, color }: { tabKey: string; color: string }) {
 export default function HomeScreen() {
   const { t } = useT();
   const router = useRouter();
-  const addNewsAlert = useAppStore((s) => s.addNewsAlert);
   const newsAlerts = useAppStore((s) => s.newsAlerts);
   const markAllNewsRead = useAppStore((s) => s.markAllNewsRead);
   const insets = useSafeAreaInsets();
@@ -339,37 +336,6 @@ export default function HomeScreen() {
   };
   const badgeLabel = BADGE_LABELS[displayAdvisory.decision] || BADGE_LABELS[displayAdvisory.advisoryType] || '🌾 Advisory';
   const badgeColor = BADGE_COLORS[displayAdvisory.advisoryType] || '#166534';
-
-  useEffect(() => {
-    if (!DEMO_MODE || newsAlerts.length > 0) return;
-
-    addNewsAlert({
-      id: 'demo-alert-1',
-      headline: 'Tomato prices down 40% in Nashik — sell this week',
-      urgency: 'emergency',
-      receivedAt: new Date().toISOString(),
-      isRead: false,
-    });
-    addNewsAlert({
-      id: 'demo-alert-2',
-      headline: 'Onion prices rising in TN — Dindigul mandi up 25%',
-      urgency: 'important',
-      receivedAt: new Date().toISOString(),
-      isRead: false,
-    });
-
-    const timer = setTimeout(() => {
-      addNewsAlert({
-        id: `demo-alert-3-${Date.now()}`,
-        headline: 'Heavy rain warning for Kolar — harvest mature crops now',
-        urgency: 'emergency',
-        receivedAt: new Date().toISOString(),
-        isRead: false,
-      });
-    }, 3000);
-
-    return () => clearTimeout(timer);
-  }, [addNewsAlert, newsAlerts.length]);
 
   useEffect(() => {
     const latestUnread = newsAlerts.find((a) => !a.isRead);
@@ -629,7 +595,6 @@ export default function HomeScreen() {
           </LinearGradient>
         </AnimatedView>
       </ScrollView>
-      <DemoShowcaseButton />
     </View>
   );
 }

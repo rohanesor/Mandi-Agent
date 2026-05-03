@@ -19,7 +19,7 @@ from mandi_agent.backend.agents.decision_engine import (
     StructuredDecision,
     DecisionFactor,
 )
-from mandi_agent.backend.models.schemas import PriceDirection
+from mandi_agent.backend.api.core_schemas import PriceDirection
 
 logger = logging.getLogger(__name__)
 
@@ -226,7 +226,7 @@ def extract_explanation(
 # Unit tests
 if __name__ == "__main__":
     from datetime import date
-    from mandi_agent.backend.models.schemas import (
+    from mandi_agent.backend.api.core_schemas import (
         PriceForecast,
         SpoilageRisk,
         RiskLevel,

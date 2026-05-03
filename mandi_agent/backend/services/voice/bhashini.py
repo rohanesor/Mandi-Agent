@@ -15,7 +15,7 @@ from typing import Any, Optional
 
 import httpx
 
-from mandi_agent.backend.models.schemas import VoiceSession
+from mandi_agent.backend.api.core_schemas import VoiceSession
 
 logger = logging.getLogger(__name__)
 

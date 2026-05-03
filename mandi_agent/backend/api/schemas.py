@@ -7,7 +7,7 @@ Keeping them in one place avoids circular imports between route modules.
 from typing import Any, Optional
 from pydantic import BaseModel, Field
 
-from mandi_agent.backend.models.schemas import (
+from mandi_agent.backend.api.core_schemas import (
     FarmerAdvisory,
     FarmerProfile,
     HarvestIntent,

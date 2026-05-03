@@ -35,7 +35,7 @@ async def generate_advisory(farmer_id: str, crop: str, language: str, phone: str
     from mandi_agent.backend.agents.explanation_extractor import extract_explanation
     from mandi_agent.backend.agents.advisory_renderer import render_advisory
     from mandi_agent.backend.agents.voice_interface import translate_text
-    from mandi_agent.backend.models.schemas import (
+    from mandi_agent.backend.api.core_schemas import (
         PriceForecast, SpoilageRisk, RiskLevel, PriceDirection,
     )
 
@@ -121,7 +121,7 @@ async def generate_advisory(farmer_id: str, crop: str, language: str, phone: str
 
     # Non-blocking n8n trigger
     try:
-        from mandi_agent.backend.automations.n8n_triggers import trigger_voice_advisory
+        from mandi_agent.backend.services.automations.n8n_triggers import trigger_voice_advisory
         n8n_ok = await trigger_voice_advisory(farmer_id, phone, language, rendered.full_text)
         payload["n8n_triggered"] = bool(n8n_ok)
     except Exception as exc:

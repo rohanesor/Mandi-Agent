@@ -15,7 +15,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Dependencies layer (cached unless requirements.txt changes)
 # ---------------------------------------------------------------------------
 COPY backend/requirements.txt .
+# Install CPU-only torch first (avoids 500MB+ CUDA download)
 RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu && \
     pip install --no-cache-dir -r requirements.txt
 
 COPY backend/ backend/

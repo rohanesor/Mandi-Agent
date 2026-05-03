@@ -15,11 +15,11 @@ from enum import Enum
 import redis.asyncio as redis
 import httpx
 
-from mandi_agent.backend.data_sources.agmarknet import fetch_agmarknet_prices
-from mandi_agent.backend.data_sources.nasa_power import fetch_soil_moisture, SoilMoistureReading
-from mandi_agent.backend.data_sources.imd_weather import fetch_weather_forecast, WeatherForecast
-from mandi_agent.backend.data_sources.enam import fetch_enam_prices
-from mandi_agent.backend.models.schemas import MandiPrice
+from mandi_agent.backend.services.data_sources.agmarknet import fetch_agmarknet_prices
+from mandi_agent.backend.services.data_sources.nasa_power import fetch_soil_moisture, SoilMoistureReading
+from mandi_agent.backend.services.data_sources.imd_weather import fetch_weather_forecast, WeatherForecast
+from mandi_agent.backend.services.data_sources.enam import fetch_enam_prices
+from mandi_agent.backend.api.core_schemas import MandiPrice
 
 logger = logging.getLogger(__name__)
 

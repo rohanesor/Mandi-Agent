@@ -11,7 +11,7 @@ from typing import List, Optional
 
 import httpx
 
-from mandi_agent.backend.models.schemas import MandiPrice
+from mandi_agent.backend.api.core_schemas import MandiPrice
 
 logger = logging.getLogger(__name__)
 

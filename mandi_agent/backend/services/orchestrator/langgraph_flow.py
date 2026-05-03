@@ -14,7 +14,7 @@ from typing_extensions import TypedDict
 
 from langgraph.graph import StateGraph, START, END
 
-from mandi_agent.backend.models.schemas import (
+from mandi_agent.backend.api.core_schemas import (
     BlockOversupplyAlert,
     CooperativeBundle,
     FarmerAdvisory,
@@ -145,7 +145,7 @@ async def ingest_data(state: MandiAgentState) -> MandiAgentState:
         farmer = _dict_to_profile(state["farmer"])
         intent = _dict_to_intent(state["intent"])
 
-        from mandi_agent.backend.data_sources.fusion import fuse
+        from mandi_agent.backend.services.data_sources.fusion import fuse
 
         farmer_location = (
             farmer.latitude,
@@ -195,7 +195,7 @@ async def retrieve_rag(state: MandiAgentState) -> MandiAgentState:
         farmer = _dict_to_profile(state["farmer"])
         intent = _dict_to_intent(state["intent"])
 
-        from mandi_agent.backend.rag.retrieval import RAGRetriever
+        from mandi_agent.backend.services.rag.retrieval import RAGRetriever
         from supabase import create_async_client
         import os
 
@@ -433,7 +433,7 @@ async def generate_advisory(state: MandiAgentState) -> MandiAgentState:
 
         bundle = None
         if state.get("bundle"):
-            from mandi_agent.backend.models.schemas import CooperativeBundle
+            from mandi_agent.backend.api.core_schemas import CooperativeBundle
             bundle_data = state["bundle"]
             if bundle_data.get("created_at") and isinstance(bundle_data["created_at"], str):
                 bundle_data["created_at"] = datetime.fromisoformat(bundle_data["created_at"].replace("Z", "+00:00"))
@@ -545,7 +545,7 @@ async def deliver_voice(state: MandiAgentState) -> MandiAgentState:
         if not advisory:
             return state
 
-        from mandi_agent.backend.voice.reverie_voice import ReverieVoiceService
+        from mandi_agent.backend.services.voice.reverie_voice import ReverieVoiceService
         service = ReverieVoiceService()
 
         if state.get("audio_base64"):
@@ -591,7 +591,7 @@ async def notify_fpo_coordinator(state: MandiAgentState) -> MandiAgentState:
     """
     state["current_step"] = "notify_fpo"
     try:
-        from mandi_agent.backend.automations.n8n_triggers import trigger_harvest_alert
+        from mandi_agent.backend.services.automations.n8n_triggers import trigger_harvest_alert
         farmer = _dict_to_profile(state["farmer"])
         intent = state.get("intent", {})
 
@@ -668,7 +668,7 @@ class MandiAgentOrchestrator:
         text_input: str = "",
         ws_event_queue: Optional[asyncio.Queue] = None,
     ) -> Optional[VoiceSession]:
-        from mandi_agent.backend.models.schemas import FarmerProfile, HarvestIntent, MandiPrice
+        from mandi_agent.backend.api.core_schemas import FarmerProfile, HarvestIntent, MandiPrice
         from datetime import date
 
         # Mock database lookup for farmer

@@ -7,7 +7,7 @@ from datetime import datetime, timezone
 from typing import Optional
 import os
 
-from mandi_agent.backend.models.schemas import VoiceSession
+from mandi_agent.backend.api.core_schemas import VoiceSession
 from reverie_sdk import ReverieASR, ReverieTTS, ReverieNMT
 
 logger = logging.getLogger(__name__)

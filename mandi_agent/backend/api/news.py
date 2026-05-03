@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 @router.get("/api/news")
 async def get_news(limit: int = 20, category: Optional[str] = None) -> dict[str, Any]:
     """Get latest agricultural news with AI relevance analysis."""
-    from mandi_agent.backend.data_sources.agri_news import get_all_agri_news
+    from mandi_agent.backend.services.data_sources.agri_news import get_all_agri_news
     from mandi_agent.backend.agents.news_agent import analyze_article
 
     articles = await get_all_agri_news()

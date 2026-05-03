@@ -17,7 +17,7 @@ from mandi_agent.backend.api.schemas import (
     HarvestIntentSyncRequest,
     SMSFallbackRequest,
 )
-from mandi_agent.backend.models.schemas import AdvisoryDeliveryResult, HarvestIntentConflict
+from mandi_agent.backend.api.core_schemas import AdvisoryDeliveryResult, HarvestIntentConflict
 from mandi_agent.backend.utils.websocket import manager
 from mandi_agent.backend.db.supabase import get_supabase_async
 from mandi_agent.backend.utils.tokens import HARVEST_INTENT_VERSIONS
@@ -49,7 +49,7 @@ async def submit_harvest_intent(req: HarvestIntentRequest) -> HarvestIntentRespo
                 stored_id = response.data[0].get("intent_id", intent.intent_id)
 
         # Trigger n8n workflow for async processing
-        from mandi_agent.backend.automations.n8n_triggers import trigger_harvest_alert
+        from mandi_agent.backend.services.automations.n8n_triggers import trigger_harvest_alert
         await trigger_harvest_alert(
             farmer_id=intent.farmer_id,
             crop=intent.crop,
@@ -200,7 +200,7 @@ async def websocket_advisory(websocket: WebSocket, farmer_id: str):
 
             if action == "start":
                 # Start advisory pipeline with streaming
-                from mandi_agent.backend.orchestrator.langgraph_flow import MandiAgentOrchestrator
+                from mandi_agent.backend.services.orchestrator.langgraph_flow import MandiAgentOrchestrator
 
                 orchestrator = MandiAgentOrchestrator()
 

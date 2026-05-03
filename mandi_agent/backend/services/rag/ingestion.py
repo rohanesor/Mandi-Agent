@@ -14,7 +14,7 @@ from dataclasses import dataclass
 
 from supabase import AsyncClient
 
-from mandi_agent.backend.rag.embeddings import EmbeddingService, get_embedding_service
+from mandi_agent.backend.services.rag.embeddings import EmbeddingService, get_embedding_service
 
 logger = logging.getLogger(__name__)
 
@@ -392,7 +392,7 @@ class RAGIngestionPipeline:
                 return stats
         else:
             # Fetch recent data from API (historical data requires bulk import)
-            from mandi_agent.backend.data_sources.agmarknet import fetch_agmarknet_prices
+            from mandi_agent.backend.services.data_sources.agmarknet import fetch_agmarknet_prices
             records = await fetch_agmarknet_prices(limit=limit or 1000)
             rows_to_process = [
                 {

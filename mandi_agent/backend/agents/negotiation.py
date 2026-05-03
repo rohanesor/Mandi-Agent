@@ -11,7 +11,7 @@ from typing_extensions import TypedDict
 
 from langgraph.graph import StateGraph, END
 
-from mandi_agent.backend.models.schemas import (
+from mandi_agent.backend.api.core_schemas import (
     CooperativeBundle,
     HarvestIntent,
     MandiPrice,

@@ -11,7 +11,7 @@ from datetime import datetime, timezone
 from twilio.base.exceptions import TwilioException
 from twilio.rest import Client
 
-from mandi_agent.backend.models.schemas import (
+from mandi_agent.backend.api.core_schemas import (
     AdvisoryDeliveryResult,
     DeliveryChannel,
     FarmerAdvisory,

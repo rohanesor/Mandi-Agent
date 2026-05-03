@@ -5,7 +5,7 @@ from __future__ import annotations
 import re
 import uuid
 
-from mandi_agent.backend.models.schemas import FAQVoiceItem
+from mandi_agent.backend.api.core_schemas import FAQVoiceItem
 from mandi_agent.backend.agents.voice_interface import text_to_speech, translate_text
 
 

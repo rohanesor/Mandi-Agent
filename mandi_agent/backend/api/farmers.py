@@ -16,7 +16,7 @@ from mandi_agent.backend.api.schemas import (
     AdvisoryHistoryResponse,
     FrontendFarmer,
 )
-from mandi_agent.backend.models.schemas import FarmerProfile, FarmerAdvisory
+from mandi_agent.backend.api.core_schemas import FarmerProfile, FarmerAdvisory
 from mandi_agent.backend.utils.tokens import AUTH_FARMERS_BY_PHONE, AUTH_REFRESH_TOKENS, new_token
 from mandi_agent.backend.db.supabase import get_supabase_async
 

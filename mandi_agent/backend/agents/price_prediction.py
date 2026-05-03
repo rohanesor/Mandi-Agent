@@ -11,7 +11,7 @@ from typing import Any, Optional
 import google.generativeai as genai
 from pydantic import BaseModel, Field
 
-from mandi_agent.backend.models.schemas import (
+from mandi_agent.backend.api.core_schemas import (
     MandiPrice,
     PriceDirection,
     PriceForecast,

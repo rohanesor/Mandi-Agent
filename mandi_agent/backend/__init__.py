@@ -3,7 +3,7 @@ Mandi-Agent backend package.
 Exports schemas and core components.
 """
 
-from mandi_agent.backend.models.schemas import (
+from mandi_agent.backend.api.core_schemas import (
     FarmerProfile,
     HarvestIntent,
     MandiPrice,

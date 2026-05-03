@@ -10,7 +10,7 @@ from typing import Any, Dict, List, Optional
 
 from supabase import AsyncClient
 
-from mandi_agent.backend.rag.embeddings import EmbeddingService, get_embedding_service
+from mandi_agent.backend.services.rag.embeddings import EmbeddingService, get_embedding_service
 
 logger = logging.getLogger(__name__)
 

@@ -37,13 +37,13 @@ async def lifespan(app: FastAPI):
     yield
     # Cleanup
     try:
-        from mandi_agent.backend.data_sources.fusion import close_fusion_engine
+        from mandi_agent.backend.services.data_sources.fusion import close_fusion_engine
         await close_fusion_engine()
     except Exception:
         pass
         
     try:
-        from mandi_agent.backend.voice.reverie_voice import close_voice_service
+        from mandi_agent.backend.services.voice.reverie_voice import close_voice_service
         await close_voice_service()
     except Exception:
         pass

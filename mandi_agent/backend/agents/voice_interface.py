@@ -9,7 +9,7 @@ ASR, NMT (translation), and TTS operations.
 import logging
 from typing import Optional
 
-from mandi_agent.backend.models.schemas import VoiceSession
+from mandi_agent.backend.api.core_schemas import VoiceSession
 
 logger = logging.getLogger(__name__)
 
@@ -35,7 +35,7 @@ ISO_TO_NAME = {v: k for k, v in LANGUAGE_CODES.items()}
 
 async def _get_service():
     """Get the singleton Reverie voice service."""
-    from mandi_agent.backend.voice.reverie_voice import get_voice_service
+    from mandi_agent.backend.services.voice.reverie_voice import get_voice_service
     return await get_voice_service()
 
 
@@ -62,7 +62,7 @@ async def speech_to_text(
         return "", language
 
     # Detect the actual language from the transcript
-    from mandi_agent.backend.voice.utils import detect_language_by_script
+    from mandi_agent.backend.services.voice.utils import detect_language_by_script
     detected = detect_language_by_script(transcribed)
 
     logger.info(
@@ -214,7 +214,7 @@ async def create_voice_session(
     # Detect language from input text
     detected_language = farmer_language
     if input_text:
-        from mandi_agent.backend.voice.utils import detect_language_by_script
+        from mandi_agent.backend.services.voice.utils import detect_language_by_script
         detected_language = detect_language_by_script(input_text)
 
     session = VoiceSession(

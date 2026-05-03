@@ -11,7 +11,7 @@ from typing import List, Optional
 import httpx
 from dotenv import load_dotenv
 
-from mandi_agent.backend.models.schemas import MandiPrice
+from mandi_agent.backend.api.core_schemas import MandiPrice
 
 load_dotenv()
 

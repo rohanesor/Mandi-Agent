@@ -12,7 +12,7 @@ import httpx
 
 from mandi_agent.backend.utils.geo import haversine_distance as _haversine_distance
 
-from mandi_agent.backend.models.schemas import (
+from mandi_agent.backend.api.core_schemas import (
     FarmerAdvisory,
     FarmerProfile,
     GuardrailResult,

@@ -10,7 +10,7 @@ from typing import Any, Optional
 
 from pydantic import BaseModel, Field
 
-from mandi_agent.backend.models.schemas import RiskLevel, SpoilageRisk
+from mandi_agent.backend.api.core_schemas import RiskLevel, SpoilageRisk
 
 logger = logging.getLogger(__name__)
 

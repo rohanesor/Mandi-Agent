@@ -1,4 +1,4 @@
-import { View, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, ActivityIndicator, Platform } from 'react-native';
+import { View, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, ActivityIndicator, Platform, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useState } from 'react';
@@ -18,9 +18,11 @@ const phoneSchema = z.string().regex(/^[6-9]\d{9}$/, 'Invalid phone');
 const otpSchema = z.string().regex(/^\d{6}$/, 'Invalid OTP');
 const nameSchema = z.string().min(2, 'Name too short');
 
-type Step = 'phone' | 'otp' | 'profile' | 'complete';
+type Step = 'method' | 'phone' | 'otp' | 'profile' | 'complete';
 
 const AnimatedTouchable = Animated.createAnimatedComponent(TouchableOpacity);
+
+const GOOGLE_USER_KEY = '@mandiagent:googleUser';
 
 export default function OnboardingScreen() {
   const router = useRouter();
@@ -28,7 +30,7 @@ export default function OnboardingScreen() {
   const setFarmer = useAppStore((s) => s.setFarmer);
   const setLanguage = useAppStore((s) => s.setLanguage);
 
-  const [step, setStep] = useState<Step>('phone');
+  const [step, setStep] = useState<Step>('method');
   const [phone, setPhone] = useState('');
   const [otp, setOtp] = useState('');
   const [name, setName] = useState('');
@@ -41,6 +43,14 @@ export default function OnboardingScreen() {
   const buttonStyle = useAnimatedStyle(() => ({
     transform: [{ scale: buttonScale.value }],
   }));
+
+  const handleButtonPressIn = () => {
+    buttonScale.value = withSpring(0.96, { damping: 15, stiffness: 300 });
+  };
+
+  const handleButtonPressOut = () => {
+    buttonScale.value = withSpring(1, { damping: 15, stiffness: 300 });
+  };
 
   const handleSendOtp = async () => {
     setError(null);
@@ -117,16 +127,41 @@ export default function OnboardingScreen() {
     }
   };
 
+  const handleGoogleLogin = async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      await new Promise((r) => setTimeout(r, 1500));
+      const googleUser = {
+        name: 'Raju Naik',
+        email: 'raju.naik@gmail.com',
+        phone: '',
+      };
+      await SecureStore.setItemAsync(GOOGLE_USER_KEY, JSON.stringify(googleUser));
+      setFarmer({
+        id: 'google-' + Date.now(),
+        phone: googleUser.phone,
+        name: googleUser.name,
+        state: 'Karnataka',
+        district: 'Kolar',
+        block: 'Kolar-1',
+        village: 'Mulbagal',
+        primary_crops: ['Tomato'],
+        preferred_language: selectedLanguage,
+        created_at: new Date().toISOString(),
+      });
+      setLanguage(selectedLanguage);
+      if (Platform.OS !== 'web') await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      setStep('complete');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Google login failed');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const handleContinue = () => {
     router.replace('/(tabs)');
-  };
-
-  const handleButtonPressIn = () => {
-    buttonScale.value = withSpring(0.96, { damping: 15, stiffness: 300 });
-  };
-
-  const handleButtonPressOut = async () => {
-    buttonScale.value = withSpring(1, { damping: 15, stiffness: 300 });
   };
 
   return (
@@ -137,8 +172,74 @@ export default function OnboardingScreen() {
       </View>
 
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
+        {/* STEP 1: Choose login method */}
+        {step === 'method' && (
+          <View style={styles.stepContainer}>
+            <Text style={styles.stepTitle}>लॉगिन करें · Login</Text>
+            <Text style={styles.stepSubtitle}>Choose how you want to sign in</Text>
+
+            <AnimatedTouchable
+              style={[styles.methodBtn, buttonStyle]}
+              onPress={handleGoogleLogin}
+              onPressIn={handleButtonPressIn}
+              onPressOut={handleButtonPressOut}
+              disabled={isLoading}
+            >
+              <View style={styles.methodIcon}>
+                <Text style={styles.googleIcon}>G</Text>
+              </View>
+              <View style={styles.methodText}>
+                <Text style={styles.methodTitle}>Continue with Google</Text>
+                <Text style={styles.methodDesc}>Quick & easy sign-in</Text>
+              </View>
+            </AnimatedTouchable>
+
+            <View style={styles.dividerRow}>
+              <View style={styles.dividerLine} />
+              <Text style={styles.dividerText}>or</Text>
+              <View style={styles.dividerLine} />
+            </View>
+
+            <AnimatedTouchable
+              style={[styles.methodBtn, styles.phoneBtn, buttonStyle]}
+              onPress={() => setStep('phone')}
+              onPressIn={handleButtonPressIn}
+              onPressOut={handleButtonPressOut}
+            >
+              <View style={styles.phoneIcon}>
+                <Text style={styles.phoneIconText}>+91</Text>
+              </View>
+              <View style={styles.methodText}>
+                <Text style={styles.methodTitle}>Continue with Phone</Text>
+                <Text style={styles.methodDesc}>Login with OTP verification</Text>
+              </View>
+            </AnimatedTouchable>
+
+            <View style={styles.langRow}>
+              <Text style={styles.langLabel}>भाषा · Language: </Text>
+              <TouchableOpacity
+                style={[styles.langChip, selectedLanguage === 'hi' && styles.langChipActive]}
+                onPress={() => setSelectedLanguage('hi')}
+              >
+                <Text style={[styles.langChipText, selectedLanguage === 'hi' && { color: COLORS.night }]}>हिंदी</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.langChip, selectedLanguage === 'en' && styles.langChipActive]}
+                onPress={() => setSelectedLanguage('en')}
+              >
+                <Text style={[styles.langChipText, selectedLanguage === 'en' && { color: COLORS.night }]}>English</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
+
+        {/* STEP 2: Phone number */}
         {step === 'phone' && (
           <View style={styles.stepContainer}>
+            <TouchableOpacity onPress={() => setStep('method')} style={styles.backBtn}>
+              <Text style={styles.backBtnText}>← Back</Text>
+            </TouchableOpacity>
+
             <Text style={styles.stepTitle}>अपना फ़ोन नंबर दर्ज करें · Enter your phone number</Text>
             <Text style={styles.stepSubtitle}>हम आपको 6 अंकों का OTP भेजेंगे · We will send you 6-digit OTP</Text>
 
@@ -180,8 +281,13 @@ export default function OnboardingScreen() {
           </View>
         )}
 
+        {/* STEP 3: OTP verification */}
         {step === 'otp' && (
           <View style={styles.stepContainer}>
+            <TouchableOpacity onPress={() => setStep('phone')} style={styles.backBtn}>
+              <Text style={styles.backBtnText}>← Back</Text>
+            </TouchableOpacity>
+
             <Text style={styles.stepTitle}>OTP दर्ज करें · Enter OTP</Text>
             <Text style={styles.stepSubtitle}>{phone} पर भेजा गया · Sent to {phone}</Text>
 
@@ -224,6 +330,7 @@ export default function OnboardingScreen() {
           </View>
         )}
 
+        {/* STEP 4: Complete profile (for new users) */}
         {step === 'profile' && (
           <View style={styles.stepContainer}>
             <Text style={styles.stepTitle}>अपनी प्रो़फ़ाइल पूरी करें · Complete your profile</Text>
@@ -290,6 +397,7 @@ export default function OnboardingScreen() {
           </View>
         )}
 
+        {/* STEP 5: Welcome complete */}
         {step === 'complete' && (
           <View style={styles.completeContainer}>
             <Text style={styles.successEmoji}>🎉</Text>
@@ -322,65 +430,72 @@ export default function OnboardingScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: COLORS.night,
-  },
-  header: {
+  container: { flex: 1, backgroundColor: COLORS.night },
+  header: { alignItems: 'center', paddingVertical: 32 },
+  headerTitle: { color: COLORS.sprout, fontFamily: FONTS.display, fontSize: 32, marginBottom: 8 },
+  headerSubtitle: { color: COLORS.muted, fontFamily: FONTS.body, fontSize: 14, textAlign: 'center' },
+  scrollView: { flex: 1 },
+  scrollContent: { paddingHorizontal: 24 },
+  stepContainer: { gap: 16 },
+  stepTitle: { color: COLORS.white, fontFamily: FONTS.bold, fontSize: 24, marginBottom: 4 },
+  stepSubtitle: { color: COLORS.muted, fontFamily: FONTS.body, fontSize: 14, marginBottom: 16 },
+
+  // Login method buttons
+  methodBtn: {
+    flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 32,
-  },
-  headerTitle: {
-    color: COLORS.sprout,
-    fontFamily: FONTS.display,
-    fontSize: 32,
-    marginBottom: 8,
-  },
-  headerSubtitle: {
-    color: COLORS.muted,
-    fontFamily: FONTS.body,
-    fontSize: 14,
-    textAlign: 'center',
-  },
-  scrollView: {
-    flex: 1,
-  },
-  scrollContent: {
-    paddingHorizontal: 24,
-  },
-  stepContainer: {
-    gap: 16,
-  },
-  stepTitle: {
-    color: COLORS.white,
-    fontFamily: FONTS.bold,
-    fontSize: 24,
-    marginBottom: 4,
-  },
-  stepSubtitle: {
-    color: COLORS.muted,
-    fontFamily: FONTS.body,
-    fontSize: 14,
-    marginBottom: 16,
-  },
-  inputContainer: {
-    gap: 8,
-  },
-  inputLabel: {
-    color: COLORS.sprout,
-    fontFamily: FONTS.medium,
-    fontSize: 14,
-  },
-  input: {
     backgroundColor: COLORS.forest,
+    borderRadius: 14,
+    padding: 16,
+    borderWidth: 1.5,
+    borderColor: COLORS.canopy,
+  },
+  phoneBtn: { borderColor: COLORS.canopy },
+  methodIcon: {
+    width: 48, height: 48, borderRadius: 24,
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center', justifyContent: 'center',
+    marginRight: 14,
+  },
+  googleIcon: { color: '#EA4335', fontFamily: FONTS.bold, fontSize: 22 },
+  phoneIcon: {
+    width: 48, height: 48, borderRadius: 24,
+    backgroundColor: COLORS.canopy,
+    alignItems: 'center', justifyContent: 'center',
+    marginRight: 14,
+  },
+  phoneIconText: { color: COLORS.white, fontFamily: FONTS.bold, fontSize: 14 },
+  methodText: { flex: 1 },
+  methodTitle: { color: COLORS.white, fontFamily: FONTS.medium, fontSize: 15 },
+  methodDesc: { color: COLORS.muted, fontFamily: FONTS.body, fontSize: 12, marginTop: 2 },
+
+  // Divider
+  dividerRow: { flexDirection: 'row', alignItems: 'center', marginVertical: 4 },
+  dividerLine: { flex: 1, height: 1, backgroundColor: COLORS.canopy },
+  dividerText: { color: COLORS.muted, fontFamily: FONTS.body, fontSize: 12, paddingHorizontal: 12 },
+
+  // Language selection on method screen
+  langRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: 8 },
+  langLabel: { color: COLORS.muted, fontFamily: FONTS.body, fontSize: 13 },
+  langChip: { borderRadius: 16, backgroundColor: COLORS.canopy, paddingHorizontal: 14, paddingVertical: 6, marginHorizontal: 4 },
+  langChipActive: { backgroundColor: COLORS.harvest },
+  langChipText: { color: COLORS.white, fontFamily: FONTS.medium, fontSize: 13 },
+
+  // Back button
+  backBtn: { alignSelf: 'flex-start', paddingVertical: 4 },
+  backBtnText: { color: COLORS.harvest, fontFamily: FONTS.medium, fontSize: 14 },
+
+  // Input
+  inputContainer: { gap: 8 },
+  inputLabel: { color: COLORS.sprout, fontFamily: FONTS.medium, fontSize: 14 },
+  input: {
+    backgroundColor: 'transparent',
     borderRadius: 12,
     paddingHorizontal: 16,
     paddingVertical: 14,
     color: COLORS.white,
     fontFamily: FONTS.body,
     fontSize: 16,
-    borderWidth: 1,
-    borderColor: COLORS.canopy,
   },
   phoneInput: {
     flexDirection: 'row',
@@ -391,12 +506,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: COLORS.canopy,
   },
-  countryCode: {
-    color: COLORS.muted,
-    fontFamily: FONTS.medium,
-    fontSize: 16,
-    marginRight: 12,
-  },
+  countryCode: { color: COLORS.muted, fontFamily: FONTS.medium, fontSize: 16, marginRight: 12 },
   otpInput: {
     flex: 1,
     backgroundColor: COLORS.forest,
@@ -411,95 +521,32 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: COLORS.canopy,
   },
-  languageSelector: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  languageOption: {
-    flex: 1,
-    backgroundColor: COLORS.forest,
-    borderRadius: 12,
-    paddingVertical: 14,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: 'transparent',
-  },
-  languageOptionActive: {
-    backgroundColor: COLORS.canopy,
-    borderColor: COLORS.sprout,
-  },
-  languageText: {
-    color: COLORS.muted,
-    fontFamily: FONTS.medium,
-    fontSize: 14,
-  },
-  languageTextActive: {
-    color: COLORS.sprout,
-  },
-  errorBanner: {
-    backgroundColor: '#450A0A',
-    borderRadius: 8,
-    padding: 12,
-  },
-  errorText: {
-    color: '#FCA5A5',
-    fontFamily: FONTS.body,
-    fontSize: 14,
-    textAlign: 'center',
-  },
-  button: {
-    backgroundColor: COLORS.sprout,
-    borderRadius: 12,
-    paddingVertical: 16,
-    alignItems: 'center',
-    marginTop: 8,
-  },
-  buttonDisabled: {
-    backgroundColor: COLORS.forest,
-  },
-  buttonText: {
-    color: COLORS.night,
-    fontFamily: FONTS.bold,
-    fontSize: 16,
-  },
-  backLink: {
-    alignItems: 'center',
-    marginTop: 16,
-  },
-  backLinkText: {
-    color: COLORS.leaf,
-    fontFamily: FONTS.medium,
-    fontSize: 14,
-  },
-  completeContainer: {
-    alignItems: 'center',
-    gap: 16,
-    paddingTop: 32,
-  },
-  successEmoji: {
-    fontSize: 64,
-  },
-  completeTitle: {
-    color: COLORS.white,
-    fontFamily: FONTS.bold,
-    fontSize: 28,
-    textAlign: 'center',
-  },
-  completeSubtitle: {
-    color: COLORS.muted,
-    fontFamily: FONTS.body,
-    fontSize: 14,
-    textAlign: 'center',
-    lineHeight: 22,
-  },
-  footer: {
-    paddingHorizontal: 24,
-    paddingVertical: 16,
-  },
-  footerText: {
-    color: COLORS.muted,
-    fontFamily: FONTS.body,
-    fontSize: 12,
-    textAlign: 'center',
-  },
+
+  // Language selector on profile step
+  languageSelector: { flexDirection: 'row', gap: 12 },
+  languageOption: { flex: 1, backgroundColor: COLORS.forest, borderRadius: 12, paddingVertical: 14, alignItems: 'center', borderWidth: 1, borderColor: 'transparent' },
+  languageOptionActive: { backgroundColor: COLORS.canopy, borderColor: COLORS.sprout },
+  languageText: { color: COLORS.muted, fontFamily: FONTS.medium, fontSize: 14 },
+  languageTextActive: { color: COLORS.sprout },
+
+  // Error
+  errorBanner: { backgroundColor: '#450A0A', borderRadius: 8, padding: 12 },
+  errorText: { color: '#FCA5A5', fontFamily: FONTS.body, fontSize: 14, textAlign: 'center' },
+
+  // Button
+  button: { backgroundColor: COLORS.sprout, borderRadius: 12, paddingVertical: 16, alignItems: 'center', marginTop: 8 },
+  buttonDisabled: { backgroundColor: COLORS.forest },
+  buttonText: { color: COLORS.night, fontFamily: FONTS.bold, fontSize: 16 },
+  backLink: { alignItems: 'center', marginTop: 16 },
+  backLinkText: { color: COLORS.leaf, fontFamily: FONTS.medium, fontSize: 14 },
+
+  // Complete
+  completeContainer: { alignItems: 'center', gap: 16, paddingTop: 32 },
+  successEmoji: { fontSize: 64 },
+  completeTitle: { color: COLORS.white, fontFamily: FONTS.bold, fontSize: 28, textAlign: 'center' },
+  completeSubtitle: { color: COLORS.muted, fontFamily: FONTS.body, fontSize: 14, textAlign: 'center', lineHeight: 22 },
+
+  // Footer
+  footer: { paddingHorizontal: 24, paddingVertical: 16 },
+  footerText: { color: COLORS.muted, fontFamily: FONTS.body, fontSize: 12, textAlign: 'center' },
 });

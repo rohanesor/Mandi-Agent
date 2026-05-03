@@ -13,7 +13,7 @@ import os
 from datetime import date, datetime, timezone
 from typing import List, Optional
 
-from mandi_agent.backend.models.schemas import MandiPrice
+from mandi_agent.backend.api.core_schemas import MandiPrice
 
 logger = logging.getLogger(__name__)
 
@@ -41,7 +41,7 @@ async def fetch_agmarknet_prices(
     Returns:
         List of validated MandiPrice records
     """
-    from mandi_agent.backend.data_sources.agmarknet import fetch_agmarknet_prices as _fetch
+    from mandi_agent.backend.services.data_sources.agmarknet import fetch_agmarknet_prices as _fetch
 
     try:
         prices = await _fetch(
@@ -85,7 +85,7 @@ async def fetch_enam_prices(
     Returns:
         List of validated MandiPrice records
     """
-    from mandi_agent.backend.data_sources.enam import fetch_enam_prices as _fetch
+    from mandi_agent.backend.services.data_sources.enam import fetch_enam_prices as _fetch
 
     try:
         prices = await _fetch(

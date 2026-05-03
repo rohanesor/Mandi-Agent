@@ -14,7 +14,7 @@ from typing import Optional
 import httpx
 
 # The original schema used in fusion.py
-from mandi_agent.backend.data_sources.isro_mosdac import SoilMoistureReading, _generate_simulated_soil_moisture
+from mandi_agent.backend.services.data_sources.isro_mosdac import SoilMoistureReading, _generate_simulated_soil_moisture
 
 logger = logging.getLogger(__name__)
 

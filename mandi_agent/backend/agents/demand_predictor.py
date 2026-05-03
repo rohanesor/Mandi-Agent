@@ -3,12 +3,12 @@
 from __future__ import annotations
 
 from datetime import date, timedelta
-from mandi_agent.backend.models.schemas import DemandForecast, DemandLevel
+from mandi_agent.backend.api.core_schemas import DemandForecast, DemandLevel
 
 
 async def predict_demand(crop: str, state: str, months_ahead: int) -> DemandForecast:
     """Predict market demand using real Agmarknet price data."""
-    from mandi_agent.backend.data_sources.agmarknet import fetch_agmarknet_prices
+    from mandi_agent.backend.services.data_sources.agmarknet import fetch_agmarknet_prices
     import logging
 
     logger = logging.getLogger(__name__)
