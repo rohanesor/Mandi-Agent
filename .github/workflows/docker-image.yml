@@ -34,7 +34,7 @@ jobs:
       run: |
         export PYTHONPATH=$PYTHONPATH:$(pwd)/mandi_agent
         cd mandi_agent
-        pytest backend/tests
+        pytest tests
 
   build-and-push:
     needs: test
