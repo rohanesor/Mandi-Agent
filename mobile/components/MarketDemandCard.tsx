@@ -6,8 +6,8 @@ import {
   TouchableOpacity,
   ScrollView,
 } from 'react-native';
-import { COLORS, FONTS } from '../../constants/theme';
-import { useT } from '../../utils/useT';
+import { COLORS, FONTS } from '../constants/theme';
+import { useT } from '../utils/useT';
 
 const MARKET_DATA = [
   { crop: 'Tomato', demand: 85, trend: 'up', price: 2500, change: '+12%', recommendation: 'High demand — sell now' },

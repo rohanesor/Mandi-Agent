@@ -5,8 +5,8 @@ import {
   ScrollView,
   TouchableOpacity,
 } from 'react-native';
-import { COLORS, FONTS } from '../../constants/theme';
-import { useT } from '../../utils/useT';
+import { COLORS, FONTS } from '../constants/theme';
+import { useT } from '../utils/useT';
 
 const FPO_DATA = {
   name: 'FPO-KA-KOL-01',

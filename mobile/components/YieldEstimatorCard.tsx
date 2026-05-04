@@ -6,8 +6,8 @@ import {
   TouchableOpacity,
   TextInput,
 } from 'react-native';
-import { COLORS, FONTS } from '../../constants/theme';
-import { useT } from '../../utils/useT';
+import { COLORS, FONTS } from '../constants/theme';
+import { useT } from '../utils/useT';
 
 const CROP_YIELD = {
   Tomato: { min: 25, max: 40, unit: 'tonnes/ha' },

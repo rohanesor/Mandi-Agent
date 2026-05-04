@@ -10,9 +10,9 @@ import {
   Platform,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
-import { COLORS, FONTS } from '../../constants/theme';
-import { useT } from '../../utils/useT';
-import { detectDisease } from '../../services';
+import { COLORS, FONTS } from '../constants/theme';
+import { useT } from '../utils/useT';
+import { detectDisease } from '../services';
 
 type Diagnosis = {
   disease_name: string;

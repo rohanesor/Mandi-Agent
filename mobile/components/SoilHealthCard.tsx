@@ -3,8 +3,8 @@ import {
   StyleSheet,
   Text,
 } from 'react-native';
-import { COLORS, FONTS } from '../../constants/theme';
-import { useT } from '../../utils/useT';
+import { COLORS, FONTS } from '../constants/theme';
+import { useT } from '../utils/useT';
 
 const SOIL_DATA = {
   ph: { value: 6.8, label: 'pH Level', status: 'good', rec: 'Optimal for most crops' },

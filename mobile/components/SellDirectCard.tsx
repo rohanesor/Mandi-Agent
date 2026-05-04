@@ -8,8 +8,8 @@ import {
   Alert,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { COLORS, FONTS } from '../../constants/theme';
-import { useT } from '../../utils/useT';
+import { COLORS, FONTS } from '../constants/theme';
+import { useT } from '../utils/useT';
 
 const LISTING_KEY = '@mandiagent:listings';
 

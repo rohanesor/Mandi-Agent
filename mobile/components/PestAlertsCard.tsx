@@ -3,8 +3,8 @@ import {
   StyleSheet,
   Text,
 } from 'react-native';
-import { COLORS, FONTS } from '../../constants/theme';
-import { useT } from '../../utils/useT';
+import { COLORS, FONTS } from '../constants/theme';
+import { useT } from '../utils/useT';
 
 const PEST_ALERTS = [
   {
