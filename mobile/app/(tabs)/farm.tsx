@@ -12,6 +12,14 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { COLORS, FONTS } from '../../constants/theme';
 import { useT } from '../../utils/useT';
 import NotificationBell from '../../components/NotificationBell';
+import DiseaseDetectionCard from '../../components/DiseaseDetectionCard';
+import ExpenseTrackerCard from '../../components/ExpenseTrackerCard';
+import SellDirectCard from '../../components/SellDirectCard';
+import YieldEstimatorCard from '../../components/YieldEstimatorCard';
+import MarketDemandCard from '../../components/MarketDemandCard';
+import PestAlertsCard from '../../components/PestAlertsCard';
+import SoilHealthCard from '../../components/SoilHealthCard';
+import FPODashboardCard from '../../components/FPODashboardCard';
 
 const FARM_PROFILE_KEY = '@mandiagent:farmProfile';
 
@@ -216,6 +224,15 @@ export default function FarmScreen() {
             </View>
           </View>
         )}
+
+        <PestAlertsCard />
+        <DiseaseDetectionCard />
+        <YieldEstimatorCard />
+        <ExpenseTrackerCard />
+        <SellDirectCard />
+        <MarketDemandCard />
+        <SoilHealthCard />
+        <FPODashboardCard />
       </ScrollView>
     </View>
   );
