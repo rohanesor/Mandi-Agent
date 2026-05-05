@@ -73,3 +73,6 @@ export { useNewsNotifications } from './useNewsNotifications';
 // Deals (Virtual Cooperative)
 export { useDeals } from './useDeals';
 export type { Deal, DealMember, DealStatus, TruckInfo } from './useDeals';
+
+// Farmer identity
+export { useFarmerIdentity } from './useFarmerIdentity';

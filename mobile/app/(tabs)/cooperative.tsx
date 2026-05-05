@@ -21,6 +21,7 @@ import { COLORS, FONTS, SPRING } from '../../constants/theme';
 import { hapticLight, hapticHeavy } from '../../utils/haptics';
 import { useDeals, Deal, TruckAgency } from '../../hooks/useDeals';
 import { useTruckAgencies } from '../../hooks/useTruckAgencies';
+import { useFarmerIdentity } from '../../hooks/useFarmerIdentity';
 import DealCard from '../../components/DealCard';
 import DealDetailSheet from '../../components/DealDetailSheet';
 import PostDealModal from '../../components/PostDealModal';
@@ -244,17 +245,19 @@ function NearbyAgencyCard({ agency }: { agency: TruckAgency }) {
 
 // ─── MAIN SCREEN ─────────────────────────────────────────────────────────────
 export default function CooperativeScreen() {
+  const { farmerId } = useFarmerIdentity();
   const {
     deals,
     selectedDeal,
     myJoinedDealIds,
     triggeringDealId,
+    isLoading: dealsLoading,
     joinDeal,
     postDeal,
     openDeal,
     closeDeal,
     isMyDeal,
-  } = useDeals();
+  } = useDeals(farmerId);
 
   const { agencies: nearbyAgencies, loading: agenciesLoading } = useTruckAgencies({ state: 'Karnataka', limit: 10 });
   const [cropFilter, setCropFilter] = useState<string | null>(null);

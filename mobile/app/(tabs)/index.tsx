@@ -40,6 +40,7 @@ import { useT } from '../../utils/useT';
 import NotificationBell from '../../components/NotificationBell';
 import NewsAlertBanner from '../../components/NewsAlertBanner';
 import { useAppStore, NewsAlert, selectSessionHistory } from '../../store/useAppStore';
+import { useFarmerIdentity } from '../../hooks/useFarmerIdentity';
 
 const HEADER_HEIGHT = 280;
 const TICKER_ITEM_WIDTH = 130;
@@ -292,6 +293,7 @@ function TabIcon({ tabKey, color }: { tabKey: string; color: string }) {
 export default function HomeScreen() {
   const { t } = useT();
   const router = useRouter();
+  const { name, state } = useFarmerIdentity();
   const newsAlerts = useAppStore((s) => s.newsAlerts);
   const markAllNewsRead = useAppStore((s) => s.markAllNewsRead);
   const insets = useSafeAreaInsets();
@@ -308,7 +310,7 @@ export default function HomeScreen() {
   ]);
   const [activeBanner, setActiveBanner] = useState<NewsAlert | null>(null);
 
-  const { prices, isLoading, lastUpdated } = useAnimatedPrices('Tomato', 'Karnataka');
+  const { prices, isLoading, lastUpdated } = useAnimatedPrices('Tomato', state || 'Karnataka');
 
   const sessionHistory = useAppStore(selectSessionHistory);
   const lastAdvisory = (sessionHistory[0] as any)?.advisory ?? null;
@@ -471,7 +473,7 @@ export default function HomeScreen() {
             <NotificationBell />
           </View>
           <View style={styles.greetingOverlay}>
-            <Text style={styles.greeting}>{t('hi')}, Raju 🌾</Text>
+            <Text style={styles.greeting}>{t('hi')}, {name} 🌾</Text>
             <Text style={styles.greetingSub}>{t('decideToday')}</Text>
             {lastUpdated && <Text style={styles.lastUpdated}>{t('updated')}: {lastUpdated.toLocaleTimeString()}</Text>}
           </View>

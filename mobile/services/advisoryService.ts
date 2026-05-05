@@ -125,11 +125,14 @@ export async function sendVoiceAdvisory(
     // Web: send JSON instead of FormData (data URI can't be read by FileSystem)
     if (Platform.OS === 'web' || audioUri.startsWith('data:')) {
       onProgress?.('predicting_price', 'Analyzing your request...');
+      const profileRaw = await SecureStore.getItemAsync(TOKEN_KEYS.FARMER_PROFILE);
+      const profile = profileRaw ? (JSON.parse(profileRaw) as { name?: string; language?: string }) : null;
+
       const response = await apiClient.post('/api/advisory', {
         farmer_id: farmerId,
         crop: 'Tomato',
-        language: 'kn',
-        phone: '+919900000000',
+        language: profile?.language || 'en',
+        phone: '+91' + '0000000000',
       }, { timeout: 30000 });
       onProgress?.('completed', 'Advisory ready');
       return VoiceSessionSchema.parse(response.data);

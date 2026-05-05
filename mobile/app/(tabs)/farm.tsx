@@ -11,6 +11,7 @@ import {
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { COLORS, FONTS } from '../../constants/theme';
 import { useT } from '../../utils/useT';
+import { useFarmerIdentity } from '../../hooks/useFarmerIdentity';
 import NotificationBell from '../../components/NotificationBell';
 import DiseaseDetectionCard from '../../components/DiseaseDetectionCard';
 import ExpenseTrackerCard from '../../components/ExpenseTrackerCard';
@@ -58,15 +59,26 @@ const defaultProfile: FarmProfile = {
 
 export default function FarmScreen() {
   const { t } = useT();
+  const { name, village: farmerVillage, district: farmerDistrict, state: farmerState, primaryCrops } = useFarmerIdentity();
   const [profile, setProfile] = useState<FarmProfile>(defaultProfile);
   const [editing, setEditing] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
 
   useEffect(() => {
     AsyncStorage.getItem(FARM_PROFILE_KEY).then((raw) => {
-      if (raw) setProfile({ ...defaultProfile, ...JSON.parse(raw) });
+      if (raw) {
+        setProfile({ ...defaultProfile, ...JSON.parse(raw) });
+      } else if (name) {
+        setProfile((p) => ({
+          ...p,
+          farmerName: name,
+          village: farmerVillage || p.village,
+          district: farmerDistrict || p.district,
+          state: farmerState || p.state,
+        }));
+      }
     });
-  }, []);
+  }, [name, farmerVillage, farmerDistrict, farmerState]);
 
   const updateField = (field: keyof FarmProfile, value: string) => {
     setProfile((p) => ({ ...p, [field]: value }));
