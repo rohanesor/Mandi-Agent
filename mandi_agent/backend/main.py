@@ -26,6 +26,7 @@ from mandi_agent.backend.api.tts import router as tts_router
 from mandi_agent.backend.api.automations import router as automations_router
 from mandi_agent.backend.api.misc import router as misc_router
 from mandi_agent.backend.api.truck import router as truck_router
+from mandi_agent.backend.api.bundles import router as bundles_router
 
 logger = logging.getLogger(__name__)
 
@@ -86,6 +87,7 @@ app.include_router(tts_router)
 app.include_router(automations_router)
 app.include_router(misc_router)
 app.include_router(truck_router)
+app.include_router(bundles_router)
 
 
 if __name__ == "__main__":
