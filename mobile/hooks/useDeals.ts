@@ -1,11 +1,8 @@
-import { useState, useCallback } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { n8nService } from '../services/n8nService';
 import { apiClient } from '../services/api';
 import { useAppStore } from '../store';
-
-// ─────────────────────────────────────────────
-// TYPES
-// ─────────────────────────────────────────────
+import { cooperativeService, CooperativeBundle } from '../services/cooperativeService';
 
 export type DealStatus =
   | 'open'
@@ -20,7 +17,7 @@ export type DealMember = {
   name: string;
   village: string;
   avatar: string;
-  quantity: number;   // quintals
+  quantity: number;
   phone: string;
   status: 'confirmed' | 'pending';
   joined_at: string;
@@ -34,16 +31,16 @@ export type TruckAgency = {
   city: string;
   phone: string;
   whatsapp: string;
-  category_type: number;       // 18=Booking Agent, 19=Broker, 20=Truck Owner, 21=Transporter
+  category_type: number;
   category_name: string;
-  rating: number;              // 1-5
+  rating: number;
   total_trips: number;
   vehicle_types: string[];
   price_per_km: number | null;
-  distance_km: number | null;  // populated when lat/lon provided
+  distance_km: number | null;
   profile_url: string;
   verified: boolean;
-  source: string;              // 'kisansabha' | 'kisansabha_fallback'
+  source: string;
 };
 
 export type TruckInfo = {
@@ -52,7 +49,7 @@ export type TruckInfo = {
   pickup_time: string;
   eta_mandi: string;
   vehicle_no: string;
-  agency: TruckAgency;         // full agency record from KisanSabha
+  agency: TruckAgency;
   booking_id: string;
   estimated_cost: number;
 };
@@ -62,9 +59,9 @@ export type Deal = {
   crop: string;
   crop_emoji: string;
   target_mandi: string;
-  mandi_price: number;       // ₹/kg
-  price_change_pct: number;  // vs yesterday
-  target_quantity: number;   // quintals needed to lock
+  mandi_price: number;
+  price_change_pct: number;
+  target_quantity: number;
   current_quantity: number;
   members: DealMember[];
   posted_by_farmer_id: string;
@@ -76,10 +73,6 @@ export type Deal = {
   savings_per_quintal: number;
   truck?: TruckInfo;
 };
-
-// ─────────────────────────────────────────────
-// MOCK DATA (realistic, ready for API swap)
-// ─────────────────────────────────────────────
 
 const MOCK_DEALS: Deal[] = [
   {
@@ -99,11 +92,9 @@ const MOCK_DEALS: Deal[] = [
     posted_by_farmer_id: 'F1',
     block_id: 'BLK-001',
     members: [
-      { farmer_id: 'F1', name: 'Ramesh Kumar',  village: 'Nallur',  avatar: '👨‍🌾', quantity: 20, phone: '+919876543210', status: 'confirmed', joined_at: new Date(Date.now() - 3 * 3600000).toISOString() },
-      { farmer_id: 'F2', name: 'Sunita Devi',   village: 'Kotur',   avatar: '👩‍🌾', quantity: 15, phone: '+919876543211', status: 'confirmed', joined_at: new Date(Date.now() - 2 * 3600000).toISOString() },
-      { farmer_id: 'F3', name: 'Govind Rao',    village: 'Pura',    avatar: '👨‍🌾', quantity: 12, phone: '+919876543212', status: 'confirmed', joined_at: new Date(Date.now() - 1 * 3600000).toISOString() },
-      { farmer_id: 'F4', name: 'Lakshmi Bai',   village: 'Kotur',   avatar: '👩‍🌾', quantity: 18, phone: '+919876543213', status: 'confirmed', joined_at: new Date(Date.now() - 0.5 * 3600000).toISOString() },
-      { farmer_id: 'F5', name: 'Mohan Lal',     village: 'Nallur',  avatar: '👨‍🌾', quantity: 15, phone: '+919876543214', status: 'confirmed', joined_at: new Date(Date.now() - 0.2 * 3600000).toISOString() },
+      { farmer_id: 'F1', name: 'Ramesh Kumar', village: 'Nallur', avatar: '👨‍🌾', quantity: 20, phone: '+919876543210', status: 'confirmed', joined_at: new Date(Date.now() - 3 * 3600000).toISOString() },
+      { farmer_id: 'F2', name: 'Sunita Devi', village: 'Kotur', avatar: '👩‍🌾', quantity: 15, phone: '+919876543211', status: 'confirmed', joined_at: new Date(Date.now() - 2 * 3600000).toISOString() },
+      { farmer_id: 'F3', name: 'Govind Rao', village: 'Pura', avatar: '👨‍🌾', quantity: 12, phone: '+919876543212', status: 'confirmed', joined_at: new Date(Date.now() - 1 * 3600000).toISOString() },
     ],
   },
   {
@@ -123,8 +114,8 @@ const MOCK_DEALS: Deal[] = [
     posted_by_farmer_id: 'F6',
     block_id: 'BLK-001',
     members: [
-      { farmer_id: 'F6', name: 'Anand Reddy',   village: 'Hosur',   avatar: '👨‍🌾', quantity: 25, phone: '+919876543215', status: 'confirmed', joined_at: new Date(Date.now() - 5 * 3600000).toISOString() },
-      { farmer_id: 'F7', name: 'Meena Kumari',  village: 'Sira',    avatar: '👩‍🌾', quantity: 20, phone: '+919876543216', status: 'confirmed', joined_at: new Date(Date.now() - 4 * 3600000).toISOString() },
+      { farmer_id: 'F6', name: 'Anand Reddy', village: 'Hosur', avatar: '👨‍🌾', quantity: 25, phone: '+919876543215', status: 'confirmed', joined_at: new Date(Date.now() - 5 * 3600000).toISOString() },
+      { farmer_id: 'F7', name: 'Meena Kumari', village: 'Sira', avatar: '👩‍🌾', quantity: 20, phone: '+919876543216', status: 'confirmed', joined_at: new Date(Date.now() - 4 * 3600000).toISOString() },
     ],
   },
   {
@@ -144,23 +135,82 @@ const MOCK_DEALS: Deal[] = [
     posted_by_farmer_id: 'F8',
     block_id: 'BLK-001',
     members: [
-      { farmer_id: 'F8', name: 'Vikram Singh',  village: 'Pandavapura', avatar: '👨‍🌾', quantity: 20, phone: '+919876543217', status: 'confirmed', joined_at: new Date(Date.now() - 6 * 3600000).toISOString() },
+      { farmer_id: 'F8', name: 'Vikram Singh', village: 'Pandavapura', avatar: '👨‍🌾', quantity: 20, phone: '+919876543217', status: 'confirmed', joined_at: new Date(Date.now() - 6 * 3600000).toISOString() },
     ],
   },
 ];
 
-// ─────────────────────────────────────────────
-// HOOK
-// ─────────────────────────────────────────────
+function bundleToDeal(bundle: CooperativeBundle, index: number): Deal {
+  const currentQty = bundle.farmers.reduce((s, f) => s + f.quantity, 0);
+  const statusMap: Record<string, DealStatus> = {
+    forming: 'open',
+    open: 'filling',
+    closed: 'confirmed',
+    transported: 'departed',
+    sold: 'settled',
+  };
+  return {
+    deal_id: bundle.bundle_id,
+    crop: bundle.crop,
+    crop_emoji: bundle.crop === 'Tomato' ? '🍅' : bundle.crop === 'Onion' ? '🧅' : bundle.crop === 'Potato' ? '🥔' : '🌾',
+    target_mandi: bundle.target_mandi,
+    mandi_price: bundle.negotiated_price || 30,
+    price_change_pct: 5,
+    target_quantity: Math.ceil(currentQty * 1.2),
+    current_quantity: currentQty,
+    members: bundle.farmers.map((f) => ({
+      farmer_id: f.farmer_id,
+      name: f.farmer_name,
+      village: 'Village',
+      avatar: '👨‍🌾',
+      quantity: f.quantity,
+      phone: '',
+      status: f.status,
+      joined_at: f.harvest_date,
+    })),
+    posted_by_farmer_id: bundle.farmers[0]?.farmer_id || '',
+    block_id: bundle.bundle_id.split('-')[0] || 'BLK-001',
+    distance_km: 5,
+    proposed_date: bundle.farmers[0]?.harvest_date || new Date().toISOString(),
+    expires_at: bundle.closes_at || new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+    status: statusMap[bundle.status] || 'open',
+    savings_per_quintal: 150,
+  };
+}
 
-export function useDeals() {
+export function useDeals(farmerId?: string) {
   const [deals, setDeals] = useState<Deal[]>(MOCK_DEALS);
   const [selectedDeal, setSelectedDeal] = useState<Deal | null>(null);
   const [myJoinedDealIds, setMyJoinedDealIds] = useState<string[]>([]);
   const [triggeringDealId, setTriggeringDealId] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
   const addToast = useAppStore((s) => s.addToast);
 
-  // Join a deal — add farmer's quantity, check if target hit
+  useEffect(() => {
+    if (!farmerId) return;
+
+    const fetchDeals = async () => {
+      setIsLoading(true);
+      try {
+        const bundles = await cooperativeService.getFarmerBundles(farmerId);
+        if (bundles.length > 0) {
+          const apiDeals = bundles.map((b, i) => bundleToDeal(b, i));
+          setDeals(apiDeals);
+          const joined = bundles
+            .filter((b) => b.farmers.some((f) => f.farmer_id === farmerId))
+            .map((b) => b.bundle_id);
+          setMyJoinedDealIds(joined);
+        }
+      } catch (err) {
+        console.log('[useDeals] Using mock data, backend not available');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchDeals();
+  }, [farmerId]);
+
   const joinDeal = useCallback(async (dealId: string, quantity: number, myFarmerId = 'ME') => {
     const myMember: DealMember = {
       farmer_id: myFarmerId,
@@ -173,8 +223,21 @@ export function useDeals() {
       joined_at: new Date().toISOString(),
     };
 
-    let confirmedDeal: Deal | null = null;
+    try {
+      const result = await cooperativeService.joinBundle(dealId, myFarmerId, {
+        quantity,
+        harvest_date: new Date().toISOString(),
+      });
 
+      if (result) {
+        setMyJoinedDealIds((prev) => [...prev, dealId]);
+        addToast('Joined the bundle successfully!', 'success');
+      }
+    } catch (err) {
+      console.log('[useDeals] Backend join failed, using local update');
+    }
+
+    let confirmedDeal: Deal | null = null;
     setDeals((prev) =>
       prev.map((d) => {
         if (d.deal_id !== dealId) return d;
@@ -191,7 +254,7 @@ export function useDeals() {
       })
     );
 
-    setMyJoinedDealIds((prev) => [...prev, dealId]);
+    setMyJoinedDealIds((prev) => (prev.includes(dealId) ? prev : [...prev, dealId]));
     setSelectedDeal((prev) => {
       if (!prev || prev.deal_id !== dealId) return prev;
       const newQty = prev.current_quantity + quantity;
@@ -203,14 +266,29 @@ export function useDeals() {
       };
     });
 
-    // If target hit → auto-trigger n8n
     if (confirmedDeal) {
       await autoTriggerOnConfirmed(confirmedDeal, setDeals, addToast, setTriggeringDealId);
     }
   }, [addToast]);
 
-  // Post a new deal
-  const postDeal = useCallback((newDeal: Omit<Deal, 'deal_id' | 'members' | 'current_quantity' | 'status'>) => {
+  const postDeal = useCallback(async (newDeal: Omit<Deal, 'deal_id' | 'members' | 'current_quantity' | 'status'>) => {
+    try {
+      const bundle = await cooperativeService.createBundle({
+        block_id: newDeal.block_id,
+        crop: newDeal.crop,
+        target_mandi: newDeal.target_mandi,
+        farmer_id: newDeal.posted_by_farmer_id,
+        initial_quantity: 0,
+        harvest_date: newDeal.proposed_date,
+      });
+
+      if (bundle) {
+        addToast('Deal posted! Nearby farmers will be notified. 🌾', 'success');
+      }
+    } catch (err) {
+      console.log('[useDeals] Backend post failed, using local update');
+    }
+
     const deal: Deal = {
       ...newDeal,
       deal_id: 'DEAL-' + Math.random().toString(36).substr(2, 6).toUpperCase(),
@@ -237,6 +315,7 @@ export function useDeals() {
     selectedDeal,
     myJoinedDealIds,
     triggeringDealId,
+    isLoading,
     joinDeal,
     postDeal,
     openDeal,
@@ -245,10 +324,6 @@ export function useDeals() {
     filterByDeal,
   };
 }
-
-// ─────────────────────────────────────────────
-// AUTO-TRIGGER HELPER
-// ─────────────────────────────────────────────
 
 async function autoTriggerOnConfirmed(
   deal: Deal,
@@ -260,7 +335,6 @@ async function autoTriggerOnConfirmed(
   const phones = deal.members.map((m) => m.phone);
 
   try {
-    // Step 1: Notify all farmers
     await n8nService.triggerBundleNotification({
       bundle_id: deal.deal_id,
       crop: deal.crop,
@@ -269,7 +343,6 @@ async function autoTriggerOnConfirmed(
       farmer_phones: phones,
     });
 
-    // Step 2: Match a KisanSabha truck agency via backend
     const matchRes = await apiClient.post('/api/truck/match', {
       crop: deal.crop,
       weight_tons: deal.current_quantity / 10,
@@ -279,7 +352,6 @@ async function autoTriggerOnConfirmed(
     });
     const matchData = matchRes.data;
 
-    // Step 3: Trigger n8n booking workflow with real agency info
     await n8nService.triggerAutomation('truck_booking', {
       bundle_id: deal.deal_id,
       cooperative_size_tons: deal.current_quantity / 10,
@@ -293,7 +365,6 @@ async function autoTriggerOnConfirmed(
       agency_name: matchData.agency?.name,
     });
 
-    // Step 4: Attach full TruckInfo (with KisanSabha agency) to the deal
     const truck: TruckInfo = {
       driver_name: matchData.driver_name,
       driver_phone: matchData.driver_phone,
@@ -314,7 +385,6 @@ async function autoTriggerOnConfirmed(
     addToast(`Truck booked via ${matchData.agency?.name || 'KisanSabha'}! All farmers notified.`, 'success');
   } catch (err) {
     addToast('Deal confirmed! Truck booking pending -- check network.', 'info');
-    // Still mark as confirmed even if API/n8n fails
     setDeals((prev) =>
       prev.map((d) =>
         d.deal_id === deal.deal_id ? { ...d, status: 'confirmed' } : d
