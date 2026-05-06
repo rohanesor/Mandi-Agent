@@ -55,15 +55,15 @@ export const PriceHistorySchema = z.object({
 });
 
 export const PriceAlertSchema = z.object({
-  alert_id: z.string().uuid(),
-  farmer_id: z.string().uuid(),
+  alert_id: z.string(),
+  farmer_id: z.string(),
   crop: z.string(),
   mandi: z.string(),
   target_price: z.number(),
   condition: z.enum(['above', 'below']),
   is_active: z.boolean(),
   last_triggered: z.string().datetime().optional(),
-  created_at: z.string().datetime(),
+  created_at: z.string(),
 });
 
 export type MandiPrice = z.infer<typeof MandiPriceSchema>;

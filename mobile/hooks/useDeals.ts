@@ -19,7 +19,7 @@ export type DealMember = {
   avatar: string;
   quantity: number;
   phone: string;
-  status: 'confirmed' | 'pending';
+  status: 'confirmed' | 'pending' | 'completed';
   joined_at: string;
 };
 

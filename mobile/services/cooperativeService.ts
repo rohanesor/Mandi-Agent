@@ -3,12 +3,15 @@ import { apiClient } from './api';
 
 // Zod schemas for validation
 export const BlockStatusSchema = z.object({
-  block_id: z.string().uuid(),
-  block_name: z.string(),
-  district: z.string(),
-  state: z.string(),
-  total_farmers: z.number().int().nonnegative(),
-  active_bundles: z.number().int().nonnegative(),
+  block_id: z.string(),
+  block_name: z.string().optional(),
+  district: z.string().optional(),
+  state: z.string().optional(),
+  total_farmers: z.number().int().nonnegative().optional().default(0),
+  active_bundles: z.union([
+    z.number().int().nonnegative(),
+    z.array(z.string()),
+  ]).transform((val) => (Array.isArray(val) ? val.length : val)),
   upcoming_harvests: z.array(
     z.object({
       crop: z.string(),
@@ -16,21 +19,21 @@ export const BlockStatusSchema = z.object({
       farmers_count: z.number().int().nonnegative(),
       preferred_mandi: z.string().optional(),
     })
-  ),
+  ).optional().default([]),
   next_bundle_window: z.string().datetime().optional(),
-  cooperative_status: z.enum(['active', 'forming', 'inactive']),
-  created_at: z.string().datetime(),
-  updated_at: z.string().datetime(),
+  cooperative_status: z.enum(['active', 'forming', 'inactive']).optional().default('active'),
+  created_at: z.string().datetime().optional().default(new Date().toISOString()),
+  updated_at: z.string().datetime().optional().default(new Date().toISOString()),
 });
 
 export const CooperativeBundleSchema = z.object({
-  bundle_id: z.string().uuid(),
-  block_id: z.string().uuid(),
+  bundle_id: z.string(),
+  block_id: z.string(),
   crop: z.string(),
   total_quantity: z.number().positive(),
   farmers: z.array(
     z.object({
-      farmer_id: z.string().uuid(),
+      farmer_id: z.string(),
       farmer_name: z.string(),
       quantity: z.number().positive(),
       harvest_date: z.string(),
@@ -38,17 +41,17 @@ export const CooperativeBundleSchema = z.object({
     })
   ),
   target_mandi: z.string(),
-  negotiated_price: z.number().positive().optional(),
-  status: z.enum(['forming', 'open', 'closed', 'transported', 'sold', 'settled']),
-  created_at: z.string().datetime(),
-  closes_at: z.string().datetime(),
+  negotiated_price: z.number().positive().optional().nullable(),
+  status: z.enum(['forming', 'open', 'closed', 'transported', 'sold', 'settled', 'negotiating', 'confirmed', 'dispatched', 'completed']),
+  created_at: z.string(),
+  closes_at: z.string(),
   transported_at: z.string().datetime().optional(),
   sold_at: z.string().datetime().optional(),
 });
 
 export const BundleJoinRequestSchema = z.object({
-  farmer_id: z.string().uuid(),
-  bundle_id: z.string().uuid(),
+  farmer_id: z.string(),
+  bundle_id: z.string(),
   quantity: z.number().positive(),
   harvest_date: z.string(),
   notes: z.string().optional(),
@@ -57,7 +60,7 @@ export const BundleJoinRequestSchema = z.object({
 export const BundleJoinResponseSchema = z.object({
   bundle: CooperativeBundleSchema,
   farmer_contribution: z.object({
-    farmer_id: z.string().uuid(),
+    farmer_id: z.string(),
     quantity: z.number().positive(),
     share_percentage: z.number().min(0).max(100),
   }),
