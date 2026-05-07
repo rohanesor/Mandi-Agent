@@ -134,8 +134,8 @@ export default function PricesScreen() {
                 </View>
                 <View style={{ alignItems: 'flex-end', marginRight: 8 }}>
                   <Text style={styles.price}>₹{item.modal_price}</Text>
-                  {item.arrival_qty && (
-                    <Text style={styles.arrival}>{item.arrival_qty} {item.arrival_unit || 'qtl'}</Text>
+                  {(item as any).arrival_qty && (
+                    <Text style={styles.arrival}>{(item as any).arrival_qty} {(item as any).arrival_unit || 'qtl'}</Text>
                   )}
                 </View>
               </Pressable>

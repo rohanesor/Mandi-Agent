@@ -35,6 +35,15 @@ logger = logging.getLogger(__name__)
 async def lifespan(app: FastAPI):
     """Application lifespan — startup and shutdown."""
     logger.info("Mandi-Agent starting up...")
+
+    # Seed demo farmers
+    try:
+        from mandi_agent.backend.utils.seed import seed_demo_farmers
+        await seed_demo_farmers()
+        logger.info("Demo farmers seeded successfully")
+    except Exception as e:
+        logger.warning("Demo farmer seeding skipped: %s", str(e)[:100])
+
     yield
     # Cleanup
     try:

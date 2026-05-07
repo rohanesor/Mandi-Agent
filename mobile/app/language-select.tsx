@@ -85,7 +85,7 @@ export default function LanguageSelectScreen() {
     if (!picked) return
     if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
     await setCode(picked)
-    router.replace('/(tabs)')
+    router.replace('/onboarding')
   }
 
   const pickedLang = LANGUAGES.find(l => l.code === picked)

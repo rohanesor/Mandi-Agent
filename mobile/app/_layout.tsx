@@ -1,8 +1,7 @@
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
-import { View, StyleSheet, Text } from 'react-native';
-import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { View, StyleSheet, Text, AppState } from 'react-native';
 import { useFonts } from 'expo-font';
 import * as SplashScreen from 'expo-splash-screen';
 import {
@@ -16,7 +15,8 @@ import {
   Inter_500Medium,
 } from '@expo-google-fonts/inter';
 import { SpaceMono_700Bold } from '@expo-google-fonts/space-mono';
-import { useAppStore } from '../store';
+import { isAuthenticated } from '../services/authService';
+import { supabase } from '../lib/supabase';
 import { useOfflineSync } from '../hooks/useOfflineSync';
 import { useNewsNotifications } from '../hooks/useNewsNotifications';
 import { COLORS, FONTS } from '../constants/theme';
@@ -120,30 +120,73 @@ function AppGate() {
   const router = useRouter();
   const segments = useSegments();
   const { registerForPushNotifications } = useNewsNotifications();
+  const [authState, setAuthState] = useState<'loading' | 'authenticated' | 'unauthenticated'>('loading');
 
   useEffect(() => {
     registerForPushNotifications().catch(() => null);
   }, [registerForPushNotifications]);
 
+  // Check auth state on mount and listen for changes
   useEffect(() => {
-    if (!isLoaded) return;
+    checkAuth();
+
+    const { data: authListener } = supabase.auth.onAuthStateChange((event) => {
+      if (event === 'SIGNED_IN') setAuthState('authenticated');
+      if (event === 'SIGNED_OUT') setAuthState('unauthenticated');
+      if (event === 'TOKEN_REFRESHED') setAuthState('authenticated');
+    });
+
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state === 'active') checkAuth();
+    });
+
+    return () => {
+      authListener?.subscription.unsubscribe();
+      sub.remove();
+    };
+  }, []);
+
+  async function checkAuth() {
+    const authed = await isAuthenticated();
+    setAuthState(authed ? 'authenticated' : 'unauthenticated');
+  }
+
+  useEffect(() => {
+    if (!isLoaded || authState === 'loading') return;
 
     const path = segments.join('/');
     const isOnLanguageSelect = path === 'language-select';
+    const isOnOnboarding = path === 'onboarding';
     const isOnTabs = path === '(tabs)' || path.startsWith('(tabs)/');
 
+    // First launch → language select
     if (isFirstLaunch && !isOnLanguageSelect) {
       router.replace('/language-select');
-    } else if (!isFirstLaunch && isOnLanguageSelect) {
-      router.replace('/(tabs)');
+      return;
     }
-  }, [isLoaded, isFirstLaunch, segments, router]);
 
-  if (!isLoaded) return (
-    <View style={[StyleSheet.absoluteFill, { backgroundColor: 'red', alignItems: 'center', justifyContent: 'center' }]}>
-      <Text style={{ color: 'white', fontSize: 24 }}>AppGate: Waiting for Language isLoaded...</Text>
-    </View>
-  );
+    // Not first launch → check auth
+    if (!isFirstLaunch) {
+      if (authState === 'unauthenticated' && !isOnOnboarding && !isOnLanguageSelect) {
+        router.replace('/onboarding');
+        return;
+      }
+
+      if (authState === 'authenticated' && (isOnOnboarding || isOnLanguageSelect)) {
+        router.replace('/(tabs)');
+        return;
+      }
+    }
+
+    // First launch and already on language-select, or after returning from language-select
+    if (isFirstLaunch && isOnLanguageSelect) {
+      return; // stay on language-select
+    }
+  }, [isLoaded, authState, isFirstLaunch, segments, router]);
+
+  if (!isLoaded || authState === 'loading') {
+    return <AgriculturalLoader />;
+  }
 
   return (
     <Stack screenOptions={{ headerShown: false }}>

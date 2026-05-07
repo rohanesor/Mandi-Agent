@@ -1,10 +1,14 @@
 import * as SecureStore from 'expo-secure-store';
+import * as WebBrowser from 'expo-web-browser';
 import { z } from 'zod';
+import { supabase, getCurrentSession, getCurrentUser, signOut as supabaseSignOut } from '../lib/supabase';
 import { apiClient, storeTokens, storeFarmerProfile, clearStoredData, TOKEN_KEYS } from './api';
 
-// Zod schemas for validation
+WebBrowser.maybeCompleteAuthSession();
+
+// Zod schemas
 export const FarmerProfileSchema = z.object({
-  id: z.string().uuid(),
+  id: z.string().min(1),
   phone: z.string().min(10),
   name: z.string().min(1),
   state: z.string().min(1),
@@ -17,28 +21,8 @@ export const FarmerProfileSchema = z.object({
   created_at: z.string().datetime().optional(),
 });
 
-export const RegisterResponseSchema = z.object({
-  farmer_id: z.string().uuid(),
-  access_token: z.string().min(1),
-  refresh_token: z.string().min(1),
-  farmer: FarmerProfileSchema,
-});
-
-export const LoginResponseSchema = z.object({
-  access_token: z.string().min(1),
-  refresh_token: z.string().min(1),
-  farmer: FarmerProfileSchema,
-});
-
-export const RefreshResponseSchema = z.object({
-  access_token: z.string().min(1),
-});
-
 export type FarmerProfile = z.infer<typeof FarmerProfileSchema>;
-export type RegisterResponse = z.infer<typeof RegisterResponseSchema>;
-export type LoginResponse = z.infer<typeof LoginResponseSchema>;
 
-// Input types
 export interface RegisterInput {
   phone: string;
   name: string;
@@ -56,146 +40,164 @@ export interface LoginInput {
   otp: string;
 }
 
-// Farmer-friendly error messages map for auth errors
-const AUTH_ERROR_MESSAGES: Record<string, string> = {
-  phone_required: 'Phone number is required.',
-  phone_invalid: 'Please enter a valid 10-digit phone number.',
-  otp_invalid: 'The OTP you entered is incorrect. Please try again.',
-  otp_expired: 'Your OTP has expired. Please request a new one.',
-  farmer_not_found: 'No account found with this phone number. Please register first.',
-  farmer_already_exists: 'An account with this phone number already exists. Please login.',
-  name_required: 'Please enter your name.',
-  state_required: 'Please select your state.',
-  district_required: 'Please select your district.',
-  block_required: 'Please select your block.',
-  crops_required: 'Please select at least one crop you grow.',
-  language_required: 'Please select your preferred language.',
-};
+export interface LoginResponse {
+  access_token: string;
+  refresh_token: string;
+  farmer: FarmerProfile;
+}
+
+export interface RegisterResponse {
+  farmer_id: string;
+  access_token: string;
+  refresh_token: string;
+  farmer: FarmerProfile;
+}
+
+// React Native scheme for OAuth redirect
+const redirectUri = 'mandi-agent://auth/callback';
 
 /**
- * Register a new farmer
- * POST /api/farmer/register
+ * Register a new farmer profile via backend
  */
-export async function register(farmerData: RegisterInput): Promise<RegisterResponse> {
-  try {
-    const response = await apiClient.post('/api/farmer/register', farmerData);
+export async function register(farmerData: RegisterInput): Promise<{ farmer: FarmerProfile }> {
+  const session = await getCurrentSession();
+  const accessToken = session?.access_token;
 
-    // Validate response with Zod
-    const validated = RegisterResponseSchema.parse(response.data);
+  const response = await apiClient.post('/api/farmer/register', farmerData, {
+    headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
+  });
 
-    // Store tokens and profile
-    await storeTokens(validated.access_token, validated.refresh_token);
-    await storeFarmerProfile(validated.farmer);
-
-    return validated;
-  } catch (error) {
-    throw handleAuthError(error);
-  }
+  const farmer = FarmerProfileSchema.parse(response.data.farmer || response.data);
+  await storeFarmerProfile(farmer);
+  return { farmer };
 }
 
 /**
- * Request OTP for login
- * POST /api/auth/otp/request
+ * Request OTP via Supabase Auth
  */
-export async function requestOtp(phone: string): Promise<{ message: string; expires_in: number }> {
-  try {
-    const response = await apiClient.post('/api/auth/otp/request', { phone });
-    return {
-      message: response.data.message,
-      expires_in: response.data.expires_in,
-    };
-  } catch (error) {
-    throw handleAuthError(error);
-  }
+export async function requestOtp(phone: string): Promise<{ message: string }> {
+  const { error } = await supabase.auth.signInWithOtp({
+    phone: `+91${phone}`,
+  });
+  if (error) throw new Error(getAuthErrorMessage(error.message));
+  return { message: 'OTP sent successfully' };
 }
 
 /**
- * Login with phone and OTP
- * POST /api/auth/login
+ * Verify OTP and login via Supabase Auth
  */
-export async function login(credentials: LoginInput): Promise<LoginResponse> {
-  try {
-    const response = await apiClient.post('/api/auth/login', {
-      phone: credentials.phone,
-      otp: credentials.otp,
-    });
+export async function verifyOtp(phone: string, otp: string): Promise<{ farmer: FarmerProfile | null; isNew: boolean }> {
+  const { data, error } = await supabase.auth.verifyOtp({
+    phone: `+91${phone}`,
+    token: otp,
+    type: 'sms',
+  });
 
-    // Validate response with Zod
-    const validated = LoginResponseSchema.parse(response.data);
-
-    // Store tokens and profile
-    await storeTokens(validated.access_token, validated.refresh_token);
-    await storeFarmerProfile(validated.farmer);
-
-    return validated;
-  } catch (error) {
-    throw handleAuthError(error);
-  }
-}
-
-/**
- * Refresh access token
- * GET /api/auth/refresh
- */
-export async function refreshToken(): Promise<string> {
-  try {
-    const refreshToken = await SecureStore.getItemAsync(TOKEN_KEYS.REFRESH_TOKEN);
-
-    if (!refreshToken) {
-      throw new Error('No refresh token available');
+  if (error) {
+    if (error.message.includes('otp_expired')) {
+      throw new Error('OTP expired. Please request a new one.');
     }
+    throw new Error('Invalid OTP. Please try again.');
+  }
 
-    const response = await apiClient.get('/api/auth/refresh', {
-      headers: {
-        Authorization: `Bearer ${refreshToken}`,
-      },
+  if (!data.session) {
+    throw new Error('Login failed. Please try again.');
+  }
+
+  await storeTokens(data.session.access_token, data.session.refresh_token);
+
+  // Try fetching farmer profile from backend
+  try {
+    const user = data.user;
+    const response = await apiClient.get(`/api/farmer/by-phone/${phone}`, {
+      headers: { Authorization: `Bearer ${data.session.access_token}` },
     });
-
-    const validated = RefreshResponseSchema.parse(response.data);
-
-    // Store new access token
-    await SecureStore.setItemAsync(TOKEN_KEYS.ACCESS_TOKEN, validated.access_token);
-
-    return validated.access_token;
-  } catch (error) {
-    // Refresh failed - force logout
-    await clearStoredData();
-    throw handleAuthError(error);
+    const farmer = FarmerProfileSchema.parse(response.data);
+    await storeFarmerProfile(farmer);
+    return { farmer, isNew: false };
+  } catch {
+    // No profile yet → new user needs to complete profile
+    return { farmer: null, isNew: true };
   }
 }
 
 /**
- * Logout user
- * POST /api/auth/logout
+ * Sign in with Google via Supabase OAuth
+ */
+export async function signInWithGoogle(): Promise<{ farmer: FarmerProfile | null; isNew: boolean }> {
+  const { data, error } = await supabase.auth.signInWithOAuth({
+    provider: 'google',
+    options: {
+      redirectTo: redirectUri,
+      skipBrowserRedirect: true,
+    },
+  });
+
+  if (error) throw new Error('Google sign in failed. Please try again.');
+  if (!data.url) throw new Error('Failed to start Google sign in.');
+
+  // Open browser for OAuth flow
+  const result = await WebBrowser.openAuthSessionAsync(data.url, redirectUri);
+
+  if (result.type === 'success') {
+    // Supabase stores the session automatically via the SecureStore adapter
+    const session = await getCurrentSession();
+    if (!session) throw new Error('Google sign in completed but session not found.');
+
+    await storeTokens(session.access_token, session.refresh_token);
+
+    // Try to get existing farmer profile
+    const user = await getCurrentUser();
+    const phone = user?.phone || user?.email?.split('@')[0] || '';
+
+    try {
+      const response = await apiClient.get(`/api/farmer/by-google/${user?.id}`, {
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      });
+      const farmer = FarmerProfileSchema.parse(response.data);
+      await storeFarmerProfile(farmer);
+      return { farmer, isNew: false };
+    } catch {
+      return { farmer: null, isNew: true };
+    }
+  }
+
+  throw new Error('Google sign in was cancelled.');
+}
+
+/**
+ * Complete farmer profile after OAuth signup
+ */
+export async function completeProfile(farmerData: RegisterInput): Promise<FarmerProfile> {
+  const session = await getCurrentSession();
+  const accessToken = session?.access_token;
+
+  const response = await apiClient.post('/api/farmer/complete-profile', farmerData, {
+    headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
+  });
+
+  const farmer = FarmerProfileSchema.parse(response.data.farmer || response.data);
+  await storeFarmerProfile(farmer);
+  return farmer;
+}
+
+/**
+ * Logout via Supabase
  */
 export async function logout(): Promise<void> {
   try {
-    // Attempt to notify backend
-    await apiClient.post('/api/auth/logout');
-  } catch {
-    // Ignore errors on logout - proceed to clear local data
-  } finally {
-    // Always clear local data
-    await clearStoredData();
-
-    // Emit logout event for app state reset
-    (globalThis as typeof globalThis & { dispatchEvent: (e: Event) => void }).dispatchEvent(new CustomEvent('auth:logout', {
-      detail: { reason: 'user_initiated' }
-    }));
-  }
+    await supabaseSignOut();
+  } catch { }
+  await clearStoredData();
+  (globalThis as typeof globalThis & { dispatchEvent: (e: Event) => void }).dispatchEvent(new CustomEvent('auth:logout', { detail: { reason: 'user_initiated' } }));
 }
 
 /**
- * Check if user is authenticated
+ * Check if user is authenticated via Supabase session
  */
 export async function isAuthenticated(): Promise<boolean> {
-  try {
-    const token = await SecureStore.getItemAsync(TOKEN_KEYS.ACCESS_TOKEN);
-    const profile = await SecureStore.getItemAsync(TOKEN_KEYS.FARMER_PROFILE);
-    return !!(token && profile);
-  } catch {
-    return false;
-  }
+  const session = await getCurrentSession();
+  return !!session;
 }
 
 /**
@@ -215,62 +217,53 @@ export async function getFarmerProfile(): Promise<FarmerProfile | null> {
  */
 export async function updateFarmerProfile(updates: Partial<FarmerProfile>): Promise<FarmerProfile> {
   const current = await getFarmerProfile();
-  if (!current) {
-    throw new Error('No farmer profile found');
-  }
+  if (!current) throw new Error('No farmer profile found');
 
   const updated = { ...current, ...updates };
   await storeFarmerProfile(updated);
-
   return FarmerProfileSchema.parse(updated);
 }
 
-/**
- * Handle auth errors and convert to farmer-friendly messages
- */
-function handleAuthError(error: unknown): Error {
-  if (error && typeof error === 'object' && 'response' in error) {
-    const axiosError = error as { response?: { data?: { detail?: string; error_code?: string } } };
-    const errorCode = axiosError.response?.data?.error_code;
-    const detail = axiosError.response?.data?.detail;
-
-    if (errorCode && AUTH_ERROR_MESSAGES[errorCode]) {
-      return new Error(AUTH_ERROR_MESSAGES[errorCode]);
-    }
-
-    if (detail) {
-      // Sanitize technical details
-      return new Error(sanitizeError(detail));
-    }
-  }
-
-  // Check if it's already our ApiError
-  if (error instanceof Error) {
-    return error;
-  }
-
-  return new Error('Something went wrong. Please try again.');
+function getAuthErrorMessage(code: string): string {
+  const map: Record<string, string> = {
+    'otp_expired': 'OTP expired. Please request again.',
+    'sms_not_sent': 'Could not send OTP. Check phone number.',
+    'invalid_phone': 'Invalid phone number.',
+    'over_request_sms': 'Too many requests. Try again later.',
+    'over_phone_sms': 'Too many OTPs sent to this number.',
+  };
+  return map[code] || code;
 }
 
-/**
- * Sanitize error messages to remove technical details
- */
-function sanitizeError(message: string): string {
-  // Remove stack traces, file paths, SQL queries, etc.
-  return message
-    .replace(/\/[\w/.-]+/g, '[path]') // Remove file paths
-    .replace(/SELECT|INSERT|UPDATE|DELETE/gi, '[query]') // Remove SQL
-    .replace(/\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b/g, '[ip]') // Remove IPs
-    .replace(/error:\s*/i, '') // Remove "Error:" prefix
-    .trim();
-}
+// Backward-compat aliases
+export const login = verifyOtp;
+export const refreshToken = async (): Promise<string> => {
+  const session = await getCurrentSession();
+  return session?.refresh_token ?? '';
+};
+
+export const RegisterResponseSchema = z.object({
+  farmer_id: z.string(),
+  access_token: z.string(),
+  refresh_token: z.string(),
+  farmer: FarmerProfileSchema,
+});
+
+export const LoginResponseSchema = z.object({
+  access_token: z.string(),
+  refresh_token: z.string(),
+  farmer: FarmerProfileSchema,
+});
 
 export const authService = {
   register,
   requestOtp,
-  login,
-  refreshToken,
+  verifyOtp,
+  login: verifyOtp,
+  signInWithGoogle,
+  completeProfile,
   logout,
+  refreshToken: () => Promise.resolve(''),
   isAuthenticated,
   getFarmerProfile,
   updateFarmerProfile,

@@ -22,6 +22,7 @@ export type { ApiError, ErrorCode } from './api';
 export {
   register,
   requestOtp,
+  verifyOtp,
   login,
   refreshToken,
   logout,
