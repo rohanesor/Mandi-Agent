@@ -6,6 +6,7 @@ import * as Haptics from 'expo-haptics';
 import { useAppStore } from '../store';
 import { requestOtp, verifyOtp, completeProfile, signInWithGoogle } from '../services/authService';
 import { COLORS, FONTS } from '../constants/theme';
+import HoverCard from '../components/HoverCard';
 import { z } from 'zod';
 
 const phoneSchema = z.string().regex(/^[6-9]\d{9}$/, 'Invalid phone');
@@ -188,14 +189,16 @@ export default function OnboardingScreen() {
 
             {error && <View style={styles.errorBanner}><Text style={styles.errorText}>{error}</Text></View>}
 
-            <TouchableOpacity
-              style={styles.googleBtn}
-              onPress={handleGoogleLogin}
-              disabled={isLoading}
-            >
-              <Text style={styles.googleIcon}>G</Text>
-              <Text style={styles.googleBtnText}>Continue with Google</Text>
-            </TouchableOpacity>
+            <HoverCard>
+              <TouchableOpacity
+                style={styles.googleBtn}
+                onPress={handleGoogleLogin}
+                disabled={isLoading}
+              >
+                <Text style={styles.googleIcon}>G</Text>
+                <Text style={styles.googleBtnText}>Continue with Google</Text>
+              </TouchableOpacity>
+            </HoverCard>
 
             <View style={styles.dividerRow}>
               <View style={styles.dividerLine} />
@@ -203,13 +206,15 @@ export default function OnboardingScreen() {
               <View style={styles.dividerLine} />
             </View>
 
-            <TouchableOpacity
-              style={[styles.button, (isLoading || phone.length !== 10) && styles.buttonDisabled]}
-              onPress={handleSendOtp}
-              disabled={isLoading || phone.length !== 10}
-            >
-              {isLoading ? <ActivityIndicator color={COLORS.night} /> : <Text style={styles.buttonText}>Send OTP</Text>}
-            </TouchableOpacity>
+            <HoverCard>
+              <TouchableOpacity
+                style={[styles.button, (isLoading || phone.length !== 10) && styles.buttonDisabled]}
+                onPress={handleSendOtp}
+                disabled={isLoading || phone.length !== 10}
+              >
+                {isLoading ? <ActivityIndicator color={COLORS.night} /> : <Text style={styles.buttonText}>Send OTP</Text>}
+              </TouchableOpacity>
+            </HoverCard>
           </>
         )}
 

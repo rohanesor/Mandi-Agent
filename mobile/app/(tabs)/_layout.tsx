@@ -3,6 +3,7 @@ import { StyleSheet } from 'react-native';
 import { Home, TrendingUp, Users, Leaf, Settings, Newspaper, Calendar } from 'lucide-react-native';
 import { COLORS, FONTS } from '../../constants/theme';
 import { useT } from '../../utils/useT';
+import AnimatedTabIcon from '../../components/AnimatedTabIcon';
 
 export default function TabLayout() {
   const { t } = useT();
@@ -22,8 +23,8 @@ export default function TabLayout() {
         name="index"
         options={{
           title: t('homeTab'),
-          tabBarIcon: ({ color, size }) => (
-            <Home color={color} size={size} />
+          tabBarIcon: ({ color, size, focused }) => (
+            <AnimatedTabIcon focused={focused} icon={<Home color={color} size={size} />} />
           ),
         }}
       />
@@ -31,8 +32,8 @@ export default function TabLayout() {
         name="prices"
         options={{
           title: t('pricesTab'),
-          tabBarIcon: ({ color, size }) => (
-            <TrendingUp color={color} size={size} />
+          tabBarIcon: ({ color, size, focused }) => (
+            <AnimatedTabIcon focused={focused} icon={<TrendingUp color={color} size={size} />} />
           ),
         }}
       />
@@ -40,8 +41,8 @@ export default function TabLayout() {
         name="news"
         options={{
           title: 'News',
-          tabBarIcon: ({ color, size }) => (
-            <Newspaper color={color} size={size} />
+          tabBarIcon: ({ color, size, focused }) => (
+            <AnimatedTabIcon focused={focused} icon={<Newspaper color={color} size={size} />} />
           ),
         }}
       />
@@ -49,8 +50,8 @@ export default function TabLayout() {
         name="cooperative"
         options={{
           title: t('cooperative'),
-          tabBarIcon: ({ color, size }) => (
-            <Users color={color} size={size} />
+          tabBarIcon: ({ color, size, focused }) => (
+            <AnimatedTabIcon focused={focused} icon={<Users color={color} size={size} />} />
           ),
         }}
       />
@@ -58,8 +59,8 @@ export default function TabLayout() {
         name="plan"
         options={{
           title: 'Plan',
-          tabBarIcon: ({ color, size }) => (
-            <Calendar color={color} size={size} />
+          tabBarIcon: ({ color, size, focused }) => (
+            <AnimatedTabIcon focused={focused} icon={<Calendar color={color} size={size} />} />
           ),
         }}
       />
@@ -67,8 +68,8 @@ export default function TabLayout() {
         name="farm"
         options={{
           title: t('farmTab'),
-          tabBarIcon: ({ color, size }) => (
-            <Leaf color={color} size={size} />
+          tabBarIcon: ({ color, size, focused }) => (
+            <AnimatedTabIcon focused={focused} icon={<Leaf color={color} size={size} />} />
           ),
         }}
       />
@@ -76,8 +77,8 @@ export default function TabLayout() {
         name="settings"
         options={{
           title: t('settingsTitle'),
-          tabBarIcon: ({ color, size }) => (
-            <Settings color={color} size={size} />
+          tabBarIcon: ({ color, size, focused }) => (
+            <AnimatedTabIcon focused={focused} icon={<Settings color={color} size={size} />} />
           ),
         }}
       />

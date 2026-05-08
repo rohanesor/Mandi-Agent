@@ -21,6 +21,8 @@ import { useOfflineSync } from '../hooks/useOfflineSync';
 import { useNewsNotifications } from '../hooks/useNewsNotifications';
 import { COLORS, FONTS } from '../constants/theme';
 import { LanguageProvider, useLang } from '../context/LanguageContext';
+import AnimatedLoadingScreen from '../components/AnimatedLoadingScreen';
+import AnimatedBackground from '../components/AnimatedBackground';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -31,87 +33,6 @@ const queryClient = new QueryClient({
       staleTime: 5 * 60 * 1000,
       refetchOnWindowFocus: true,
     },
-  },
-});
-
-function AgriculturalLoader() {
-  const [progress, setProgress] = useState(0);
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setProgress((p) => {
-        if (p >= 100) {
-          clearInterval(interval);
-          return 100;
-        }
-        return p + 10;
-      });
-    }, 150);
-    return () => clearInterval(interval);
-  }, []);
-
-  return (
-    <View style={loaderStyles.container}>
-      <View style={loaderStyles.wheatWrap}>
-        <Text style={loaderStyles.wheat}>🌾</Text>
-        <Text style={loaderStyles.wheat}>🌾</Text>
-        <Text style={loaderStyles.wheat}>🌾</Text>
-      </View>
-      <Text style={loaderStyles.title}>Mandi Agent</Text>
-      <Text style={loaderStyles.subtitle}>आपका खेत, आपकी कमाई</Text>
-      <View style={loaderStyles.progressBar}>
-        <View style={[loaderStyles.progressFill, { width: `${progress}%` }]} />
-      </View>
-      <Text style={loaderStyles.loading}>Loading · लोड हो रहा है...</Text>
-    </View>
-  );
-}
-
-const loaderStyles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: COLORS.night,
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 32,
-  },
-  wheatWrap: {
-    flexDirection: 'row',
-    gap: 12,
-    marginBottom: 24,
-  },
-  wheat: {
-    fontSize: 40,
-  },
-  title: {
-    fontFamily: FONTS.display,
-    fontSize: 32,
-    color: COLORS.white,
-    marginBottom: 8,
-  },
-  subtitle: {
-    fontFamily: FONTS.body,
-    fontSize: 16,
-    color: COLORS.sprout,
-    marginBottom: 32,
-  },
-  progressBar: {
-    width: 200,
-    height: 4,
-    backgroundColor: COLORS.forest,
-    borderRadius: 2,
-    overflow: 'hidden',
-    marginBottom: 16,
-  },
-  progressFill: {
-    height: '100%',
-    backgroundColor: COLORS.harvest,
-    borderRadius: 2,
-  },
-  loading: {
-    fontFamily: FONTS.body,
-    fontSize: 12,
-    color: COLORS.muted,
   },
 });
 
@@ -187,18 +108,18 @@ function AppGate() {
   }, [isLoaded, authState, isFirstLaunch, segments, router]);
 
   if (!isLoaded || authState === 'loading') {
-    return <AgriculturalLoader />;
+    return <AnimatedLoadingScreen onLoaded={() => {}} minimumDuration={2000} />;
   }
 
   return (
     <Stack screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="language-select" options={{ animation: 'fade' }} />
-      <Stack.Screen name="onboarding" options={{ headerShown: false }} />
-      <Stack.Screen name="plan-onboarding" options={{ headerShown: false }} />
-      <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-      <Stack.Screen name="screens/advisory" options={{ headerShown: false }} />
-      <Stack.Screen name="advisory" options={{ headerShown: false, animation: 'slide_from_bottom' }} />
-    </Stack>
+        <Stack.Screen name="language-select" options={{ animation: 'fade' }} />
+        <Stack.Screen name="onboarding" options={{ animation: 'slide_from_right' }} />
+        <Stack.Screen name="plan-onboarding" options={{ animation: 'slide_from_right' }} />
+        <Stack.Screen name="(tabs)" options={{ animation: 'fade' }} />
+        <Stack.Screen name="screens/advisory" options={{ animation: 'slide_from_bottom' }} />
+        <Stack.Screen name="advisory" options={{ animation: 'slide_from_bottom' }} />
+      </Stack>
   );
 }
 
@@ -213,6 +134,7 @@ export default function RootLayout() {
     SpaceMono_700Bold,
   });
   useOfflineSync();
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     if (fontsLoaded) {
@@ -220,10 +142,10 @@ export default function RootLayout() {
     }
   }, [fontsLoaded]);
 
-  if (!fontsLoaded) {
+  if (!fontsLoaded || isLoading) {
     return (
       <View style={[StyleSheet.absoluteFill, { flex: 1, backgroundColor: COLORS.night }]}>
-        <AgriculturalLoader />
+        <AnimatedLoadingScreen onLoaded={() => setIsLoading(false)} />
       </View>
     );
   }
@@ -232,7 +154,9 @@ export default function RootLayout() {
     <View style={[StyleSheet.absoluteFill, { flex: 1, backgroundColor: COLORS.forest }]}>
       <QueryClientProvider client={queryClient}>
         <LanguageProvider>
-          <AppGate />
+          <AnimatedBackground>
+            <AppGate />
+          </AnimatedBackground>
         </LanguageProvider>
       </QueryClientProvider>
     </View>
