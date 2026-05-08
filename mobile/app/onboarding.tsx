@@ -1,233 +1,177 @@
-import { View, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, ActivityIndicator, Platform, Alert } from 'react-native';
+import { View, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, ActivityIndicator, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import * as Haptics from 'expo-haptics';
 import { useAppStore } from '../store';
-import { requestOtp, verifyOtp, signInWithGoogle, completeProfile, isAuthenticated } from '../services/authService';
-import { supabase } from '../lib/supabase';
+import { requestOtp, verifyOtp, completeProfile, signInWithGoogle } from '../services/authService';
 import { COLORS, FONTS } from '../constants/theme';
-import Animated, {
-  useAnimatedStyle,
-  useSharedValue,
-  withSpring,
-} from 'react-native-reanimated';
 import { z } from 'zod';
 
 const phoneSchema = z.string().regex(/^[6-9]\d{9}$/, 'Invalid phone');
 const otpSchema = z.string().regex(/^\d{6}$/, 'Invalid OTP');
 const nameSchema = z.string().min(2, 'Name too short');
 
-type Step = 'method' | 'phone' | 'otp' | 'profile' | 'complete';
+const CROPS = ['Tomato', 'Onion', 'Potato', 'Chilli', 'Mango', 'Wheat', 'Rice', 'Cotton'];
 
-const AnimatedTouchable = Animated.createAnimatedComponent(TouchableOpacity);
+type Mode = 'signin' | 'signup';
+type Step = 'phone' | 'otp' | 'profile' | 'complete';
 
 export default function OnboardingScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const setFarmer = useAppStore((s) => s.setFarmer);
   const setLanguage = useAppStore((s) => s.setLanguage);
-  const farmer = useAppStore((s) => s.farmer);
+  const setSeasonPlan = useAppStore((s) => s.setSeasonPlan);
+  const setHasCompletedPlanOnboarding = useAppStore((s) => s.setHasCompletedPlanOnboarding);
 
-  const [step, setStep] = useState<Step>('method');
+  const [mode, setMode] = useState<Mode>('signin');
+  const [step, setStep] = useState<Step>('phone');
   const [phone, setPhone] = useState('');
   const [otp, setOtp] = useState('');
   const [name, setName] = useState('');
+  const [selectedCrops, setSelectedCrops] = useState<string[]>([]);
   const [selectedLanguage, setSelectedLanguage] = useState<'hi' | 'en'>('hi');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const buttonScale = useSharedValue(1);
-
-  const buttonStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: buttonScale.value }],
-  }));
-
-  const handleButtonPressIn = () => {
-    buttonScale.value = withSpring(0.96, { damping: 15, stiffness: 300 });
+  const toggleCrop = (crop: string) => {
+    setSelectedCrops((prev) =>
+      prev.includes(crop) ? prev.filter((c) => c !== crop) : [...prev, crop]
+    );
   };
 
-  const handleButtonPressOut = () => {
-    buttonScale.value = withSpring(1, { damping: 15, stiffness: 300 });
+  const resetForm = () => {
+    setStep('phone');
+    setPhone('');
+    setOtp('');
+    setName('');
+    setSelectedCrops([]);
+    setSelectedLanguage('hi');
+    setError(null);
+  };
+
+  const switchMode = (newMode: Mode) => {
+    setMode(newMode);
+    resetForm();
   };
 
   const handleSendOtp = async () => {
     setError(null);
-    try {
-      phoneSchema.parse(phone);
-    } catch {
-      setError('कृपया वैध 10 अंकों का फ़ोन नंबर दर्ज करें · Please enter valid 10-digit phone');
-      return;
-    }
+    try { phoneSchema.parse(phone); } catch { setError('Please enter a valid 10-digit phone number'); return; }
     setIsLoading(true);
     try {
       await requestOtp(phone);
       setStep('otp');
-      if (Platform.OS !== 'web') await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'OTP भेजने में त्रुटि · Error sending OTP');
-    } finally {
-      setIsLoading(false);
-    }
+      setError(err instanceof Error ? err.message : 'Error sending OTP');
+    } finally { setIsLoading(false); }
   };
 
   const handleVerifyOtp = async () => {
     setError(null);
-    try {
-      otpSchema.parse(otp);
-    } catch {
-      setError('कृपया वैध 6 अंकों का OTP दर्ज करें · Please enter valid 6-digit OTP');
-      return;
-    }
+    try { otpSchema.parse(otp); } catch { setError('Please enter a valid 6-digit OTP'); return; }
     setIsLoading(true);
     try {
       const result = await verifyOtp(phone, otp);
-      if (result.isNew) {
+      if (mode === 'signup' && result.isNew) {
         setStep('profile');
       } else if (result.farmer) {
         setFarmer({ ...result.farmer, created_at: result.farmer.created_at || new Date().toISOString() });
-        if (Platform.OS !== 'web') await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         router.replace('/(tabs)');
+      } else {
+        setError('No account found. Please sign up first.');
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'OTP सत्यापन में त्रुटि · Error verifying OTP');
-    } finally {
-      setIsLoading(false);
-    }
+      setError(err instanceof Error ? err.message : 'Error verifying OTP');
+    } finally { setIsLoading(false); }
+  };
+
+  const handleCompleteProfile = async () => {
+    setError(null);
+    try { nameSchema.parse(name); } catch { setError('Please enter your name'); return; }
+    if (selectedCrops.length === 0) { setError('Please select at least one crop'); return; }
+    setIsLoading(true);
+    try {
+      const farmer = await completeProfile({
+        phone, name,
+        state: 'Karnataka', district: 'Kolar', block: 'Kolar-1',
+        primary_crops: selectedCrops,
+        preferred_language: selectedLanguage,
+      });
+      setFarmer({ ...farmer, created_at: farmer.created_at || new Date().toISOString() });
+      setLanguage(selectedLanguage);
+      const id = 'plan-' + Date.now();
+      setSeasonPlan({
+        id, season: 'kharif', year: new Date().getFullYear(),
+        crops: selectedCrops.map((crop) => ({
+          crop,
+          area_hectares: 1,
+          expected_harvest_month: new Date().toLocaleString('default', { month: 'long' }),
+        })),
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      });
+      setHasCompletedPlanOnboarding(true);
+      setStep('complete');
+      if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Registration error');
+    } finally { setIsLoading(false); }
   };
 
   const handleGoogleLogin = async () => {
-    setIsLoading(true);
     setError(null);
+    setIsLoading(true);
     try {
       const result = await signInWithGoogle();
       if (result.isNew) {
         setStep('profile');
       } else if (result.farmer) {
         setFarmer({ ...result.farmer, created_at: result.farmer.created_at || new Date().toISOString() });
-        if (Platform.OS !== 'web') await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         router.replace('/(tabs)');
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Google login failed');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleCompleteProfile = async () => {
-    setError(null);
-    try {
-      nameSchema.parse(name);
-    } catch {
-      setError('कृपया अपना नाम दर्ज करें · Please enter your name');
-      return;
-    }
-    setIsLoading(true);
-    try {
-      const farmer = await completeProfile({
-        phone,
-        name,
-        state: 'Karnataka',
-        district: 'Kolar',
-        block: 'Kolar-1',
-        primary_crops: ['Tomato'],
-        preferred_language: selectedLanguage,
-      });
-      setFarmer({ ...farmer, created_at: farmer.created_at || new Date().toISOString() });
-      setLanguage(selectedLanguage);
-      setStep('complete');
-      if (Platform.OS !== 'web') await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'पंजीकरण में त्रुटि · Registration error');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleContinue = () => {
-    router.replace('/(tabs)');
+      setError(err instanceof Error ? err.message : 'Google sign in failed');
+    } finally { setIsLoading(false); }
   };
 
   return (
     <View style={[styles.container, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>मंडी एजेंट</Text>
-        <Text style={styles.headerSubtitle}>आपकी फसल, आपकी मंडी, आपकी सलाह · Your Crop, Your Mandi, Your Advisory</Text>
-      </View>
-
-      <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
-        {step === 'method' && (
-          <View style={styles.stepContainer}>
-            <Text style={styles.stepTitle}>लॉगिन करें · Login</Text>
-            <Text style={styles.stepSubtitle}>Choose how you want to sign in</Text>
-
-            <AnimatedTouchable
-              style={[styles.methodBtn, buttonStyle]}
-              onPress={handleGoogleLogin}
-              onPressIn={handleButtonPressIn}
-              onPressOut={handleButtonPressOut}
-              disabled={isLoading}
-            >
-              <View style={styles.methodIcon}>
-                <Text style={styles.googleIcon}>G</Text>
-              </View>
-              <View style={styles.methodText}>
-                <Text style={styles.methodTitle}>Continue with Google</Text>
-                <Text style={styles.methodDesc}>Quick & easy sign-in</Text>
-              </View>
-            </AnimatedTouchable>
-
-            <View style={styles.dividerRow}>
-              <View style={styles.dividerLine} />
-              <Text style={styles.dividerText}>or</Text>
-              <View style={styles.dividerLine} />
-            </View>
-
-            <AnimatedTouchable
-              style={[styles.methodBtn, styles.phoneBtn, buttonStyle]}
-              onPress={() => setStep('phone')}
-              onPressIn={handleButtonPressIn}
-              onPressOut={handleButtonPressOut}
-            >
-              <View style={styles.phoneIcon}>
-                <Text style={styles.phoneIconText}>+91</Text>
-              </View>
-              <View style={styles.methodText}>
-                <Text style={styles.methodTitle}>Continue with Phone</Text>
-                <Text style={styles.methodDesc}>Login with OTP verification</Text>
-              </View>
-            </AnimatedTouchable>
-
-            <View style={styles.langRow}>
-              <Text style={styles.langLabel}>भाषा · Language: </Text>
-              <TouchableOpacity
-                style={[styles.langChip, selectedLanguage === 'hi' && styles.langChipActive]}
-                onPress={() => setSelectedLanguage('hi')}
-              >
-                <Text style={[styles.langChipText, selectedLanguage === 'hi' && { color: COLORS.night }]}>हिंदी</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.langChip, selectedLanguage === 'en' && styles.langChipActive]}
-                onPress={() => setSelectedLanguage('en')}
-              >
-                <Text style={[styles.langChipText, selectedLanguage === 'en' && { color: COLORS.night }]}>English</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        )}
+      <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
+        <View style={styles.header}>
+          <Text style={styles.emoji}>🌾</Text>
+          <Text style={styles.headerTitle}>मंडी एजेंट</Text>
+          <Text style={styles.headerSubtitle}>Your Crop, Your Mandi, Your Advisory</Text>
+        </View>
 
         {step === 'phone' && (
-          <View style={styles.stepContainer}>
-            <TouchableOpacity onPress={() => setStep('method')} style={styles.backBtn}>
-              <Text style={styles.backBtnText}>← Back</Text>
-            </TouchableOpacity>
+          <>
+            <View style={styles.tabRow}>
+              <TouchableOpacity
+                style={[styles.tab, mode === 'signin' && styles.tabActive]}
+                onPress={() => switchMode('signin')}
+              >
+                <Text style={[styles.tabText, mode === 'signin' && styles.tabTextActive]}>Sign In</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.tab, mode === 'signup' && styles.tabActive]}
+                onPress={() => switchMode('signup')}
+              >
+                <Text style={[styles.tabText, mode === 'signup' && styles.tabTextActive]}>Sign Up</Text>
+              </TouchableOpacity>
+            </View>
 
-            <Text style={styles.stepTitle}>अपना फ़ोन नंबर दर्ज करें · Enter your phone number</Text>
-            <Text style={styles.stepSubtitle}>हम आपको 6 अंकों का OTP भेजेंगे · We will send you 6-digit OTP</Text>
+            <Text style={styles.sectionTitle}>{mode === 'signin' ? 'Welcome Back' : 'Create Account'}</Text>
+            <Text style={styles.sectionSubtitle}>
+              {mode === 'signin' ? 'Login with your phone number' : 'Register as a new farmer'}
+            </Text>
 
             <View style={styles.inputContainer}>
-              <Text style={styles.inputLabel}>फ़ोन नंबर · Phone Number</Text>
+              <Text style={styles.inputLabel}>Phone Number</Text>
               <View style={styles.phoneInput}>
                 <Text style={styles.countryCode}>+91</Text>
                 <TextInput
@@ -242,39 +186,44 @@ export default function OnboardingScreen() {
               </View>
             </View>
 
-            {error && (
-              <View style={styles.errorBanner}>
-                <Text style={styles.errorText}>{error}</Text>
-              </View>
-            )}
+            {error && <View style={styles.errorBanner}><Text style={styles.errorText}>{error}</Text></View>}
 
-            <AnimatedTouchable
-              style={[styles.button, isLoading && styles.buttonDisabled, buttonStyle]}
+            <TouchableOpacity
+              style={styles.googleBtn}
+              onPress={handleGoogleLogin}
+              disabled={isLoading}
+            >
+              <Text style={styles.googleIcon}>G</Text>
+              <Text style={styles.googleBtnText}>Continue with Google</Text>
+            </TouchableOpacity>
+
+            <View style={styles.dividerRow}>
+              <View style={styles.dividerLine} />
+              <Text style={styles.dividerText}>or</Text>
+              <View style={styles.dividerLine} />
+            </View>
+
+            <TouchableOpacity
+              style={[styles.button, (isLoading || phone.length !== 10) && styles.buttonDisabled]}
               onPress={handleSendOtp}
-              onPressIn={handleButtonPressIn}
-              onPressOut={handleButtonPressOut}
               disabled={isLoading || phone.length !== 10}
             >
-              {isLoading ? (
-                <ActivityIndicator color={COLORS.white} />
-              ) : (
-                <Text style={styles.buttonText}>OTP भेजें · Send OTP</Text>
-              )}
-            </AnimatedTouchable>
-          </View>
+              {isLoading ? <ActivityIndicator color={COLORS.night} /> : <Text style={styles.buttonText}>Send OTP</Text>}
+            </TouchableOpacity>
+          </>
         )}
 
         {step === 'otp' && (
-          <View style={styles.stepContainer}>
+          <>
             <TouchableOpacity onPress={() => setStep('phone')} style={styles.backBtn}>
               <Text style={styles.backBtnText}>← Back</Text>
             </TouchableOpacity>
 
-            <Text style={styles.stepTitle}>OTP दर्ज करें · Enter OTP</Text>
-            <Text style={styles.stepSubtitle}>{phone} पर भेजा गया · Sent to {phone}</Text>
+            <Text style={styles.sectionTitle}>Enter OTP</Text>
+            <Text style={styles.sectionSubtitle}>Sent to +91 {phone}</Text>
 
             <View style={styles.inputContainer}>
-              <Text style={styles.inputLabel}>6 अंकों का OTP · 6-digit OTP</Text>
+              <Text style={styles.inputLabel}>6-digit OTP</Text>
               <TextInput
                 style={styles.otpInput}
                 placeholder="000000"
@@ -286,42 +235,32 @@ export default function OnboardingScreen() {
               />
             </View>
 
-            {error && (
-              <View style={styles.errorBanner}>
-                <Text style={styles.errorText}>{error}</Text>
-              </View>
-            )}
+            {error && <View style={styles.errorBanner}><Text style={styles.errorText}>{error}</Text></View>}
 
-            <AnimatedTouchable
-              style={[styles.button, isLoading && styles.buttonDisabled, buttonStyle]}
+            <TouchableOpacity
+              style={[styles.button, (isLoading || otp.length !== 6) && styles.buttonDisabled]}
               onPress={handleVerifyOtp}
-              onPressIn={handleButtonPressIn}
-              onPressOut={handleButtonPressOut}
               disabled={isLoading || otp.length !== 6}
             >
-              {isLoading ? (
-                <ActivityIndicator color={COLORS.white} />
-              ) : (
-                <Text style={styles.buttonText}>सत्यापित करें · Verify</Text>
-              )}
-            </AnimatedTouchable>
-
-            <TouchableOpacity onPress={() => setStep('phone')} style={styles.backLink}>
-              <Text style={styles.backLinkText}>फ़ोन नंबर बदलें · Change phone number</Text>
+              {isLoading ? <ActivityIndicator color={COLORS.night} /> : <Text style={styles.buttonText}>Verify</Text>}
             </TouchableOpacity>
-          </View>
+          </>
         )}
 
         {step === 'profile' && (
-          <View style={styles.stepContainer}>
-            <Text style={styles.stepTitle}>अपनी प्रो़फ़ाइल पूरी करें · Complete your profile</Text>
-            <Text style={styles.stepSubtitle}>व्यक्तिगत जानकारी · Personal information</Text>
+          <>
+            <TouchableOpacity onPress={() => setStep('otp')} style={styles.backBtn}>
+              <Text style={styles.backBtnText}>← Back</Text>
+            </TouchableOpacity>
+
+            <Text style={styles.sectionTitle}>Complete Profile</Text>
+            <Text style={styles.sectionSubtitle}>Tell us about yourself</Text>
 
             <View style={styles.inputContainer}>
-              <Text style={styles.inputLabel}>आपका नाम · Your name</Text>
+              <Text style={styles.inputLabel}>Your Name</Text>
               <TextInput
-                style={styles.input}
-                placeholder="अपना नाम लिखें · Enter your name"
+                style={styles.textInput}
+                placeholder="Enter your name"
                 placeholderTextColor={COLORS.muted}
                 value={name}
                 onChangeText={setName}
@@ -329,165 +268,158 @@ export default function OnboardingScreen() {
             </View>
 
             <View style={styles.inputContainer}>
-              <Text style={styles.inputLabel}>भाषा चुनें · Choose language</Text>
-              <View style={styles.languageSelector}>
+              <Text style={styles.inputLabel}>Crops You Grow</Text>
+              <View style={styles.chipGroup}>
+                {CROPS.map((crop) => (
+                  <TouchableOpacity
+                    key={crop}
+                    style={[styles.chip, selectedCrops.includes(crop) && styles.chipActive]}
+                    onPress={() => toggleCrop(crop)}
+                  >
+                    <Text style={[styles.chipText, selectedCrops.includes(crop) && styles.chipTextActive]}>
+                      {crop}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+
+            <View style={styles.inputContainer}>
+              <Text style={styles.inputLabel}>Language</Text>
+              <View style={styles.langRow}>
                 <TouchableOpacity
-                  style={[styles.languageOption, selectedLanguage === 'hi' && styles.languageOptionActive]}
-                  onPress={() => {
-                    setSelectedLanguage('hi');
-                    if (Platform.OS !== 'web') Haptics.selectionAsync();
-                  }}
+                  style={[styles.langChip, selectedLanguage === 'hi' && styles.langChipActive]}
+                  onPress={() => setSelectedLanguage('hi')}
                 >
-                  <Text style={[styles.languageText, selectedLanguage === 'hi' && styles.languageTextActive]}>
-                    हिंदी · Hindi
-                  </Text>
+                  <Text style={[styles.langChipText, selectedLanguage === 'hi' && styles.langChipTextActive]}>हिंदी</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
-                  style={[styles.languageOption, selectedLanguage === 'en' && styles.languageOptionActive]}
-                  onPress={() => {
-                    setSelectedLanguage('en');
-                    if (Platform.OS !== 'web') Haptics.selectionAsync();
-                  }}
+                  style={[styles.langChip, selectedLanguage === 'en' && styles.langChipActive]}
+                  onPress={() => setSelectedLanguage('en')}
                 >
-                  <Text style={[styles.languageText, selectedLanguage === 'en' && styles.languageTextActive]}>
-                    English · अंग्रेज़ी
-                  </Text>
+                  <Text style={[styles.langChipText, selectedLanguage === 'en' && styles.langChipTextActive]}>English</Text>
                 </TouchableOpacity>
               </View>
             </View>
 
-            {error && (
-              <View style={styles.errorBanner}>
-                <Text style={styles.errorText}>{error}</Text>
-              </View>
-            )}
+            {error && <View style={styles.errorBanner}><Text style={styles.errorText}>{error}</Text></View>}
 
-            <AnimatedTouchable
-              style={[styles.button, isLoading && styles.buttonDisabled, buttonStyle]}
+            <TouchableOpacity
+              style={[styles.button, (isLoading || name.length < 2) && styles.buttonDisabled]}
               onPress={handleCompleteProfile}
-              onPressIn={handleButtonPressIn}
-              onPressOut={handleButtonPressOut}
               disabled={isLoading || name.length < 2}
             >
-              {isLoading ? (
-                <ActivityIndicator color={COLORS.white} />
-              ) : (
-                <Text style={styles.buttonText}>जारी रखें · Continue</Text>
-              )}
-            </AnimatedTouchable>
-          </View>
+              {isLoading ? <ActivityIndicator color={COLORS.night} /> : <Text style={styles.buttonText}>Create Account</Text>}
+            </TouchableOpacity>
+          </>
         )}
 
         {step === 'complete' && (
           <View style={styles.completeContainer}>
             <Text style={styles.successEmoji}>🎉</Text>
-            <Text style={styles.completeTitle}>स्वागत है! · Welcome!</Text>
+            <Text style={styles.completeTitle}>Welcome!</Text>
             <Text style={styles.completeSubtitle}>
-              आपका खाता बन गया है। अब आप मंडी भाव देख सकते हैं, सलाह ले सकते हैं, और सहकारी में शामिल हो सकते हैं।{'\n'}
-              Your account is created. Now you can view mandi prices, get advisories, and join cooperatives.
+              Your account is created. Your season plan is ready.
             </Text>
-
-            <AnimatedTouchable
-              style={[styles.button, buttonStyle]}
-              onPress={handleContinue}
-              onPressIn={handleButtonPressIn}
-              onPressOut={handleButtonPressOut}
+            <TouchableOpacity
+              style={styles.button}
+              onPress={() => router.replace('/(tabs)')}
             >
-              <Text style={styles.buttonText}>शुरू करें · Get Started</Text>
-            </AnimatedTouchable>
+              <Text style={styles.buttonText}>Get Started</Text>
+            </TouchableOpacity>
           </View>
         )}
-      </ScrollView>
 
-      <View style={styles.footer}>
-        <Text style={styles.footerText}>
-          जारी रखकर, आप हमारी सेवा की शर्तें और गोपनीयता नीति से सहमत होते हैं।{'\n'}
-          By continuing, you agree to our Terms of Service and Privacy Policy.
-        </Text>
-      </View>
+        <View style={styles.footer}>
+          <Text style={styles.footerText}>
+            By continuing, you agree to our Terms of Service and Privacy Policy.
+          </Text>
+        </View>
+      </ScrollView>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.night },
-  header: { alignItems: 'center', paddingVertical: 32 },
-  headerTitle: { color: COLORS.sprout, fontFamily: FONTS.display, fontSize: 32, marginBottom: 8 },
-  headerSubtitle: { color: COLORS.muted, fontFamily: FONTS.body, fontSize: 14, textAlign: 'center' },
-  scrollView: { flex: 1 },
-  scrollContent: { paddingHorizontal: 24 },
-  stepContainer: { gap: 16 },
-  stepTitle: { color: COLORS.white, fontFamily: FONTS.bold, fontSize: 24, marginBottom: 4 },
-  stepSubtitle: { color: COLORS.muted, fontFamily: FONTS.body, fontSize: 14, marginBottom: 16 },
-  methodBtn: {
-    flexDirection: 'row', alignItems: 'center',
-    backgroundColor: COLORS.forest, borderRadius: 14,
-    padding: 16, borderWidth: 1.5, borderColor: COLORS.canopy,
-  },
-  phoneBtn: { borderColor: COLORS.canopy },
-  methodIcon: {
-    width: 48, height: 48, borderRadius: 24,
-    backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center', marginRight: 14,
-  },
-  googleIcon: { color: '#EA4335', fontFamily: FONTS.bold, fontSize: 22 },
-  phoneIcon: {
-    width: 48, height: 48, borderRadius: 24,
-    backgroundColor: COLORS.canopy, alignItems: 'center', justifyContent: 'center', marginRight: 14,
-  },
-  phoneIconText: { color: COLORS.white, fontFamily: FONTS.bold, fontSize: 14 },
-  methodText: { flex: 1 },
-  methodTitle: { color: COLORS.white, fontFamily: FONTS.medium, fontSize: 15 },
-  methodDesc: { color: COLORS.muted, fontFamily: FONTS.body, fontSize: 12, marginTop: 2 },
-  dividerRow: { flexDirection: 'row', alignItems: 'center', marginVertical: 4 },
-  dividerLine: { flex: 1, height: 1, backgroundColor: COLORS.canopy },
-  dividerText: { color: COLORS.muted, fontFamily: FONTS.body, fontSize: 12, paddingHorizontal: 12 },
-  langRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: 8 },
-  langLabel: { color: COLORS.muted, fontFamily: FONTS.body, fontSize: 13 },
-  langChip: { borderRadius: 16, backgroundColor: COLORS.canopy, paddingHorizontal: 14, paddingVertical: 6, marginHorizontal: 4 },
-  langChipActive: { backgroundColor: COLORS.harvest },
-  langChipText: { color: COLORS.white, fontFamily: FONTS.medium, fontSize: 13 },
-  backBtn: { alignSelf: 'flex-start', paddingVertical: 4 },
-  backBtnText: { color: COLORS.harvest, fontFamily: FONTS.medium, fontSize: 14 },
-  inputContainer: { gap: 8 },
+  scrollContent: { paddingHorizontal: 24, paddingTop: 24, paddingBottom: 40 },
+  header: { alignItems: 'center', marginBottom: 32 },
+  emoji: { fontSize: 48, marginBottom: 8 },
+  headerTitle: { color: COLORS.sprout, fontFamily: FONTS.display, fontSize: 32, marginBottom: 4 },
+  headerSubtitle: { color: COLORS.muted, fontFamily: FONTS.body, fontSize: 13, textAlign: 'center' },
+  tabRow: { flexDirection: 'row', backgroundColor: COLORS.forest, borderRadius: 12, padding: 4, marginBottom: 24 },
+  tab: { flex: 1, paddingVertical: 12, alignItems: 'center', borderRadius: 10 },
+  tabActive: { backgroundColor: COLORS.canopy },
+  tabText: { color: COLORS.muted, fontFamily: FONTS.medium, fontSize: 15 },
+  tabTextActive: { color: COLORS.white },
+  sectionTitle: { color: COLORS.white, fontFamily: FONTS.bold, fontSize: 24, marginBottom: 4 },
+  sectionSubtitle: { color: COLORS.muted, fontFamily: FONTS.body, fontSize: 14, marginBottom: 24 },
+  inputContainer: { gap: 8, marginBottom: 16 },
   inputLabel: { color: COLORS.sprout, fontFamily: FONTS.medium, fontSize: 14 },
-  input: {
-    backgroundColor: 'transparent', borderRadius: 12,
-    paddingHorizontal: 16, paddingVertical: 14,
-    color: COLORS.white, fontFamily: FONTS.body, fontSize: 16,
-  },
   phoneInput: {
     flexDirection: 'row', alignItems: 'center',
     backgroundColor: COLORS.forest, borderRadius: 12, paddingHorizontal: 16,
     borderWidth: 1, borderColor: COLORS.canopy,
   },
   countryCode: { color: COLORS.muted, fontFamily: FONTS.medium, fontSize: 16, marginRight: 12 },
+  input: {
+    flex: 1, backgroundColor: 'transparent', borderRadius: 12,
+    paddingVertical: 14, color: COLORS.white, fontFamily: FONTS.body, fontSize: 16,
+  },
+  textInput: {
+    backgroundColor: COLORS.forest, borderRadius: 12,
+    paddingHorizontal: 16, paddingVertical: 14,
+    color: COLORS.white, fontFamily: FONTS.body, fontSize: 16,
+    borderWidth: 1, borderColor: COLORS.canopy,
+  },
   otpInput: {
-    flex: 1,
     backgroundColor: COLORS.forest, borderRadius: 12,
     paddingHorizontal: 16, paddingVertical: 14,
     color: COLORS.white, fontFamily: FONTS.mono, fontSize: 24,
-    textAlign: 'center', letterSpacing: 8,
+    textAlign: 'center', letterSpacing: 8, borderWidth: 1, borderColor: COLORS.canopy,
+  },
+  chipGroup: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  chip: {
+    borderRadius: 20, backgroundColor: COLORS.forest,
+    paddingHorizontal: 16, paddingVertical: 10,
     borderWidth: 1, borderColor: COLORS.canopy,
   },
-  languageSelector: { flexDirection: 'row', gap: 12 },
-  languageOption: {
-    flex: 1, backgroundColor: COLORS.forest, borderRadius: 12,
-    paddingVertical: 14, alignItems: 'center', borderWidth: 1, borderColor: 'transparent',
+  chipActive: { backgroundColor: COLORS.canopy, borderColor: COLORS.sprout },
+  chipText: { color: COLORS.muted, fontFamily: FONTS.medium, fontSize: 13 },
+  chipTextActive: { color: COLORS.sprout },
+  langRow: { flexDirection: 'row', gap: 12 },
+  langChip: {
+    flex: 1, borderRadius: 12, backgroundColor: COLORS.forest,
+    paddingVertical: 14, alignItems: 'center', borderWidth: 1, borderColor: COLORS.canopy,
   },
-  languageOptionActive: { backgroundColor: COLORS.canopy, borderColor: COLORS.sprout },
-  languageText: { color: COLORS.muted, fontFamily: FONTS.medium, fontSize: 14 },
-  languageTextActive: { color: COLORS.sprout },
-  errorBanner: { backgroundColor: '#450A0A', borderRadius: 8, padding: 12 },
+  langChipActive: { backgroundColor: COLORS.canopy, borderColor: COLORS.sprout },
+  langChipText: { color: COLORS.muted, fontFamily: FONTS.medium, fontSize: 14 },
+  langChipTextActive: { color: COLORS.sprout },
+  backBtn: { marginBottom: 16 },
+  backBtnText: { color: COLORS.sprout, fontFamily: FONTS.medium, fontSize: 16 },
+  errorBanner: { backgroundColor: '#450A0A', borderRadius: 8, padding: 12, marginBottom: 12 },
   errorText: { color: '#FCA5A5', fontFamily: FONTS.body, fontSize: 14, textAlign: 'center' },
+  googleBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    backgroundColor: COLORS.forest, borderRadius: 12, paddingVertical: 16,
+    borderWidth: 1.5, borderColor: COLORS.canopy, gap: 12,
+  },
+  googleIcon: {
+    width: 28, height: 28, borderRadius: 14, backgroundColor: '#FFFFFF',
+    textAlign: 'center', lineHeight: 28, color: '#EA4335',
+    fontFamily: FONTS.bold, fontSize: 16,
+  },
+  googleBtnText: { color: COLORS.white, fontFamily: FONTS.medium, fontSize: 15 },
+  dividerRow: { flexDirection: 'row', alignItems: 'center', marginVertical: 8 },
+  dividerLine: { flex: 1, height: 1, backgroundColor: COLORS.canopy },
+  dividerText: { color: COLORS.muted, fontFamily: FONTS.body, fontSize: 12, paddingHorizontal: 12 },
   button: { backgroundColor: COLORS.sprout, borderRadius: 12, paddingVertical: 16, alignItems: 'center', marginTop: 8 },
   buttonDisabled: { backgroundColor: COLORS.forest },
   buttonText: { color: COLORS.night, fontFamily: FONTS.bold, fontSize: 16 },
-  backLink: { alignItems: 'center', marginTop: 16 },
-  backLinkText: { color: COLORS.leaf, fontFamily: FONTS.medium, fontSize: 14 },
-  completeContainer: { alignItems: 'center', gap: 16, paddingTop: 32 },
+  completeContainer: { alignItems: 'center', gap: 16, paddingTop: 48 },
   successEmoji: { fontSize: 64 },
   completeTitle: { color: COLORS.white, fontFamily: FONTS.bold, fontSize: 28, textAlign: 'center' },
   completeSubtitle: { color: COLORS.muted, fontFamily: FONTS.body, fontSize: 14, textAlign: 'center', lineHeight: 22 },
-  footer: { paddingHorizontal: 24, paddingVertical: 16 },
-  footerText: { color: COLORS.muted, fontFamily: FONTS.body, fontSize: 12, textAlign: 'center' },
+  footer: { alignItems: 'center', marginTop: 32 },
+  footerText: { color: COLORS.muted, fontFamily: FONTS.body, fontSize: 11, textAlign: 'center' },
 });

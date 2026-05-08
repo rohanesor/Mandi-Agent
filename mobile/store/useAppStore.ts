@@ -199,10 +199,36 @@ export interface NewsAlert {
   isRead: boolean;
 }
 
+// =============================================================================
+// PLAN TYPES
+// =============================================================================
+
+export type Season = 'kharif' | 'rabi' | 'zaid';
+
+export interface CropPlan {
+  crop: string;
+  area_hectares: number;
+  expected_harvest_month: string;
+}
+
+export interface SeasonPlan {
+  id: string;
+  season: Season;
+  year: number;
+  crops: CropPlan[];
+  created_at: string;
+  updated_at: string;
+}
+
 interface NotificationState {
   unreadNewsCount: number;
   lastNewsCheck: string | null;
   newsAlerts: NewsAlert[];
+}
+
+interface PlanState {
+  seasonPlan: SeasonPlan | null;
+  hasCompletedPlanOnboarding: boolean;
 }
 
 // =============================================================================
@@ -270,6 +296,12 @@ interface NotificationActions {
   setLastNewsCheck: (ts: string) => void;
 }
 
+interface PlanActions {
+  setSeasonPlan: (plan: SeasonPlan) => void;
+  clearSeasonPlan: () => void;
+  setHasCompletedPlanOnboarding: (completed: boolean) => void;
+}
+
 // =============================================================================
 // COMPLETE STORE TYPE
 // =============================================================================
@@ -280,7 +312,8 @@ type AppState = FarmerState &
   CooperativeState &
   UIState &
   HarvestIntentsState &
-  NotificationState;
+  NotificationState &
+  PlanState;
 
 type AppActions = FarmerActions &
   AdvisoryActions &
@@ -288,7 +321,8 @@ type AppActions = FarmerActions &
   CooperativeActions &
   UIActions &
   HarvestIntentsActions &
-  NotificationActions;
+  NotificationActions &
+  PlanActions;
 
 type AppStore = AppState & AppActions;
 
@@ -342,6 +376,11 @@ const initialNotificationState: NotificationState = {
   unreadNewsCount: 0,
   lastNewsCheck: null,
   newsAlerts: [],
+};
+
+const initialPlanState: PlanState = {
+  seasonPlan: null,
+  hasCompletedPlanOnboarding: false,
 };
 
 // =============================================================================
@@ -661,6 +700,20 @@ export const useAppStore = create<AppStore>()(
 
       setLastNewsCheck: (ts) =>
         set({ lastNewsCheck: ts }),
+
+      // ===================
+      // PLAN STATE
+      // ===================
+      ...initialPlanState,
+
+      setSeasonPlan: (plan) =>
+        set({ seasonPlan: plan }),
+
+      clearSeasonPlan: () =>
+        set({ seasonPlan: null }),
+
+      setHasCompletedPlanOnboarding: (completed) =>
+        set({ hasCompletedPlanOnboarding: completed }),
     }),
     {
       name: 'mandi-agent-store',
@@ -676,6 +729,8 @@ export const useAppStore = create<AppStore>()(
         selectedCrop: state.selectedCrop,
         selectedState: state.selectedState,
         lastNewsCheck: state.lastNewsCheck,
+        seasonPlan: state.seasonPlan,
+        hasCompletedPlanOnboarding: state.hasCompletedPlanOnboarding,
       }),
       // Migration for version upgrades
       migrate: (persistedState: any, version: number) => {
@@ -728,6 +783,10 @@ export const selectUnreadNewsCount = (state: AppStore) => state.unreadNewsCount;
 export const selectLastNewsCheck = (state: AppStore) => state.lastNewsCheck;
 export const selectNewsAlerts = (state: AppStore) => state.newsAlerts;
 
+// Plan selectors
+export const selectSeasonPlan = (state: AppStore) => state.seasonPlan;
+export const selectHasCompletedPlanOnboarding = (state: AppStore) => state.hasCompletedPlanOnboarding;
+
 // Compatibility functions
 export const useFarmer = () => useAppStore(s => s.farmer);
 export const useIsOffline = () => useAppStore(s => s.isOffline);
@@ -747,6 +806,7 @@ export const resetStore = () => {
     ...initialUIState,
     ...initialHarvestIntentsState,
     ...initialNotificationState,
+    ...initialPlanState,
   });
 };
 

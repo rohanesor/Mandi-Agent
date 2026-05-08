@@ -44,6 +44,9 @@ export {
   selectUnreadNewsCount,
   selectLastNewsCheck,
   selectNewsAlerts,
+  // Plan
+  selectSeasonPlan,
+  selectHasCompletedPlanOnboarding,
 } from './useAppStore';
 
 // Types

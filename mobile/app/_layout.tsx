@@ -157,7 +157,9 @@ function AppGate() {
     const path = segments.join('/');
     const isOnLanguageSelect = path === 'language-select';
     const isOnOnboarding = path === 'onboarding';
+    const isOnPlanOnboarding = path === 'plan-onboarding';
     const isOnTabs = path === '(tabs)' || path.startsWith('(tabs)/');
+    const isPublicRoute = isOnOnboarding || isOnLanguageSelect || isOnPlanOnboarding;
 
     // First launch → language select
     if (isFirstLaunch && !isOnLanguageSelect) {
@@ -167,7 +169,7 @@ function AppGate() {
 
     // Not first launch → check auth
     if (!isFirstLaunch) {
-      if (authState === 'unauthenticated' && !isOnOnboarding && !isOnLanguageSelect) {
+      if (authState === 'unauthenticated' && !isPublicRoute) {
         router.replace('/onboarding');
         return;
       }
@@ -192,6 +194,7 @@ function AppGate() {
     <Stack screenOptions={{ headerShown: false }}>
       <Stack.Screen name="language-select" options={{ animation: 'fade' }} />
       <Stack.Screen name="onboarding" options={{ headerShown: false }} />
+      <Stack.Screen name="plan-onboarding" options={{ headerShown: false }} />
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
       <Stack.Screen name="screens/advisory" options={{ headerShown: false }} />
       <Stack.Screen name="advisory" options={{ headerShown: false, animation: 'slide_from_bottom' }} />

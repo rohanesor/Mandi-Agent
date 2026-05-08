@@ -1,6 +1,6 @@
 import { Tabs } from 'expo-router';
 import { StyleSheet } from 'react-native';
-import { Home, TrendingUp, Users, Leaf, Settings, Newspaper } from 'lucide-react-native';
+import { Home, TrendingUp, Users, Leaf, Settings, Newspaper, Calendar } from 'lucide-react-native';
 import { COLORS, FONTS } from '../../constants/theme';
 import { useT } from '../../utils/useT';
 
@@ -51,6 +51,15 @@ export default function TabLayout() {
           title: t('cooperative'),
           tabBarIcon: ({ color, size }) => (
             <Users color={color} size={size} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="plan"
+        options={{
+          title: 'Plan',
+          tabBarIcon: ({ color, size }) => (
+            <Calendar color={color} size={size} />
           ),
         }}
       />
