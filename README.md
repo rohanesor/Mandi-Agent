@@ -207,8 +207,3 @@ npx expo start
 
 Pull requests are welcome. For major changes, open an issue first.
 
----
-
-## 📜 License
-
-This project is for SDG 2 Hackathon use.
