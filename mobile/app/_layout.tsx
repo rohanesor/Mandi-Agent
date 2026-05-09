@@ -57,12 +57,16 @@ function AppGate() {
       if (event === 'TOKEN_REFRESHED') setAuthState('authenticated');
     });
 
+    function onForceLogout() { checkAuth(); }
+    try { globalThis.addEventListener('auth:logout', onForceLogout); } catch { }
+
     const sub = AppState.addEventListener('change', (state) => {
       if (state === 'active') checkAuth();
     });
 
     return () => {
       authListener?.subscription.unsubscribe();
+      try { globalThis.removeEventListener('auth:logout', onForceLogout); } catch { }
       sub.remove();
     };
   }, []);

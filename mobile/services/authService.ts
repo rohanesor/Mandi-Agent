@@ -189,7 +189,7 @@ export async function logout(): Promise<void> {
     await supabaseSignOut();
   } catch { }
   await clearStoredData();
-  (globalThis as typeof globalThis & { dispatchEvent: (e: Event) => void }).dispatchEvent(new CustomEvent('auth:logout', { detail: { reason: 'user_initiated' } }));
+  try { globalThis.dispatchEvent(new CustomEvent('auth:logout', { detail: { reason: 'user_initiated' } })); } catch { }
 }
 
 /**
@@ -237,9 +237,9 @@ function getAuthErrorMessage(code: string): string {
 
 // Backward-compat aliases
 export const login = verifyOtp;
-export const refreshToken = async (): Promise<string> => {
+export const refreshToken = async (): Promise<string | null> => {
   const { data, error } = await supabase.auth.refreshSession();
-  if (error || !data.session) return '';
+  if (error || !data.session) return null;
   const token = data.session.access_token;
   await storeTokens(token, data.session.refresh_token);
   return token;

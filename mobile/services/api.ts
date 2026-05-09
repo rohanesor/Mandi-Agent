@@ -10,6 +10,12 @@ const DEFAULT_TIMEOUT = 10000; // 10 seconds
 const MAX_RETRIES = 3;
 let AUTH_REFRESH_AVAILABLE = true;
 
+function dispatchAuthEvent(type: string, detail?: Record<string, unknown>) {
+  try {
+    globalThis.dispatchEvent(new CustomEvent(type, { detail }));
+  } catch { }
+}
+
 function buildWebSocketUrl(path: string): string {
   const wsProtocol = BASE_URL.startsWith('https://') ? 'wss' : 'ws';
   const wsHost = BASE_URL.replace(/^https?:\/\//, '');
@@ -115,12 +121,19 @@ async function refreshAccessToken(): Promise<string | null> {
     return null;
   }
 
+  const stored = await getRefreshToken();
+  if (!stored) {
+    return null;
+  }
+
   try {
     const { data, error } = await supabase.auth.refreshSession();
     if (error || !data.session) {
       AUTH_REFRESH_AVAILABLE = false;
+      await clearStoredData();
       return null;
     }
+    AUTH_REFRESH_AVAILABLE = true;
     const token = data.session.access_token;
     await SecureStore.setItemAsync(TOKEN_KEYS.ACCESS_TOKEN, token);
     await SecureStore.setItemAsync(TOKEN_KEYS.REFRESH_TOKEN, data.session.refresh_token);
@@ -270,33 +283,25 @@ apiClient.interceptors.response.use(
         }
       }
 
-      // Refresh failed or max retries.
-      // Only force logout if refresh route exists; otherwise fail gracefully.
       if (AUTH_REFRESH_AVAILABLE) {
-        (globalThis as typeof globalThis & { dispatchEvent: (e: Event) => void }).dispatchEvent(new CustomEvent('auth:logout', {
-          detail: { reason: 'token_expired' }
-        }));
+        dispatchAuthEvent('auth:logout', { reason: 'token_expired' });
       }
     }
 
     // Handle 403 - forbidden, logout user
     if (apiError.code === 'FORBIDDEN') {
       await clearStoredData();
-      (globalThis as typeof globalThis & { dispatchEvent: (e: Event) => void }).dispatchEvent(new CustomEvent('auth:logout', {
-        detail: { reason: 'forbidden' }
-      }));
+      dispatchAuthEvent('auth:logout', { reason: 'forbidden' });
     }
 
     // Handle server errors (500, 503) - show offline banner
     if (apiError.code === 'SERVER_ERROR') {
-      (globalThis as typeof globalThis & { dispatchEvent: (e: Event) => void }).dispatchEvent(new CustomEvent('app:offline', {
-        detail: { error: apiError }
-      }));
+      dispatchAuthEvent('app:offline', { error: apiError });
     }
 
     // Handle timeout - show "Network slow" toast
     if (apiError.code === 'TIMEOUT') {
-      (globalThis as typeof globalThis & { dispatchEvent: (e: Event) => void }).dispatchEvent(new CustomEvent('app:networkSlow'));
+      dispatchAuthEvent('app:networkSlow');
     }
 
     // Retry logic for retryable errors
