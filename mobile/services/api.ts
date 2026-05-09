@@ -1,6 +1,7 @@
 import axios, { AxiosError, AxiosInstance, InternalAxiosRequestConfig } from 'axios';
 import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
+import { supabase } from '../lib/supabase';
 
 // Configuration
 const RAW_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:8000';
@@ -114,33 +115,18 @@ async function refreshAccessToken(): Promise<string | null> {
     return null;
   }
 
-  const refreshToken = await getRefreshToken();
-  if (!refreshToken) {
-    return null;
-  }
-
   try {
-    const response = await axios.get(`${BASE_URL}/api/auth/refresh`, {
-      headers: {
-        Authorization: `Bearer ${refreshToken}`,
-      },
-    });
-
-    const { access_token } = response.data;
-    await SecureStore.setItemAsync(TOKEN_KEYS.ACCESS_TOKEN, access_token);
-    return access_token;
-  } catch (error) {
-    const axiosErr = error as AxiosError;
-    const status = axiosErr.response?.status;
-
-    // Backend currently has no auth refresh route in this project.
-    // Disable further refresh attempts and avoid forcing logout loops.
-    if (status === 404 || status === 405) {
+    const { data, error } = await supabase.auth.refreshSession();
+    if (error || !data.session) {
       AUTH_REFRESH_AVAILABLE = false;
       return null;
     }
-
-    // Refresh failed - force logout will be handled by caller
+    const token = data.session.access_token;
+    await SecureStore.setItemAsync(TOKEN_KEYS.ACCESS_TOKEN, token);
+    await SecureStore.setItemAsync(TOKEN_KEYS.REFRESH_TOKEN, data.session.refresh_token);
+    return token;
+  } catch {
+    AUTH_REFRESH_AVAILABLE = false;
     await clearStoredData();
     return null;
   }

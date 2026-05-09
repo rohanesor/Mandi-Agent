@@ -238,8 +238,11 @@ function getAuthErrorMessage(code: string): string {
 // Backward-compat aliases
 export const login = verifyOtp;
 export const refreshToken = async (): Promise<string> => {
-  const session = await getCurrentSession();
-  return session?.refresh_token ?? '';
+  const { data, error } = await supabase.auth.refreshSession();
+  if (error || !data.session) return '';
+  const token = data.session.access_token;
+  await storeTokens(token, data.session.refresh_token);
+  return token;
 };
 
 export const RegisterResponseSchema = z.object({
@@ -263,7 +266,7 @@ export const authService = {
   signInWithGoogle,
   completeProfile,
   logout,
-  refreshToken: () => Promise.resolve(''),
+  refreshToken,
   isAuthenticated,
   getFarmerProfile,
   updateFarmerProfile,
