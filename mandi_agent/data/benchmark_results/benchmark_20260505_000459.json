@@ -1,0 +1,791 @@
+{
+  "run_timestamp": "2026-05-05T00:03:01.059748",
+  "model": "flash_2_0",
+  "prompt_versions": [
+    "v0_baseline",
+    "v1_expert_context"
+  ],
+  "total_images": 30,
+  "predictions": [
+    {
+      "index": 0,
+      "crop": "tomato",
+      "ground_truth": "early_blight",
+      "ground_truth_full": "Tomato___Early_blight",
+      "image_path": "data\\benchmark_sample\\tomato\\0012b9d2-2130-4a06-a834-b1f3af34f57e___RS_Erly.B 8389.JPG",
+      "prompt_version": "v0_baseline",
+      "prediction": {
+        "error": "429 You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current",
+        "raw_response": ""
+      },
+      "latency_ms": 822.0
+    },
+    {
+      "index": 0,
+      "crop": "tomato",
+      "ground_truth": "early_blight",
+      "ground_truth_full": "Tomato___Early_blight",
+      "image_path": "data\\benchmark_sample\\tomato\\0012b9d2-2130-4a06-a834-b1f3af34f57e___RS_Erly.B 8389.JPG",
+      "prompt_version": "v1_expert_context",
+      "prediction": {
+        "error": "429 You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current",
+        "raw_response": ""
+      },
+      "latency_ms": 387.0
+    },
+    {
+      "index": 1,
+      "crop": "tomato",
+      "ground_truth": "early_blight",
+      "ground_truth_full": "Tomato___Early_blight",
+      "image_path": "data\\benchmark_sample\\tomato\\0034a551-9512-44e5-ba6c-827f85ecc688___RS_Erly.B 9432.JPG",
+      "prompt_version": "v0_baseline",
+      "prediction": {
+        "error": "429 You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current",
+        "raw_response": ""
+      },
+      "latency_ms": 452.0
+    },
+    {
+      "index": 1,
+      "crop": "tomato",
+      "ground_truth": "early_blight",
+      "ground_truth_full": "Tomato___Early_blight",
+      "image_path": "data\\benchmark_sample\\tomato\\0034a551-9512-44e5-ba6c-827f85ecc688___RS_Erly.B 9432.JPG",
+      "prompt_version": "v1_expert_context",
+      "prediction": {
+        "error": "429 You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current",
+        "raw_response": ""
+      },
+      "latency_ms": 416.0
+    },
+    {
+      "index": 2,
+      "crop": "tomato",
+      "ground_truth": "early_blight",
+      "ground_truth_full": "Tomato___Early_blight",
+      "image_path": "data\\benchmark_sample\\tomato\\004cbe60-8ff9-4965-92df-e86694d5e9ba___RS_Erly.B 8253.JPG",
+      "prompt_version": "v0_baseline",
+      "prediction": {
+        "error": "429 You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current",
+        "raw_response": ""
+      },
+      "latency_ms": 509.0
+    },
+    {
+      "index": 2,
+      "crop": "tomato",
+      "ground_truth": "early_blight",
+      "ground_truth_full": "Tomato___Early_blight",
+      "image_path": "data\\benchmark_sample\\tomato\\004cbe60-8ff9-4965-92df-e86694d5e9ba___RS_Erly.B 8253.JPG",
+      "prompt_version": "v1_expert_context",
+      "prediction": {
+        "error": "429 You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current",
+        "raw_response": ""
+      },
+      "latency_ms": 490.0
+    },
+    {
+      "index": 3,
+      "crop": "tomato",
+      "ground_truth": "healthy",
+      "ground_truth_full": "Tomato___healthy",
+      "image_path": "data\\benchmark_sample\\tomato\\000146ff-92a4-4db6-90ad-8fce2ae4fddd___GH_HL Leaf 259.1.JPG",
+      "prompt_version": "v0_baseline",
+      "prediction": {
+        "error": "429 You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current",
+        "raw_response": ""
+      },
+      "latency_ms": 450.0
+    },
+    {
+      "index": 3,
+      "crop": "tomato",
+      "ground_truth": "healthy",
+      "ground_truth_full": "Tomato___healthy",
+      "image_path": "data\\benchmark_sample\\tomato\\000146ff-92a4-4db6-90ad-8fce2ae4fddd___GH_HL Leaf 259.1.JPG",
+      "prompt_version": "v1_expert_context",
+      "prediction": {
+        "error": "429 You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current",
+        "raw_response": ""
+      },
+      "latency_ms": 826.0
+    },
+    {
+      "index": 4,
+      "crop": "tomato",
+      "ground_truth": "healthy",
+      "ground_truth_full": "Tomato___healthy",
+      "image_path": "data\\benchmark_sample\\tomato\\000bf685-b305-408b-91f4-37030f8e62db___GH_HL Leaf 308.1.JPG",
+      "prompt_version": "v0_baseline",
+      "prediction": {
+        "error": "429 You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current",
+        "raw_response": ""
+      },
+      "latency_ms": 609.0
+    },
+    {
+      "index": 4,
+      "crop": "tomato",
+      "ground_truth": "healthy",
+      "ground_truth_full": "Tomato___healthy",
+      "image_path": "data\\benchmark_sample\\tomato\\000bf685-b305-408b-91f4-37030f8e62db___GH_HL Leaf 308.1.JPG",
+      "prompt_version": "v1_expert_context",
+      "prediction": {
+        "error": "429 You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current",
+        "raw_response": ""
+      },
+      "latency_ms": 577.0
+    },
+    {
+      "index": 5,
+      "crop": "tomato",
+      "ground_truth": "healthy",
+      "ground_truth_full": "Tomato___healthy",
+      "image_path": "data\\benchmark_sample\\tomato\\0031da2a-8edd-468f-a8b1-106657717a32___RS_HL 0105.JPG",
+      "prompt_version": "v0_baseline",
+      "prediction": {
+        "error": "429 You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current",
+        "raw_response": ""
+      },
+      "latency_ms": 392.0
+    },
+    {
+      "index": 5,
+      "crop": "tomato",
+      "ground_truth": "healthy",
+      "ground_truth_full": "Tomato___healthy",
+      "image_path": "data\\benchmark_sample\\tomato\\0031da2a-8edd-468f-a8b1-106657717a32___RS_HL 0105.JPG",
+      "prompt_version": "v1_expert_context",
+      "prediction": {
+        "error": "429 You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current",
+        "raw_response": ""
+      },
+      "latency_ms": 439.0
+    },
+    {
+      "index": 6,
+      "crop": "potato",
+      "ground_truth": "late_blight",
+      "ground_truth_full": "Potato___Late_blight",
+      "image_path": "data\\benchmark_sample\\potato\\0051e5e8-d1c4-4a84-bf3a-a426cdad6285___RS_LB 4640.JPG",
+      "prompt_version": "v0_baseline",
+      "prediction": {
+        "error": "429 You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current",
+        "raw_response": ""
+      },
+      "latency_ms": 581.0
+    },
+    {
+      "index": 6,
+      "crop": "potato",
+      "ground_truth": "late_blight",
+      "ground_truth_full": "Potato___Late_blight",
+      "image_path": "data\\benchmark_sample\\potato\\0051e5e8-d1c4-4a84-bf3a-a426cdad6285___RS_LB 4640.JPG",
+      "prompt_version": "v1_expert_context",
+      "prediction": {
+        "error": "429 You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current",
+        "raw_response": ""
+      },
+      "latency_ms": 470.0
+    },
+    {
+      "index": 7,
+      "crop": "potato",
+      "ground_truth": "late_blight",
+      "ground_truth_full": "Potato___Late_blight",
+      "image_path": "data\\benchmark_sample\\potato\\00695906-210d-4a9d-822e-986a17384115___RS_LB 4026.JPG",
+      "prompt_version": "v0_baseline",
+      "prediction": {
+        "error": "429 You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current",
+        "raw_response": ""
+      },
+      "latency_ms": 442.0
+    },
+    {
+      "index": 7,
+      "crop": "potato",
+      "ground_truth": "late_blight",
+      "ground_truth_full": "Potato___Late_blight",
+      "image_path": "data\\benchmark_sample\\potato\\00695906-210d-4a9d-822e-986a17384115___RS_LB 4026.JPG",
+      "prompt_version": "v1_expert_context",
+      "prediction": {
+        "error": "429 You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current",
+        "raw_response": ""
+      },
+      "latency_ms": 417.0
+    },
+    {
+      "index": 8,
+      "crop": "potato",
+      "ground_truth": "late_blight",
+      "ground_truth_full": "Potato___Late_blight",
+      "image_path": "data\\benchmark_sample\\potato\\006cc01a-1888-4326-9b62-a65cb55a6377___RS_LB 5207.JPG",
+      "prompt_version": "v0_baseline",
+      "prediction": {
+        "error": "429 You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current",
+        "raw_response": ""
+      },
+      "latency_ms": 474.0
+    },
+    {
+      "index": 8,
+      "crop": "potato",
+      "ground_truth": "late_blight",
+      "ground_truth_full": "Potato___Late_blight",
+      "image_path": "data\\benchmark_sample\\potato\\006cc01a-1888-4326-9b62-a65cb55a6377___RS_LB 5207.JPG",
+      "prompt_version": "v1_expert_context",
+      "prediction": {
+        "error": "429 You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current",
+        "raw_response": ""
+      },
+      "latency_ms": 495.0
+    },
+    {
+      "index": 9,
+      "crop": "potato",
+      "ground_truth": "healthy",
+      "ground_truth_full": "Potato___healthy",
+      "image_path": "data\\benchmark_sample\\potato\\00fc2ee5-729f-4757-8aeb-65c3355874f2___RS_HL 1864.JPG",
+      "prompt_version": "v0_baseline",
+      "prediction": {
+        "error": "429 You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current",
+        "raw_response": ""
+      },
+      "latency_ms": 414.0
+    },
+    {
+      "index": 9,
+      "crop": "potato",
+      "ground_truth": "healthy",
+      "ground_truth_full": "Potato___healthy",
+      "image_path": "data\\benchmark_sample\\potato\\00fc2ee5-729f-4757-8aeb-65c3355874f2___RS_HL 1864.JPG",
+      "prompt_version": "v1_expert_context",
+      "prediction": {
+        "error": "429 You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current",
+        "raw_response": ""
+      },
+      "latency_ms": 405.0
+    },
+    {
+      "index": 10,
+      "crop": "potato",
+      "ground_truth": "healthy",
+      "ground_truth_full": "Potato___healthy",
+      "image_path": "data\\benchmark_sample\\potato\\03da9931-e514-4cc7-b04a-8f474a133ce5___RS_HL 1830.JPG",
+      "prompt_version": "v0_baseline",
+      "prediction": {
+        "error": "429 You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current",
+        "raw_response": ""
+      },
+      "latency_ms": 545.0
+    },
+    {
+      "index": 10,
+      "crop": "potato",
+      "ground_truth": "healthy",
+      "ground_truth_full": "Potato___healthy",
+      "image_path": "data\\benchmark_sample\\potato\\03da9931-e514-4cc7-b04a-8f474a133ce5___RS_HL 1830.JPG",
+      "prompt_version": "v1_expert_context",
+      "prediction": {
+        "error": "429 You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current",
+        "raw_response": ""
+      },
+      "latency_ms": 404.0
+    },
+    {
+      "index": 11,
+      "crop": "potato",
+      "ground_truth": "healthy",
+      "ground_truth_full": "Potato___healthy",
+      "image_path": "data\\benchmark_sample\\potato\\04481ca2-f94c-457e-b785-1ac05800b7ec___RS_HL 1930.JPG",
+      "prompt_version": "v0_baseline",
+      "prediction": {
+        "error": "429 You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current",
+        "raw_response": ""
+      },
+      "latency_ms": 514.0
+    },
+    {
+      "index": 11,
+      "crop": "potato",
+      "ground_truth": "healthy",
+      "ground_truth_full": "Potato___healthy",
+      "image_path": "data\\benchmark_sample\\potato\\04481ca2-f94c-457e-b785-1ac05800b7ec___RS_HL 1930.JPG",
+      "prompt_version": "v1_expert_context",
+      "prediction": {
+        "error": "429 You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current",
+        "raw_response": ""
+      },
+      "latency_ms": 469.0
+    },
+    {
+      "index": 12,
+      "crop": "potato",
+      "ground_truth": "early_blight",
+      "ground_truth_full": "Potato___Early_blight",
+      "image_path": "data\\benchmark_sample\\potato\\001187a0-57ab-4329-baff-e7246a9edeb0___RS_Early.B 8178.JPG",
+      "prompt_version": "v0_baseline",
+      "prediction": {
+        "error": "429 You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current",
+        "raw_response": ""
+      },
+      "latency_ms": 516.0
+    },
+    {
+      "index": 12,
+      "crop": "potato",
+      "ground_truth": "early_blight",
+      "ground_truth_full": "Potato___Early_blight",
+      "image_path": "data\\benchmark_sample\\potato\\001187a0-57ab-4329-baff-e7246a9edeb0___RS_Early.B 8178.JPG",
+      "prompt_version": "v1_expert_context",
+      "prediction": {
+        "error": "429 You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current",
+        "raw_response": ""
+      },
+      "latency_ms": 394.0
+    },
+    {
+      "index": 13,
+      "crop": "potato",
+      "ground_truth": "early_blight",
+      "ground_truth_full": "Potato___Early_blight",
+      "image_path": "data\\benchmark_sample\\potato\\002a55fb-7a3d-4a3a-aca8-ce2d5ebc6925___RS_Early.B 8170.JPG",
+      "prompt_version": "v0_baseline",
+      "prediction": {
+        "error": "429 You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current",
+        "raw_response": ""
+      },
+      "latency_ms": 609.0
+    },
+    {
+      "index": 13,
+      "crop": "potato",
+      "ground_truth": "early_blight",
+      "ground_truth_full": "Potato___Early_blight",
+      "image_path": "data\\benchmark_sample\\potato\\002a55fb-7a3d-4a3a-aca8-ce2d5ebc6925___RS_Early.B 8170.JPG",
+      "prompt_version": "v1_expert_context",
+      "prediction": {
+        "error": "429 You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current",
+        "raw_response": ""
+      },
+      "latency_ms": 423.0
+    },
+    {
+      "index": 14,
+      "crop": "potato",
+      "ground_truth": "early_blight",
+      "ground_truth_full": "Potato___Early_blight",
+      "image_path": "data\\benchmark_sample\\potato\\009c8c31-f22d-4ffd-8f16-189c6f06c577___RS_Early.B 7885.JPG",
+      "prompt_version": "v0_baseline",
+      "prediction": {
+        "error": "429 You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current",
+        "raw_response": ""
+      },
+      "latency_ms": 568.0
+    },
+    {
+      "index": 14,
+      "crop": "potato",
+      "ground_truth": "early_blight",
+      "ground_truth_full": "Potato___Early_blight",
+      "image_path": "data\\benchmark_sample\\potato\\009c8c31-f22d-4ffd-8f16-189c6f06c577___RS_Early.B 7885.JPG",
+      "prompt_version": "v1_expert_context",
+      "prediction": {
+        "error": "429 You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current",
+        "raw_response": ""
+      },
+      "latency_ms": 574.0
+    },
+    {
+      "index": 15,
+      "crop": "corn_",
+      "ground_truth": "healthy",
+      "ground_truth_full": "Corn_(maize)___healthy",
+      "image_path": "data\\benchmark_sample\\corn_\\03000565-29dc-4d56-8132-a5d0d36a8359___R.S_HL 0602.JPG",
+      "prompt_version": "v0_baseline",
+      "prediction": {
+        "error": "429 You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current",
+        "raw_response": ""
+      },
+      "latency_ms": 436.0
+    },
+    {
+      "index": 15,
+      "crop": "corn_",
+      "ground_truth": "healthy",
+      "ground_truth_full": "Corn_(maize)___healthy",
+      "image_path": "data\\benchmark_sample\\corn_\\03000565-29dc-4d56-8132-a5d0d36a8359___R.S_HL 0602.JPG",
+      "prompt_version": "v1_expert_context",
+      "prediction": {
+        "error": "429 You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current",
+        "raw_response": ""
+      },
+      "latency_ms": 465.0
+    },
+    {
+      "index": 16,
+      "crop": "corn_",
+      "ground_truth": "healthy",
+      "ground_truth_full": "Corn_(maize)___healthy",
+      "image_path": "data\\benchmark_sample\\corn_\\116e19d7-8948-4eaa-8309-617434b47f57___R.S_HL 0615.JPG",
+      "prompt_version": "v0_baseline",
+      "prediction": {
+        "error": "429 You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current",
+        "raw_response": ""
+      },
+      "latency_ms": 407.0
+    },
+    {
+      "index": 16,
+      "crop": "corn_",
+      "ground_truth": "healthy",
+      "ground_truth_full": "Corn_(maize)___healthy",
+      "image_path": "data\\benchmark_sample\\corn_\\116e19d7-8948-4eaa-8309-617434b47f57___R.S_HL 0615.JPG",
+      "prompt_version": "v1_expert_context",
+      "prediction": {
+        "error": "429 You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current",
+        "raw_response": ""
+      },
+      "latency_ms": 474.0
+    },
+    {
+      "index": 17,
+      "crop": "corn_",
+      "ground_truth": "healthy",
+      "ground_truth_full": "Corn_(maize)___healthy",
+      "image_path": "data\\benchmark_sample\\corn_\\11c1e3ce-73d1-4338-8939-473087e9dcbb___R.S_HL 0604.JPG",
+      "prompt_version": "v0_baseline",
+      "prediction": {
+        "error": "429 You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current",
+        "raw_response": ""
+      },
+      "latency_ms": 492.0
+    },
+    {
+      "index": 17,
+      "crop": "corn_",
+      "ground_truth": "healthy",
+      "ground_truth_full": "Corn_(maize)___healthy",
+      "image_path": "data\\benchmark_sample\\corn_\\11c1e3ce-73d1-4338-8939-473087e9dcbb___R.S_HL 0604.JPG",
+      "prompt_version": "v1_expert_context",
+      "prediction": {
+        "error": "429 You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current",
+        "raw_response": ""
+      },
+      "latency_ms": 527.0
+    },
+    {
+      "index": 18,
+      "crop": "corn_",
+      "ground_truth": "common_rust",
+      "ground_truth_full": "Corn_(maize)___Common_rust_",
+      "image_path": "data\\benchmark_sample\\corn_\\RS_Rust 1563.JPG",
+      "prompt_version": "v0_baseline",
+      "prediction": {
+        "error": "429 You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current",
+        "raw_response": ""
+      },
+      "latency_ms": 386.0
+    },
+    {
+      "index": 18,
+      "crop": "corn_",
+      "ground_truth": "common_rust",
+      "ground_truth_full": "Corn_(maize)___Common_rust_",
+      "image_path": "data\\benchmark_sample\\corn_\\RS_Rust 1563.JPG",
+      "prompt_version": "v1_expert_context",
+      "prediction": {
+        "error": "429 You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current",
+        "raw_response": ""
+      },
+      "latency_ms": 371.0
+    },
+    {
+      "index": 19,
+      "crop": "corn_",
+      "ground_truth": "common_rust",
+      "ground_truth_full": "Corn_(maize)___Common_rust_",
+      "image_path": "data\\benchmark_sample\\corn_\\RS_Rust 1564.JPG",
+      "prompt_version": "v0_baseline",
+      "prediction": {
+        "error": "429 You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current",
+        "raw_response": ""
+      },
+      "latency_ms": 415.0
+    },
+    {
+      "index": 19,
+      "crop": "corn_",
+      "ground_truth": "common_rust",
+      "ground_truth_full": "Corn_(maize)___Common_rust_",
+      "image_path": "data\\benchmark_sample\\corn_\\RS_Rust 1564.JPG",
+      "prompt_version": "v1_expert_context",
+      "prediction": {
+        "error": "429 You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current",
+        "raw_response": ""
+      },
+      "latency_ms": 424.0
+    },
+    {
+      "index": 20,
+      "crop": "corn_",
+      "ground_truth": "common_rust",
+      "ground_truth_full": "Corn_(maize)___Common_rust_",
+      "image_path": "data\\benchmark_sample\\corn_\\RS_Rust 1565.JPG",
+      "prompt_version": "v0_baseline",
+      "prediction": {
+        "error": "429 You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current",
+        "raw_response": ""
+      },
+      "latency_ms": 380.0
+    },
+    {
+      "index": 20,
+      "crop": "corn_",
+      "ground_truth": "common_rust",
+      "ground_truth_full": "Corn_(maize)___Common_rust_",
+      "image_path": "data\\benchmark_sample\\corn_\\RS_Rust 1565.JPG",
+      "prompt_version": "v1_expert_context",
+      "prediction": {
+        "error": "429 You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current",
+        "raw_response": ""
+      },
+      "latency_ms": 395.0
+    },
+    {
+      "index": 21,
+      "crop": "apple",
+      "ground_truth": "healthy",
+      "ground_truth_full": "Apple___healthy",
+      "image_path": "data\\benchmark_sample\\apple\\0055dd26-23a7-4415-ac61-e0b44ebfaf80___RS_HL 5672.JPG",
+      "prompt_version": "v0_baseline",
+      "prediction": {
+        "error": "429 You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current",
+        "raw_response": ""
+      },
+      "latency_ms": 637.0
+    },
+    {
+      "index": 21,
+      "crop": "apple",
+      "ground_truth": "healthy",
+      "ground_truth_full": "Apple___healthy",
+      "image_path": "data\\benchmark_sample\\apple\\0055dd26-23a7-4415-ac61-e0b44ebfaf80___RS_HL 5672.JPG",
+      "prompt_version": "v1_expert_context",
+      "prediction": {
+        "error": "429 You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current",
+        "raw_response": ""
+      },
+      "latency_ms": 616.0
+    },
+    {
+      "index": 22,
+      "crop": "apple",
+      "ground_truth": "healthy",
+      "ground_truth_full": "Apple___healthy",
+      "image_path": "data\\benchmark_sample\\apple\\00907d8b-6ae6-4306-bfd7-d54471981a86___RS_HL 5709.JPG",
+      "prompt_version": "v0_baseline",
+      "prediction": {
+        "error": "429 You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current",
+        "raw_response": ""
+      },
+      "latency_ms": 492.0
+    },
+    {
+      "index": 22,
+      "crop": "apple",
+      "ground_truth": "healthy",
+      "ground_truth_full": "Apple___healthy",
+      "image_path": "data\\benchmark_sample\\apple\\00907d8b-6ae6-4306-bfd7-d54471981a86___RS_HL 5709.JPG",
+      "prompt_version": "v1_expert_context",
+      "prediction": {
+        "error": "429 You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current",
+        "raw_response": ""
+      },
+      "latency_ms": 350.0
+    },
+    {
+      "index": 23,
+      "crop": "apple",
+      "ground_truth": "healthy",
+      "ground_truth_full": "Apple___healthy",
+      "image_path": "data\\benchmark_sample\\apple\\0098dbd9-286a-4d6a-bf4b-5459d66f88c0___RS_HL 5776.JPG",
+      "prompt_version": "v0_baseline",
+      "prediction": {
+        "error": "429 You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current",
+        "raw_response": ""
+      },
+      "latency_ms": 520.0
+    },
+    {
+      "index": 23,
+      "crop": "apple",
+      "ground_truth": "healthy",
+      "ground_truth_full": "Apple___healthy",
+      "image_path": "data\\benchmark_sample\\apple\\0098dbd9-286a-4d6a-bf4b-5459d66f88c0___RS_HL 5776.JPG",
+      "prompt_version": "v1_expert_context",
+      "prediction": {
+        "error": "429 You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current",
+        "raw_response": ""
+      },
+      "latency_ms": 393.0
+    },
+    {
+      "index": 24,
+      "crop": "grape",
+      "ground_truth": "healthy",
+      "ground_truth_full": "Grape___healthy",
+      "image_path": "data\\benchmark_sample\\grape\\00e00912-bf75-4cf8-8b7d-ad64b73bea5f___Mt.N.V_HL 6067.JPG",
+      "prompt_version": "v0_baseline",
+      "prediction": {
+        "error": "429 You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current",
+        "raw_response": ""
+      },
+      "latency_ms": 391.0
+    },
+    {
+      "index": 24,
+      "crop": "grape",
+      "ground_truth": "healthy",
+      "ground_truth_full": "Grape___healthy",
+      "image_path": "data\\benchmark_sample\\grape\\00e00912-bf75-4cf8-8b7d-ad64b73bea5f___Mt.N.V_HL 6067.JPG",
+      "prompt_version": "v1_expert_context",
+      "prediction": {
+        "error": "429 You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current",
+        "raw_response": ""
+      },
+      "latency_ms": 321.0
+    },
+    {
+      "index": 25,
+      "crop": "grape",
+      "ground_truth": "healthy",
+      "ground_truth_full": "Grape___healthy",
+      "image_path": "data\\benchmark_sample\\grape\\0163a6aa-fbf8-47c5-965f-59b6efe8bfe5___Mt.N.V_HL 6103.JPG",
+      "prompt_version": "v0_baseline",
+      "prediction": {
+        "error": "429 You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current",
+        "raw_response": ""
+      },
+      "latency_ms": 403.0
+    },
+    {
+      "index": 25,
+      "crop": "grape",
+      "ground_truth": "healthy",
+      "ground_truth_full": "Grape___healthy",
+      "image_path": "data\\benchmark_sample\\grape\\0163a6aa-fbf8-47c5-965f-59b6efe8bfe5___Mt.N.V_HL 6103.JPG",
+      "prompt_version": "v1_expert_context",
+      "prediction": {
+        "error": "429 You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current",
+        "raw_response": ""
+      },
+      "latency_ms": 363.0
+    },
+    {
+      "index": 26,
+      "crop": "grape",
+      "ground_truth": "healthy",
+      "ground_truth_full": "Grape___healthy",
+      "image_path": "data\\benchmark_sample\\grape\\0294ca65-4c29-44be-af28-501df9f715e8___Mt.N.V_HL 6176.JPG",
+      "prompt_version": "v0_baseline",
+      "prediction": {
+        "error": "429 You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current",
+        "raw_response": ""
+      },
+      "latency_ms": 564.0
+    },
+    {
+      "index": 26,
+      "crop": "grape",
+      "ground_truth": "healthy",
+      "ground_truth_full": "Grape___healthy",
+      "image_path": "data\\benchmark_sample\\grape\\0294ca65-4c29-44be-af28-501df9f715e8___Mt.N.V_HL 6176.JPG",
+      "prompt_version": "v1_expert_context",
+      "prediction": {
+        "error": "429 You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current",
+        "raw_response": ""
+      },
+      "latency_ms": 406.0
+    },
+    {
+      "index": 27,
+      "crop": "grape",
+      "ground_truth": "black_rot",
+      "ground_truth_full": "Grape___Black_rot",
+      "image_path": "data\\benchmark_sample\\grape\\00090b0f-c140-4e77-8d20-d39f67b75fcc___FAM_B.Rot 0376.JPG",
+      "prompt_version": "v0_baseline",
+      "prediction": {
+        "error": "429 You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current",
+        "raw_response": ""
+      },
+      "latency_ms": 438.0
+    },
+    {
+      "index": 27,
+      "crop": "grape",
+      "ground_truth": "black_rot",
+      "ground_truth_full": "Grape___Black_rot",
+      "image_path": "data\\benchmark_sample\\grape\\00090b0f-c140-4e77-8d20-d39f67b75fcc___FAM_B.Rot 0376.JPG",
+      "prompt_version": "v1_expert_context",
+      "prediction": {
+        "error": "429 You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current",
+        "raw_response": ""
+      },
+      "latency_ms": 382.0
+    },
+    {
+      "index": 28,
+      "crop": "grape",
+      "ground_truth": "black_rot",
+      "ground_truth_full": "Grape___Black_rot",
+      "image_path": "data\\benchmark_sample\\grape\\003d09ef-e16c-4e8a-badf-847d46cb3dc0___FAM_B.Rot 3184.JPG",
+      "prompt_version": "v0_baseline",
+      "prediction": {
+        "error": "429 You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current",
+        "raw_response": ""
+      },
+      "latency_ms": 413.0
+    },
+    {
+      "index": 28,
+      "crop": "grape",
+      "ground_truth": "black_rot",
+      "ground_truth_full": "Grape___Black_rot",
+      "image_path": "data\\benchmark_sample\\grape\\003d09ef-e16c-4e8a-badf-847d46cb3dc0___FAM_B.Rot 3184.JPG",
+      "prompt_version": "v1_expert_context",
+      "prediction": {
+        "error": "429 You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current",
+        "raw_response": ""
+      },
+      "latency_ms": 560.0
+    },
+    {
+      "index": 29,
+      "crop": "grape",
+      "ground_truth": "black_rot",
+      "ground_truth_full": "Grape___Black_rot",
+      "image_path": "data\\benchmark_sample\\grape\\004175d8-dc74-4285-8401-3cc9565730bb___FAM_B.Rot 0626.JPG",
+      "prompt_version": "v0_baseline",
+      "prediction": {
+        "error": "429 You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current",
+        "raw_response": ""
+      },
+      "latency_ms": 430.0
+    },
+    {
+      "index": 29,
+      "crop": "grape",
+      "ground_truth": "black_rot",
+      "ground_truth_full": "Grape___Black_rot",
+      "image_path": "data\\benchmark_sample\\grape\\004175d8-dc74-4285-8401-3cc9565730bb___FAM_B.Rot 0626.JPG",
+      "prompt_version": "v1_expert_context",
+      "prediction": {
+        "error": "429 You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current",
+        "raw_response": ""
+      },
+      "latency_ms": 352.0
+    }
+  ]
+}

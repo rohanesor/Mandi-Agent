@@ -1,0 +1,33 @@
+{
+  "versions": {
+    "v0_baseline": {
+      "accuracy": 0.0,
+      "total_images": 30,
+      "correct": 0,
+      "errors": 30,
+      "per_disease": {},
+      "per_crop": {},
+      "confidence_calibration": {},
+      "confusion_matrix": {}
+    },
+    "v1_expert_context": {
+      "accuracy": 0.0,
+      "total_images": 30,
+      "correct": 0,
+      "errors": 30,
+      "per_disease": {},
+      "per_crop": {},
+      "confidence_calibration": {},
+      "confusion_matrix": {}
+    }
+  },
+  "run_info": {
+    "timestamp": "2026-05-05T23:17:01.720892",
+    "model": "flash_2_0",
+    "total_images": 30,
+    "prompt_versions_tested": [
+      "v0_baseline",
+      "v1_expert_context"
+    ]
+  }
+}

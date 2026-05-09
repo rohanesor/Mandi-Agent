@@ -61,10 +61,10 @@ const redirectUri = 'mandi-agent://auth/callback';
  */
 export async function register(farmerData: RegisterInput): Promise<{ farmer: FarmerProfile }> {
   const session = await getCurrentSession();
-  const accessToken = session?.access_token;
+  if (!session) throw new Error('No authenticated session. Please login again.');
 
   const response = await apiClient.post('/api/farmer/register', farmerData, {
-    headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
+    headers: { Authorization: `Bearer ${session.access_token}` },
   });
 
   const farmer = FarmerProfileSchema.parse(response.data.farmer || response.data);
@@ -170,10 +170,10 @@ export async function signInWithGoogle(): Promise<{ farmer: FarmerProfile | null
  */
 export async function completeProfile(farmerData: RegisterInput): Promise<FarmerProfile> {
   const session = await getCurrentSession();
-  const accessToken = session?.access_token;
+  if (!session) throw new Error('No authenticated session. Please login again.');
 
   const response = await apiClient.post('/api/farmer/complete-profile', farmerData, {
-    headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
+    headers: { Authorization: `Bearer ${session.access_token}` },
   });
 
   const farmer = FarmerProfileSchema.parse(response.data.farmer || response.data);
@@ -197,7 +197,9 @@ export async function logout(): Promise<void> {
  */
 export async function isAuthenticated(): Promise<boolean> {
   const session = await getCurrentSession();
-  return !!session;
+  if (!session) return false;
+  if (session.expires_at && Date.now() / 1000 > session.expires_at) return false;
+  return true;
 }
 
 /**

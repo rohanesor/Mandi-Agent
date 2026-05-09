@@ -9,6 +9,7 @@ const BASE_URL = RAW_BASE_URL.replace(/\/+$/, '');
 const DEFAULT_TIMEOUT = 10000; // 10 seconds
 const MAX_RETRIES = 3;
 let AUTH_REFRESH_AVAILABLE = true;
+let REFRESH_IN_PROGRESS: Promise<string | null> | null = null;
 
 function dispatchAuthEvent(type: string, detail?: Record<string, unknown>) {
   try {
@@ -121,28 +122,37 @@ async function refreshAccessToken(): Promise<string | null> {
     return null;
   }
 
+  // Deduplicate concurrent refresh calls
+  if (REFRESH_IN_PROGRESS) return REFRESH_IN_PROGRESS;
+
   const stored = await getRefreshToken();
   if (!stored) {
     return null;
   }
 
-  try {
-    const { data, error } = await supabase.auth.refreshSession();
-    if (error || !data.session) {
+  REFRESH_IN_PROGRESS = (async () => {
+    try {
+      const { data, error } = await supabase.auth.refreshSession();
+      if (error || !data.session) {
+        AUTH_REFRESH_AVAILABLE = false;
+        await clearStoredData();
+        return null;
+      }
+      AUTH_REFRESH_AVAILABLE = true;
+      const token = data.session.access_token;
+      await SecureStore.setItemAsync(TOKEN_KEYS.ACCESS_TOKEN, token);
+      await SecureStore.setItemAsync(TOKEN_KEYS.REFRESH_TOKEN, data.session.refresh_token);
+      return token;
+    } catch {
       AUTH_REFRESH_AVAILABLE = false;
       await clearStoredData();
       return null;
+    } finally {
+      REFRESH_IN_PROGRESS = null;
     }
-    AUTH_REFRESH_AVAILABLE = true;
-    const token = data.session.access_token;
-    await SecureStore.setItemAsync(TOKEN_KEYS.ACCESS_TOKEN, token);
-    await SecureStore.setItemAsync(TOKEN_KEYS.REFRESH_TOKEN, data.session.refresh_token);
-    return token;
-  } catch {
-    AUTH_REFRESH_AVAILABLE = false;
-    await clearStoredData();
-    return null;
-  }
+  })();
+
+  return REFRESH_IN_PROGRESS;
 }
 
 // Request interceptor

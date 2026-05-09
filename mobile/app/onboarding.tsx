@@ -6,6 +6,7 @@ import * as Haptics from 'expo-haptics';
 import { useAppStore } from '../store';
 import { requestOtp, verifyOtp, completeProfile, signInWithGoogle } from '../services/authService';
 import { COLORS, FONTS } from '../constants/theme';
+import { LANGUAGES } from '../constants/languages';
 import HoverCard from '../components/HoverCard';
 import { z } from 'zod';
 
@@ -14,6 +15,14 @@ const otpSchema = z.string().regex(/^\d{6}$/, 'Invalid OTP');
 const nameSchema = z.string().min(2, 'Name too short');
 
 const CROPS = ['Tomato', 'Onion', 'Potato', 'Chilli', 'Mango', 'Wheat', 'Rice', 'Cotton'];
+const INDIAN_STATES = [
+  'Andhra Pradesh', 'Arunachal Pradesh', 'Assam', 'Bihar', 'Chhattisgarh',
+  'Goa', 'Gujarat', 'Haryana', 'Himachal Pradesh', 'Jharkhand',
+  'Karnataka', 'Kerala', 'Madhya Pradesh', 'Maharashtra', 'Manipur',
+  'Meghalaya', 'Mizoram', 'Nagaland', 'Odisha', 'Punjab',
+  'Rajasthan', 'Sikkim', 'Tamil Nadu', 'Telangana', 'Tripura',
+  'Uttar Pradesh', 'Uttarakhand', 'West Bengal',
+];
 
 type Mode = 'signin' | 'signup';
 type Step = 'phone' | 'otp' | 'profile' | 'complete';
@@ -32,7 +41,10 @@ export default function OnboardingScreen() {
   const [otp, setOtp] = useState('');
   const [name, setName] = useState('');
   const [selectedCrops, setSelectedCrops] = useState<string[]>([]);
-  const [selectedLanguage, setSelectedLanguage] = useState<'hi' | 'en'>('hi');
+  const [selectedLanguage, setSelectedLanguage] = useState<string>('hi');
+  const [selectedState, setSelectedState] = useState('');
+  const [selectedDistrict, setSelectedDistrict] = useState('');
+  const [selectedBlock, setSelectedBlock] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -49,6 +61,9 @@ export default function OnboardingScreen() {
     setName('');
     setSelectedCrops([]);
     setSelectedLanguage('hi');
+    setSelectedState('');
+    setSelectedDistrict('');
+    setSelectedBlock('');
     setError(null);
   };
 
@@ -93,14 +108,17 @@ export default function OnboardingScreen() {
   const handleCompleteProfile = async () => {
     setError(null);
     try { nameSchema.parse(name); } catch { setError('Please enter your name'); return; }
+    if (!selectedState) { setError('Please select your state'); return; }
+    if (!selectedDistrict.trim()) { setError('Please enter your district'); return; }
+    if (!selectedBlock.trim()) { setError('Please enter your block/tehsil'); return; }
     if (selectedCrops.length === 0) { setError('Please select at least one crop'); return; }
     setIsLoading(true);
     try {
       const farmer = await completeProfile({
         phone, name,
-        state: 'Karnataka', district: 'Kolar', block: 'Kolar-1',
+        state: selectedState, district: selectedDistrict, block: selectedBlock,
         primary_crops: selectedCrops,
-        preferred_language: selectedLanguage,
+        preferred_language: selectedLanguage as 'hi' | 'en' | 'mr' | 'ta' | 'te' | 'bn' | 'gu' | 'kn' | 'ml' | 'pa',
       });
       setFarmer({ ...farmer, created_at: farmer.created_at || new Date().toISOString() });
       setLanguage(selectedLanguage);
@@ -289,21 +307,57 @@ export default function OnboardingScreen() {
               </View>
             </View>
 
+            <View style={[styles.inputContainer, { marginBottom: 24 }]}>
+              <Text style={styles.inputLabel}>State</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.stateScroll}>
+                {INDIAN_STATES.map((st) => (
+                  <TouchableOpacity
+                    key={st}
+                    style={[styles.langChip, selectedState === st && styles.langChipActive]}
+                    onPress={() => setSelectedState(st)}
+                  >
+                    <Text style={[styles.langChipText, selectedState === st && styles.langChipTextActive]}>{st}</Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            </View>
+
+            <View style={styles.inputContainer}>
+              <Text style={styles.inputLabel}>District</Text>
+              <TextInput
+                style={styles.textInput}
+                placeholder="Enter your district"
+                placeholderTextColor={COLORS.muted}
+                value={selectedDistrict}
+                onChangeText={setSelectedDistrict}
+              />
+            </View>
+
+            <View style={styles.inputContainer}>
+              <Text style={styles.inputLabel}>Block / Tehsil</Text>
+              <TextInput
+                style={styles.textInput}
+                placeholder="Enter your block or tehsil"
+                placeholderTextColor={COLORS.muted}
+                value={selectedBlock}
+                onChangeText={setSelectedBlock}
+              />
+            </View>
+
             <View style={styles.inputContainer}>
               <Text style={styles.inputLabel}>Language</Text>
-              <View style={styles.langRow}>
-                <TouchableOpacity
-                  style={[styles.langChip, selectedLanguage === 'hi' && styles.langChipActive]}
-                  onPress={() => setSelectedLanguage('hi')}
-                >
-                  <Text style={[styles.langChipText, selectedLanguage === 'hi' && styles.langChipTextActive]}>हिंदी</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.langChip, selectedLanguage === 'en' && styles.langChipActive]}
-                  onPress={() => setSelectedLanguage('en')}
-                >
-                  <Text style={[styles.langChipText, selectedLanguage === 'en' && styles.langChipTextActive]}>English</Text>
-                </TouchableOpacity>
+              <View style={styles.langWrap}>
+                {LANGUAGES.map((l) => (
+                  <TouchableOpacity
+                    key={l.code}
+                    style={[styles.langChip, selectedLanguage === l.code && styles.langChipActive]}
+                    onPress={() => setSelectedLanguage(l.code)}
+                  >
+                    <Text style={[styles.langChipText, selectedLanguage === l.code && styles.langChipTextActive]}>
+                      {l.nativeName}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
               </View>
             </View>
 
@@ -392,10 +446,12 @@ const styles = StyleSheet.create({
   chipActive: { backgroundColor: COLORS.canopy, borderColor: COLORS.sprout },
   chipText: { color: COLORS.muted, fontFamily: FONTS.medium, fontSize: 13 },
   chipTextActive: { color: COLORS.sprout },
-  langRow: { flexDirection: 'row', gap: 12 },
+  langWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  stateScroll: { marginBottom: 8 },
   langChip: {
-    flex: 1, borderRadius: 12, backgroundColor: COLORS.forest,
-    paddingVertical: 14, alignItems: 'center', borderWidth: 1, borderColor: COLORS.canopy,
+    borderRadius: 12, backgroundColor: COLORS.forest,
+    paddingVertical: 10, paddingHorizontal: 16,
+    borderWidth: 1, borderColor: COLORS.canopy,
   },
   langChipActive: { backgroundColor: COLORS.canopy, borderColor: COLORS.sprout },
   langChipText: { color: COLORS.muted, fontFamily: FONTS.medium, fontSize: 14 },

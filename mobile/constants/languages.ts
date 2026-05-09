@@ -80,9 +80,18 @@ export const LANGUAGES = [
     farmers: '4M+',
     voiceCode: 'ml-IN',
   },
+  {
+    code: 'pa',
+    nativeName: 'ਪੰਜਾਬੀ',
+    englishName: 'Punjabi',
+    greeting: 'ਸਤ ਸ੍ਰੀ ਅਕਾਲ',
+    states: 'Punjab · Haryana',
+    farmers: '6M+',
+    voiceCode: 'pa-IN',
+  },
 ]
 
-export type LangCode = 'en' | 'hi' | 'ta' | 'te' | 'kn' | 'mr' | 'bn' | 'gu' | 'ml'
+export type LangCode = 'en' | 'hi' | 'ta' | 'te' | 'kn' | 'mr' | 'bn' | 'gu' | 'ml' | 'pa'
 
 export const getLang = (code: string) =>
   LANGUAGES.find(l => l.code === code) ?? LANGUAGES[0]
