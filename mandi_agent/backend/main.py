@@ -38,8 +38,8 @@ async def lifespan(app: FastAPI):
 
     # Seed demo farmers
     try:
-        from mandi_agent.backend.utils.seed import seed_demo_farmers
-        await seed_demo_farmers()
+        from mandi_agent.backend.utils.seed import seed_reference_data
+        await seed_reference_data()
         logger.info("Demo farmers seeded successfully")
     except Exception as e:
         logger.warning("Demo farmer seeding skipped: %s", str(e)[:100])

@@ -1,73 +1,47 @@
 """
-Seed demo farmers into in-memory store and Supabase on startup.
+Seed reference data into Supabase on startup (if tables are empty).
+Skip demo farmers — real farmers come via signup.
 """
 
 import logging
-import uuid
 from datetime import datetime, timezone
 
-from mandi_agent.backend.utils.tokens import AUTH_FARMERS_BY_PHONE
+from mandi_agent.backend.db.supabase import get_supabase_sync
 
 logger = logging.getLogger(__name__)
 
-DEMO_FARMERS = [
-    {
-        "id": "demo-farmer-001",
-        "phone": "9876543210",
-        "name": "Raju Naik",
-        "state": "Karnataka",
-        "district": "Kolar",
-        "block": "KOL-06",
-        "village": "Mulbagal",
-        "primary_crops": ["Tomato", "Onion"],
-        "land_size_hectares": 2.5,
-        "preferred_language": "kn",
-        "created_at": datetime.now(timezone.utc).isoformat(),
-    },
-    {
-        "id": "demo-farmer-002",
-        "phone": "9876543211",
-        "name": "Sridhar K",
-        "state": "Karnataka",
-        "district": "Kolar",
-        "block": "KOL-06",
-        "village": "Mulbagal",
-        "primary_crops": ["Tomato"],
-        "land_size_hectares": 1.8,
-        "preferred_language": "kn",
-        "created_at": datetime.now(timezone.utc).isoformat(),
-    },
-    {
-        "id": "demo-farmer-003",
-        "phone": "9876543212",
-        "name": "Anita Devi",
-        "state": "Maharashtra",
-        "district": "Nashik",
-        "block": "NSK-04",
-        "village": "Dindori",
-        "primary_crops": ["Grape", "Onion"],
-        "land_size_hectares": 3.2,
-        "preferred_language": "mr",
-        "created_at": datetime.now(timezone.utc).isoformat(),
-    },
+REFERENCE_MANDIS = [
+    {"mandi_id": "MH-VASHI-01", "mandi_name": "Vashi Navi Mumbai", "district": "Thane", "state": "Maharashtra"},
+    {"mandi_id": "MH-PUNE-01", "mandi_name": "Pune", "district": "Pune", "state": "Maharashtra"},
+    {"mandi_id": "KA-KOLAR-01", "mandi_name": "Kolar", "district": "Kolar", "state": "Karnataka"},
+    {"mandi_id": "KA-BANG-01", "mandi_name": "Bangalore", "district": "Bangalore Urban", "state": "Karnataka"},
+    {"mandi_id": "RJ-JAIPUR-01", "mandi_name": "Jaipur", "district": "Jaipur", "state": "Rajasthan"},
+    {"mandi_id": "MP-INDORE-01", "mandi_name": "Indore", "district": "Indore", "state": "Madhya Pradesh"},
+    {"mandi_id": "AP-GUNTUR-01", "mandi_name": "Guntur", "district": "Guntur", "state": "Andhra Pradesh"},
+    {"mandi_id": "TN-MADURAI-01", "mandi_name": "Madurai", "district": "Madurai", "state": "Tamil Nadu"},
 ]
 
 
-async def seed_demo_farmers():
-    """Seed demo farmers into the in-memory store and attempt Supabase insert."""
-    for farmer in DEMO_FARMERS:
-        phone = farmer["phone"]
-        if phone not in AUTH_FARMERS_BY_PHONE:
-            AUTH_FARMERS_BY_PHONE[phone] = farmer
-            logger.info("Seeded demo farmer: %s (%s)", farmer["name"], phone)
-
-    # Try Supabase insert
+async def seed_reference_data():
+    """
+    Seed reference mandi locations into Supabase if the table is empty.
+    Does NOT seed demo farmers — real farmer profiles come through signup.
+    """
     try:
-        from mandi_agent.backend.db.supabase import get_supabase_sync
         supabase = get_supabase_sync()
-        if supabase:
-            for farmer in DEMO_FARMERS:
-                supabase.table("farmers").upsert(farmer, on_conflict="id").execute()
-            logger.info("Demo farmers upserted to Supabase")
+        if not supabase:
+            logger.info("Supabase not configured — skipping reference seed")
+            return
+
+        # Only seed if mandis table is empty
+        existing = supabase.table("mandis").select("mandi_id").limit(1).execute()
+        if existing.data:
+            logger.info("Reference data already seeded — skipping")
+            return
+
+        for mandi in REFERENCE_MANDIS:
+            supabase.table("mandis").upsert(mandi, on_conflict="mandi_id").execute()
+
+        logger.info("Seeded %d reference mandi locations", len(REFERENCE_MANDIS))
     except Exception as e:
-        logger.debug("Supabase seed skipped (non-fatal): %s", str(e)[:100])
+        logger.debug("Reference seed skipped (non-fatal): %s", str(e)[:100])

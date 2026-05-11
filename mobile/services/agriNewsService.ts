@@ -1,6 +1,3 @@
-import { DEMO_MODE } from '../constants/demoConfig';
-import { DEMO_AGRI_NEWS, AgriNewsArticle } from '../constants/demoData';
-
 export type { AgriNewsArticle } from '../constants/demoData';
 
 export type AgriNewsCategory = AgriNewsArticle['category'];
@@ -66,17 +63,9 @@ function extractStates(text: string): string[] {
 }
 
 export async function getAgriNews(filterCategory?: AgriNewsCategory): Promise<AgriNewsArticle[]> {
-  if (DEMO_MODE) {
-    let articles = [...DEMO_AGRI_NEWS];
-    if (filterCategory) {
-      articles = articles.filter((a) => a.category === filterCategory);
-    }
-    return articles.sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime());
-  }
-
   if (!NEWS_API_KEY) {
-    console.warn('EXPO_PUBLIC_NEWS_API_KEY not set, returning demo data');
-    return DEMO_AGRI_NEWS;
+    console.warn('EXPO_PUBLIC_NEWS_API_KEY not set — no news available');
+    return [];
   }
 
   try {
@@ -119,6 +108,6 @@ export async function getAgriNews(filterCategory?: AgriNewsCategory): Promise<Ag
     return articles.sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime());
   } catch (error) {
     console.error('Failed to fetch agri news:', error);
-    return DEMO_AGRI_NEWS;
+    return [];
   }
 }

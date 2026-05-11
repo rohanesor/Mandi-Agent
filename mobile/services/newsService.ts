@@ -1,5 +1,3 @@
-import { DEMO_MODE } from '../constants/demoConfig';
-import { DEMO_NEWS } from '../constants/demoData';
 import { apiClient } from './api';
 
 export type NewsUrgency = 'emergency' | 'important' | 'digest';
@@ -22,12 +20,6 @@ export interface NewsArticle {
 }
 
 export async function fetchNews(category?: string): Promise<NewsArticle[]> {
-  if (DEMO_MODE) {
-    const demo = DEMO_NEWS as unknown as NewsArticle[];
-    if (!category || category.toLowerCase() === 'all') return demo;
-    return demo.filter((n) => n.category.toLowerCase() === category.toLowerCase());
-  }
-
   const query = category && category.toLowerCase() !== 'all' ? `?category=${encodeURIComponent(category)}` : '';
   const response = await apiClient.get(`/api/news${query}`);
   return (response.data?.articles || []) as NewsArticle[];

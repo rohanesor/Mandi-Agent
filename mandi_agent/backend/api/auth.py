@@ -4,6 +4,8 @@ Authentication routes (OTP, Login, Refresh, Logout) using Supabase Auth.
 
 from typing import Optional
 
+import logging
+
 from fastapi import APIRouter, HTTPException, Header
 
 from mandi_agent.backend.api.schemas import (
@@ -21,6 +23,7 @@ from mandi_agent.backend.utils.tokens import (
     new_token,
 )
 
+logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/auth", tags=["Auth"])
 
 
@@ -31,47 +34,55 @@ async def request_otp(req: OtpRequest) -> OtpResponse:
     if not phone:
         raise HTTPException(status_code=400, detail="phone is required")
 
-    # For demo/dev mode — still use hardcoded OTP when Supabase not configured
-    import os
-    supabase_url = os.getenv("SUPABASE_URL", "")
-    supabase_key = os.getenv("SUPABASE_SERVICE_KEY", "")
-
-    if supabase_url and supabase_key:
+    from mandi_agent.backend.db.supabase import get_supabase_sync
+    supabase = get_supabase_sync()
+    if supabase:
         try:
-            from supabase import create_client
-            supabase = create_client(supabase_url, supabase_key)
             supabase.auth.sign_in_with_otp({"phone": f"+91{phone}"})
         except Exception as e:
-            # Fallback to dev OTP if Supabase OTP fails
-            pass
+            logger.warning("Supabase OTP request failed: %s", str(e)[:200])
+            raise HTTPException(status_code=502, detail="Failed to send OTP. Please try again.")
 
-    OTP_STORE[phone] = "123456"
     return OtpResponse(message="OTP sent successfully", expires_in=300)
 
 
 @router.post("/login", response_model=AuthLoginResponse)
 async def login(req: LoginRequest) -> AuthLoginResponse:
-    """Login with phone + OTP (fallback for when Supabase OTP is unavailable)."""
+    """Login with phone + OTP via Supabase Auth."""
     phone = req.phone.strip()
     otp = req.otp.strip()
 
-    expected = OTP_STORE.get(phone)
-    if not expected or otp != expected:
-        raise HTTPException(status_code=400, detail="Invalid OTP")
+    from mandi_agent.backend.db.supabase import get_supabase_sync
+    supabase = get_supabase_sync()
+    if supabase:
+        try:
+            result = supabase.auth.verify_otp({"phone": f"+91{phone}", "token": otp, "type": "sms"})
+            if not result.user:
+                raise HTTPException(status_code=400, detail="Invalid OTP")
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.warning("Supabase OTP verification failed: %s", str(e)[:200])
+            raise HTTPException(status_code=400, detail="Invalid OTP")
 
-    farmer = AUTH_FARMERS_BY_PHONE.get(phone)
-    if not farmer:
-        raise HTTPException(status_code=404, detail="Farmer not found")
+    # Look up farmer profile in Supabase DB
+    if supabase:
+        try:
+            resp = supabase.table("farmers").select("*").eq("phone", phone).execute()
+            if resp.data:
+                farmer = resp.data[0]
+                access_token = new_token("access")
+                refresh_token = new_token("refresh")
+                AUTH_REFRESH_TOKENS[refresh_token] = farmer["id"]
+                return AuthLoginResponse(
+                    access_token=access_token,
+                    refresh_token=refresh_token,
+                    farmer=FrontendFarmer(**farmer),
+                )
+        except Exception as e:
+            logger.warning("Supabase farmer lookup failed: %s", str(e)[:200])
 
-    access_token = new_token("access")
-    refresh_token = new_token("refresh")
-    AUTH_REFRESH_TOKENS[refresh_token] = farmer["id"]
-
-    return AuthLoginResponse(
-        access_token=access_token,
-        refresh_token=refresh_token,
-        farmer=FrontendFarmer(**farmer),
-    )
+    raise HTTPException(status_code=404, detail="Farmer not found. Please register first.")
 
 
 @router.get("/refresh", response_model=RefreshResponse)

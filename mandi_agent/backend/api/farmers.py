@@ -12,13 +12,12 @@ from fastapi import APIRouter, HTTPException, Depends, status
 from pydantic import BaseModel
 
 from mandi_agent.backend.api.schemas import (
-    FarmerRegistrationRequest,
     FarmerRegistrationResponse,
     AdvisoryHistoryResponse,
     FrontendFarmer,
 )
 from mandi_agent.backend.api.core_schemas import FarmerProfile, FarmerAdvisory
-from mandi_agent.backend.utils.tokens import AUTH_FARMERS_BY_PHONE, AUTH_REFRESH_TOKENS, new_token
+from mandi_agent.backend.utils.tokens import AUTH_REFRESH_TOKENS, new_token
 from mandi_agent.backend.db.supabase import get_supabase_async
 from mandi_agent.backend.auth.jwt_validator import get_current_user
 
@@ -58,18 +57,14 @@ async def complete_farmer_profile(
         "created_at": datetime.now(timezone.utc).isoformat(),
     }
 
-    # Try to persist to Supabase
-    try:
-        supabase = await get_supabase_async()
-        if supabase:
+    # Persist to Supabase
+    supabase = await get_supabase_async()
+    if supabase:
+        try:
             await supabase.table("farmers").upsert(farmer_profile, on_conflict="id").execute()
-    except Exception as e:
-        logger.warning("Supabase farmer upsert failed, using in-memory: %s", str(e)[:200])
-
-    # Also store in-memory as fallback
-    if phone:
-        AUTH_FARMERS_BY_PHONE[phone] = farmer_profile
-    AUTH_FARMERS_BY_PHONE[supabase_user_id] = farmer_profile
+        except Exception as e:
+            logger.error("Supabase farmer upsert failed: %s", str(e)[:200])
+            raise HTTPException(status_code=502, detail="Failed to save profile. Please try again.")
 
     return {"farmer": farmer_profile, "registered": True}
 
@@ -77,7 +72,7 @@ async def complete_farmer_profile(
 @router.post("/register")
 async def register_farmer(req: dict[str, Any]) -> Any:
     """
-    Register a new farmer on the platform (legacy OTP flow).
+    Register a new farmer profile via Supabase.
     """
     phone = str(req.get("phone", "")).strip()
     name = str(req.get("name", "")).strip()
@@ -87,24 +82,28 @@ async def register_farmer(req: dict[str, Any]) -> Any:
     if not name:
         raise HTTPException(status_code=400, detail="name is required")
 
-    existing = AUTH_FARMERS_BY_PHONE.get(phone)
-    if existing:
-        farmer_profile = existing
-    else:
-        farmer_profile = {
-            "id": str(uuid.uuid4()),
-            "phone": phone,
-            "name": name,
-            "state": str(req.get("state", "")),
-            "district": str(req.get("district", "")),
-            "block": str(req.get("block", "")),
-            "village": req.get("village"),
-            "primary_crops": list(req.get("primary_crops", [])),
-            "land_size_hectares": req.get("land_size_hectares"),
-            "preferred_language": str(req.get("preferred_language", "hi")),
-            "created_at": datetime.now(timezone.utc).isoformat(),
-        }
-        AUTH_FARMERS_BY_PHONE[phone] = farmer_profile
+    farmer_profile = {
+        "id": str(uuid.uuid4()),
+        "phone": phone,
+        "name": name,
+        "state": str(req.get("state", "")),
+        "district": str(req.get("district", "")),
+        "block": str(req.get("block", "")),
+        "village": req.get("village"),
+        "primary_crops": list(req.get("primary_crops", [])),
+        "land_size_hectares": req.get("land_size_hectares"),
+        "preferred_language": str(req.get("preferred_language", "hi")),
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    }
+
+    # Persist to Supabase
+    supabase = await get_supabase_async()
+    if supabase:
+        try:
+            await supabase.table("farmers").upsert(farmer_profile, on_conflict="id").execute()
+        except Exception as e:
+            logger.error("Supabase farmer insert failed: %s", str(e)[:200])
+            raise HTTPException(status_code=502, detail="Failed to register. Please try again.")
 
     access_token = new_token("access")
     refresh_token = new_token("refresh")
@@ -125,21 +124,15 @@ async def get_farmer_by_phone(
     phone: str,
     user: dict = Depends(get_current_user),
 ) -> dict[str, Any]:
-    """Get farmer profile by phone number (Supabase Auth users)."""
-    # Try Supabase first
-    try:
-        supabase = await get_supabase_async()
-        if supabase:
+    """Get farmer profile by phone number from Supabase."""
+    supabase = await get_supabase_async()
+    if supabase:
+        try:
             resp = await supabase.table("farmers").select("*").eq("phone", phone).execute()
             if resp.data:
                 return resp.data[0]
-    except Exception as e:
-        logger.warning("Supabase lookup failed: %s", str(e)[:200])
-
-    # Fallback to in-memory
-    farmer = AUTH_FARMERS_BY_PHONE.get(phone)
-    if farmer:
-        return farmer
+        except Exception as e:
+            logger.warning("Supabase lookup failed: %s", str(e)[:200])
 
     raise HTTPException(status_code=404, detail="Farmer not found")
 
@@ -149,21 +142,15 @@ async def get_farmer_by_google(
     google_id: str,
     user: dict = Depends(get_current_user),
 ) -> dict[str, Any]:
-    """Get farmer profile by Google ID."""
-    try:
-        supabase = await get_supabase_async()
-        if supabase:
+    """Get farmer profile by Google/Supabase Auth ID."""
+    supabase = await get_supabase_async()
+    if supabase:
+        try:
             resp = await supabase.table("farmers").select("*").eq("id", google_id).execute()
             if resp.data:
                 return resp.data[0]
-    except Exception as e:
-        logger.warning("Supabase lookup failed: %s", str(e)[:200])
-
-    # Fallback: check if user from Supabase Auth has matching ID
-    supabase_user_id = user.get("id", "")
-    farmer = AUTH_FARMERS_BY_PHONE.get(supabase_user_id)
-    if farmer:
-        return farmer
+        except Exception as e:
+            logger.warning("Supabase lookup failed: %s", str(e)[:200])
 
     raise HTTPException(status_code=404, detail="Farmer profile not found. Please complete registration.")
 
