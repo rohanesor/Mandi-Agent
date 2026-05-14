@@ -194,6 +194,7 @@ export default function OnboardingScreen() {
               <View style={styles.phoneInput}>
                 <Text style={styles.countryCode}>+91</Text>
                 <TextInput
+                  key={`phone-${mode}`}
                   style={styles.input}
                   placeholder="9876543210"
                   placeholderTextColor={COLORS.muted}
@@ -201,6 +202,7 @@ export default function OnboardingScreen() {
                   onChangeText={setPhone}
                   keyboardType="phone-pad"
                   maxLength={10}
+                  autoComplete="off"
                 />
               </View>
             </View>
@@ -248,6 +250,7 @@ export default function OnboardingScreen() {
             <View style={styles.inputContainer}>
               <Text style={styles.inputLabel}>6-digit OTP</Text>
               <TextInput
+                key={`otp-${mode}`}
                 style={styles.otpInput}
                 placeholder="000000"
                 placeholderTextColor={COLORS.muted}
@@ -255,6 +258,7 @@ export default function OnboardingScreen() {
                 onChangeText={setOtp}
                 keyboardType="number-pad"
                 maxLength={6}
+                autoComplete="off"
               />
             </View>
 
@@ -287,6 +291,7 @@ export default function OnboardingScreen() {
                 placeholderTextColor={COLORS.muted}
                 value={name}
                 onChangeText={setName}
+                autoComplete="off"
               />
             </View>
 
@@ -330,6 +335,7 @@ export default function OnboardingScreen() {
                 placeholderTextColor={COLORS.muted}
                 value={selectedDistrict}
                 onChangeText={setSelectedDistrict}
+                autoComplete="off"
               />
             </View>
 
@@ -341,6 +347,7 @@ export default function OnboardingScreen() {
                 placeholderTextColor={COLORS.muted}
                 value={selectedBlock}
                 onChangeText={setSelectedBlock}
+                autoComplete="off"
               />
             </View>
 
