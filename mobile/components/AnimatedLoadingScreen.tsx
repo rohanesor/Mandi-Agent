@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
-import { View, StyleSheet, Text, Dimensions } from 'react-native';
+import { View, StyleSheet, Text } from 'react-native';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -10,15 +10,19 @@ import Animated, {
   Easing,
   cancelAnimation,
   runOnJS,
-  interpolate,
 } from 'react-native-reanimated';
 import { COLORS, FONTS } from '../constants/theme';
-import { LANGUAGES } from '../constants/languages';
+import { useIsOffline } from '../store/useAppStore';
 
-const { width: W } = Dimensions.get('window');
 const WHEAT = ['🌾', '🌾', '🌾'];
-const SLIDE_DURATION = 1800;
-const INTERVAL_MS = 2800;
+
+const QUOTES = [
+  { text: 'Timely sale, right price', lang: 'English' },
+  { text: 'समय पर बिक्री, सही कीमत', lang: 'हिंदी' },
+  { text: 'சரியான நேரத்தில் விற்பனை, சரியான விலை', lang: 'தமிழ்' },
+];
+
+const QUOTE_INTERVAL = 1500;
 
 function BouncingWheat({ index, delay }: { index: number; delay: number }) {
   const translateY = useSharedValue(0);
@@ -57,37 +61,30 @@ function BouncingWheat({ index, delay }: { index: number; delay: number }) {
   );
 }
 
-function LanguageSlide({ lang, index, currentIndex }: { lang: typeof LANGUAGES[0]; index: number; currentIndex: number }) {
-  const translateX = useSharedValue(index === 0 ? 0 : W);
+function AnimatedQuote({ quote, index, currentIndex }: { quote: typeof QUOTES[0]; index: number; currentIndex: number }) {
   const opacity = useSharedValue(index === 0 ? 1 : 0);
+  const translateY = useSharedValue(index === 0 ? 0 : 20);
 
   useEffect(() => {
     const isActive = index === currentIndex;
-    const isPrev = index === (currentIndex - 1 + LANGUAGES.length) % LANGUAGES.length;
-
     if (isActive) {
-      translateX.value = withTiming(0, { duration: SLIDE_DURATION, easing: Easing.out(Easing.cubic) });
-      opacity.value = withTiming(1, { duration: SLIDE_DURATION });
-    } else if (isPrev) {
-      translateX.value = withTiming(-W * 0.3, { duration: 300 });
-      opacity.value = withTiming(0, { duration: 300 });
+      opacity.value = withTiming(1, { duration: 500, easing: Easing.out(Easing.ease) });
+      translateY.value = withTiming(0, { duration: 500, easing: Easing.out(Easing.ease) });
     } else {
-      translateX.value = W;
-      opacity.value = 0;
+      opacity.value = withTiming(0, { duration: 300 });
+      translateY.value = withTiming(-20, { duration: 300 });
     }
   }, [currentIndex]);
 
   const animatedStyle = useAnimatedStyle(() => ({
-    transform: [{ translateX: translateX.value }],
     opacity: opacity.value,
+    transform: [{ translateY: translateY.value }],
   }));
 
   return (
-    <Animated.View style={[styles.slide, animatedStyle]}>
-      <Text style={styles.slideNativeName}>{lang.nativeName}</Text>
-      <Text style={styles.slideGreeting}>{lang.greeting}</Text>
-      <Text style={styles.slideEnglish}>{lang.englishName}</Text>
-      <Text style={styles.slideStates}>{lang.states}</Text>
+    <Animated.View style={[styles.quoteWrap, animatedStyle]}>
+      <Text style={styles.quoteText}>{quote.text}</Text>
+      <Text style={styles.quoteLang}>{quote.lang}</Text>
     </Animated.View>
   );
 }
@@ -97,46 +94,65 @@ interface Props {
   minimumDuration?: number;
 }
 
-export default function AnimatedLoadingScreen({ onLoaded, minimumDuration = 2500 }: Props) {
+export default function AnimatedLoadingScreen({ onLoaded, minimumDuration }: Props) {
+  const isOffline = useIsOffline();
+  const duration = minimumDuration ?? (isOffline ? 2000 : 5000);
   const [progress, setProgress] = useState(0);
   const [currentIndex, setCurrentIndex] = useState(0);
+  const titleOpacity = useSharedValue(0);
+  const subtitleOpacity = useSharedValue(0);
+  const subtitleTranslateY = useSharedValue(20);
   const containerOpacity = useSharedValue(1);
 
   useEffect(() => {
+    titleOpacity.value = withTiming(1, { duration: 800, easing: Easing.out(Easing.ease) });
+
+    const subTimer = setTimeout(() => {
+      subtitleOpacity.value = withTiming(1, { duration: 600 });
+      subtitleTranslateY.value = withTiming(0, { duration: 600, easing: Easing.out(Easing.ease) });
+    }, 400);
+
     const startTime = Date.now();
     const interval = setInterval(() => {
       const elapsed = Date.now() - startTime;
-      const pct = Math.min(elapsed / minimumDuration, 1);
+      const pct = Math.min(elapsed / duration, 1);
       setProgress(pct);
-      if (pct >= 1) {
-        clearInterval(interval);
-      }
+      if (pct >= 1) clearInterval(interval);
     }, 50);
 
-    return () => clearInterval(interval);
-  }, [minimumDuration]);
+    return () => { clearTimeout(subTimer); clearInterval(interval); };
+  }, []);
 
-  const advanceSlide = useCallback(() => {
-    setCurrentIndex((prev) => (prev + 1) % LANGUAGES.length);
+  const advanceQuote = useCallback(() => {
+    setCurrentIndex((prev) => (prev + 1) % QUOTES.length);
   }, []);
 
   useEffect(() => {
-    const timer = setInterval(advanceSlide, INTERVAL_MS);
+    const timer = setInterval(advanceQuote, QUOTE_INTERVAL);
     return () => clearInterval(timer);
-  }, [advanceSlide]);
+  }, [advanceQuote]);
 
   useEffect(() => {
     const doneTimer = setTimeout(() => {
       containerOpacity.value = withTiming(0, { duration: 400 }, () => {
         runOnJS(onLoaded)();
       });
-    }, minimumDuration);
+    }, duration);
 
     return () => clearTimeout(doneTimer);
-  }, [minimumDuration]);
+  }, [duration]);
 
   const containerAnimatedStyle = useAnimatedStyle(() => ({
     opacity: containerOpacity.value,
+  }));
+
+  const titleAnimatedStyle = useAnimatedStyle(() => ({
+    opacity: titleOpacity.value,
+  }));
+
+  const subtitleAnimatedStyle = useAnimatedStyle(() => ({
+    opacity: subtitleOpacity.value,
+    transform: [{ translateY: subtitleTranslateY.value }],
   }));
 
   return (
@@ -147,17 +163,17 @@ export default function AnimatedLoadingScreen({ onLoaded, minimumDuration = 2500
         ))}
       </View>
 
-      <Text style={styles.title}>Mandi Agent</Text>
+      <Animated.Text style={[styles.title, titleAnimatedStyle]}>
+        Mandi Agent
+      </Animated.Text>
 
-      <View style={styles.carousel}>
-        {LANGUAGES.map((lang, i) => (
-          <LanguageSlide key={lang.code} lang={lang} index={i} currentIndex={currentIndex} />
-        ))}
-      </View>
+      <Animated.Text style={[styles.subtitle, subtitleAnimatedStyle]}>
+        आपका खेत, आपकी कमाई
+      </Animated.Text>
 
-      <View style={styles.dots}>
-        {LANGUAGES.map((_, i) => (
-          <View key={i} style={[styles.dot, i === currentIndex && styles.dotActive]} />
+      <View style={styles.quoteContainer}>
+        {QUOTES.map((q, i) => (
+          <AnimatedQuote key={i} quote={q} index={i} currentIndex={currentIndex} />
         ))}
       </View>
 
@@ -175,87 +191,60 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: COLORS.night,
     alignItems: 'center',
+    justifyContent: 'center',
     padding: 32,
   },
   wheatRow: {
     flexDirection: 'row',
     gap: 16,
-    marginTop: 80,
-    marginBottom: 16,
+    marginBottom: 24,
   },
   wheat: {
-    fontSize: 36,
+    fontSize: 40,
   },
   title: {
     fontFamily: FONTS.display,
-    fontSize: 28,
+    fontSize: 32,
     color: COLORS.white,
-    marginBottom: 40,
-    letterSpacing: 1,
-  },
-  carousel: {
-    height: 180,
-    width: W - 64,
-    overflow: 'hidden',
-    marginBottom: 16,
-  },
-  slide: {
-    position: 'absolute',
-    width: W - 64,
-    alignItems: 'center',
-    paddingTop: 20,
-  },
-  slideNativeName: {
-    fontFamily: FONTS.display,
-    fontSize: 42,
-    color: COLORS.harvest,
     marginBottom: 8,
-    includeFontPadding: false,
   },
-  slideGreeting: {
+  subtitle: {
     fontFamily: FONTS.body,
-    fontSize: 20,
+    fontSize: 16,
     color: COLORS.sprout,
-    marginBottom: 12,
-    letterSpacing: 0.5,
+    marginBottom: 48,
   },
-  slideEnglish: {
+  quoteContainer: {
+    height: 72,
+    width: '100%',
+    marginBottom: 12,
+  },
+  quoteWrap: {
+    position: 'absolute',
+    width: '100%',
+    alignItems: 'center',
+  },
+  quoteText: {
     fontFamily: FONTS.body,
-    fontSize: 14,
-    color: COLORS.muted,
+    fontSize: 18,
+    color: COLORS.harvest,
+    textAlign: 'center',
+    lineHeight: 26,
     marginBottom: 4,
   },
-  slideStates: {
+  quoteLang: {
     fontFamily: FONTS.body,
-    fontSize: 11,
-    color: 'rgba(156,163,175,0.6)',
+    fontSize: 12,
+    color: COLORS.muted,
     textAlign: 'center',
-  },
-  dots: {
-    flexDirection: 'row',
-    gap: 6,
-    marginBottom: 32,
-    flexWrap: 'wrap',
-    justifyContent: 'center',
-    paddingHorizontal: 16,
-  },
-  dot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: 'rgba(255,255,255,0.2)',
-  },
-  dotActive: {
-    backgroundColor: COLORS.harvest,
-    width: 18,
   },
   progressBar: {
     width: 200,
-    height: 3,
+    height: 4,
     backgroundColor: COLORS.forest,
     borderRadius: 2,
     overflow: 'hidden',
-    marginBottom: 12,
+    marginBottom: 16,
   },
   progressFill: {
     height: '100%',
