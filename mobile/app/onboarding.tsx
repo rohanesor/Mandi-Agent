@@ -92,7 +92,9 @@ export default function OnboardingScreen() {
     setIsLoading(true);
     try {
       const result = await verifyOtp(phone, otp);
-      if (result.isNew) {
+      if (mode === 'signup' && !result.isNew && result.farmer) {
+        setError('This number is already registered. Please sign in instead.');
+      } else if (result.isNew) {
         setStep('profile');
       } else if (result.farmer) {
         setFarmer({ ...result.farmer, created_at: result.farmer.created_at || new Date().toISOString() });
