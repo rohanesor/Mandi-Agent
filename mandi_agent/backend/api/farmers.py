@@ -122,7 +122,6 @@ async def register_farmer(req: dict[str, Any]) -> Any:
 @router.get("/by-phone/{phone}")
 async def get_farmer_by_phone(
     phone: str,
-    user: dict = Depends(get_current_user),
 ) -> dict[str, Any]:
     """Get farmer profile by phone number from Supabase."""
     supabase = await get_supabase_async()
