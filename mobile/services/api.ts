@@ -3,7 +3,7 @@ import * as storage from '../lib/storage';
 import { supabase } from '../lib/supabase';
 
 // Configuration
-const RAW_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:8000';
+const RAW_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:8001';
 const BASE_URL = RAW_BASE_URL.replace(/\/+$/, '');
 const DEFAULT_TIMEOUT = 10000; // 10 seconds
 const MAX_RETRIES = 3;
