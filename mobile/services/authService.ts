@@ -14,11 +14,11 @@ export const FarmerProfileSchema = z.object({
   state: z.string().min(1),
   district: z.string().min(1),
   block: z.string().min(1),
-  village: z.string().optional(),
+  village: z.string().nullish(),
   primary_crops: z.array(z.string()).min(1),
-  land_size_hectares: z.number().positive().optional(),
+  land_size_hectares: z.number().positive().nullish(),
   preferred_language: z.enum(['hi', 'en', 'mr', 'ta', 'te', 'bn', 'gu', 'kn', 'ml', 'pa']),
-  created_at: z.string().datetime().optional(),
+  created_at: z.string().nullish(),
 });
 
 export type FarmerProfile = z.infer<typeof FarmerProfileSchema>;
