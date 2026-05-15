@@ -5,6 +5,7 @@ import { useState } from 'react';
 import * as Haptics from 'expo-haptics';
 import { useAppStore } from '../store';
 import { requestOtp, verifyOtp, completeProfile, signInWithGoogle } from '../services/authService';
+import { supabase } from '../lib/supabase';
 import { COLORS, FONTS } from '../constants/theme';
 import { LANGUAGES } from '../constants/languages';
 import HoverCard from '../components/HoverCard';
@@ -77,8 +78,11 @@ export default function OnboardingScreen() {
     try { phoneSchema.parse(phone); } catch { setError('Please enter a valid 10-digit phone number'); return; }
     setIsLoading(true);
     try {
+      // Clear any stale Supabase session before requesting OTP
+      try { await supabase.auth.signOut(); } catch { }
       await requestOtp(phone);
       setStep('otp');
+      setOtp('');
       if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error sending OTP');
@@ -91,7 +95,7 @@ export default function OnboardingScreen() {
     setIsLoading(true);
     try {
       const result = await verifyOtp(phone, otp);
-      if (mode === 'signup' && result.isNew) {
+      if (result.isNew) {
         setStep('profile');
       } else if (result.farmer) {
         setFarmer({ ...result.farmer, created_at: result.farmer.created_at || new Date().toISOString() });
@@ -263,6 +267,12 @@ export default function OnboardingScreen() {
             </View>
 
             {error && <View style={styles.errorBanner}><Text style={styles.errorText}>{error}</Text></View>}
+
+            {error && (
+              <TouchableOpacity onPress={handleSendOtp} style={styles.resendLink} disabled={isLoading}>
+                <Text style={styles.resendLinkText}>Resend OTP</Text>
+              </TouchableOpacity>
+            )}
 
             <TouchableOpacity
               style={[styles.button, (isLoading || otp.length !== 6) && styles.buttonDisabled]}
@@ -465,8 +475,10 @@ const styles = StyleSheet.create({
   langChipTextActive: { color: COLORS.sprout },
   backBtn: { marginBottom: 16 },
   backBtnText: { color: COLORS.sprout, fontFamily: FONTS.medium, fontSize: 16 },
-  errorBanner: { backgroundColor: '#450A0A', borderRadius: 8, padding: 12, marginBottom: 12 },
+  errorBanner: { backgroundColor: '#450A0A', borderRadius: 8, padding: 12, marginBottom: 8 },
   errorText: { color: '#FCA5A5', fontFamily: FONTS.body, fontSize: 14, textAlign: 'center' },
+  resendLink: { alignItems: 'center', marginBottom: 12 },
+  resendLinkText: { color: COLORS.harvest, fontFamily: FONTS.medium, fontSize: 14, textDecorationLine: 'underline' },
   googleBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
     backgroundColor: COLORS.forest, borderRadius: 12, paddingVertical: 16,

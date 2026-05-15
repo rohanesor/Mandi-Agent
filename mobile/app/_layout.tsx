@@ -98,11 +98,6 @@ function AppGate() {
         router.replace('/onboarding');
         return;
       }
-
-      if (authState === 'authenticated' && (isOnOnboarding || isOnLanguageSelect)) {
-        router.replace('/(tabs)');
-        return;
-      }
     }
 
     // First launch and already on language-select, or after returning from language-select

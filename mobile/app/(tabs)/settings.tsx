@@ -16,6 +16,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LANGUAGES } from '../../constants/languages';
 import { COLORS, FONTS } from '../../constants/theme';
 import { useT } from '../../utils/useT';
+import { logout } from '../../services/authService';
 
 const GOOGLE_USER_KEY = '@mandiagent:googleUser';
 const NOTIF_KEY = '@mandiagent:notifications';
@@ -396,6 +397,26 @@ export default function SettingsScreen() {
           </TouchableOpacity>
         </Card>
 
+        {/* LOG OUT */}
+        <Card title="ACCOUNT">
+          <TouchableOpacity
+            style={styles.logoutBtn}
+            onPress={() => {
+              const doLogout = () => { logout(); };
+              if (Platform.OS === 'web') {
+                if (window.confirm('Are you sure you want to log out?')) doLogout();
+              } else {
+                Alert.alert('Log Out', 'Are you sure you want to log out?', [
+                  { text: 'Cancel', style: 'cancel' },
+                  { text: 'Log Out', style: 'destructive', onPress: doLogout },
+                ]);
+              }
+            }}
+          >
+            <Text style={styles.logoutText}>Log Out</Text>
+          </TouchableOpacity>
+        </Card>
+
         {/* Bottom spacer for floating button */}
         <View style={{ height: 80 }} />
       </ScrollView>
@@ -557,6 +578,17 @@ const styles = StyleSheet.create({
   moreOptions: { color: COLORS.muted, fontFamily: FONTS.body, fontSize: 12, fontStyle: 'italic' },
   linkRow: { paddingVertical: 8 },
   linkText: { color: COLORS.harvest, fontFamily: FONTS.medium, fontSize: 13 },
+
+  // Log Out
+  logoutBtn: {
+    backgroundColor: 'rgba(220,38,38,0.15)',
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(220,38,38,0.4)',
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  logoutText: { color: '#EF4444', fontFamily: FONTS.bold, fontSize: 14 },
 
   // Floating Save Button
   floatingSaveContainer: {

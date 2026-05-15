@@ -1,8 +1,8 @@
-import * as SecureStore from 'expo-secure-store';
-import * as WebBrowser from 'expo-web-browser';
 import { z } from 'zod';
+import * as WebBrowser from 'expo-web-browser';
 import { supabase, getCurrentSession, getCurrentUser, signOut as supabaseSignOut } from '../lib/supabase';
 import { apiClient, storeTokens, storeFarmerProfile, clearStoredData, TOKEN_KEYS } from './api';
+import * as storage from '../lib/storage';
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -94,10 +94,10 @@ export async function verifyOtp(phone: string, otp: string): Promise<{ farmer: F
   });
 
   if (error) {
-    if (error.message.includes('otp_expired')) {
+    if (error.message.includes('otp_expired') || error.message.includes('expired')) {
       throw new Error('OTP expired. Please request a new one.');
     }
-    throw new Error('Invalid OTP. Please try again.');
+    throw new Error('Invalid OTP. Try again or request a new one.');
   }
 
   if (!data.session) {
@@ -188,8 +188,19 @@ export async function logout(): Promise<void> {
   try {
     await supabaseSignOut();
   } catch { }
-  await clearStoredData();
+  try {
+    await clearStoredData();
+  } catch { }
+  // Force-clear Supabase session from localStorage on web
+  if (typeof localStorage !== 'undefined') {
+    const keys = Object.keys(localStorage).filter(k => k.startsWith('sb-'));
+    keys.forEach(k => localStorage.removeItem(k));
+  }
   try { globalThis.dispatchEvent(new CustomEvent('auth:logout', { detail: { reason: 'user_initiated' } })); } catch { }
+  // Hard reload on web to clear Supabase in-memory cache
+  if (typeof window !== 'undefined' && typeof window.location !== 'undefined') {
+    window.location.href = '/';
+  }
 }
 
 /**
@@ -207,7 +218,7 @@ export async function isAuthenticated(): Promise<boolean> {
  */
 export async function getFarmerProfile(): Promise<FarmerProfile | null> {
   try {
-    const profile = await SecureStore.getItemAsync(TOKEN_KEYS.FARMER_PROFILE);
+    const profile = await storage.getItem(TOKEN_KEYS.FARMER_PROFILE);
     return profile ? FarmerProfileSchema.parse(JSON.parse(profile)) : null;
   } catch {
     return null;
