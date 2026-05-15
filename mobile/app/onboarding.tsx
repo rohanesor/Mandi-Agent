@@ -5,7 +5,6 @@ import { useState } from 'react';
 import * as Haptics from 'expo-haptics';
 import { useAppStore } from '../store';
 import { requestOtp, verifyOtp, completeProfile, signInWithGoogle } from '../services/authService';
-import { supabase } from '../lib/supabase';
 import { COLORS, FONTS } from '../constants/theme';
 import { LANGUAGES } from '../constants/languages';
 import HoverCard from '../components/HoverCard';
@@ -78,8 +77,6 @@ export default function OnboardingScreen() {
     try { phoneSchema.parse(phone); } catch { setError('Please enter a valid 10-digit phone number'); return; }
     setIsLoading(true);
     try {
-      // Clear any stale Supabase session before requesting OTP
-      try { await supabase.auth.signOut(); } catch { }
       await requestOtp(phone);
       setStep('otp');
       setOtp('');
