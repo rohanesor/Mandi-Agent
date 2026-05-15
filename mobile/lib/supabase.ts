@@ -1,39 +1,14 @@
 import { createClient } from '@supabase/supabase-js';
-import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
+import * as storage from './storage';
 
 const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL || 'https://vqsgzgiacmzlkvujugay.supabase.co';
-const SUPABASE_ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZxc2d6Z2lhY216bGt2dWp1Z2F5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzU2NzE3MDcsImV4cCI6MjA1MTI0NzcwN30.3JXU7JOJrbPnQtA5Oc9OwFDmg6flYIlV5FV8b9Dx5cs';
+const SUPABASE_ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZxc2d6Z2lhY216bGt2dWp1Z2F5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQwMjM5MDEsImV4cCI6MjA4OTU5OTkwMX0.kx9NXQXoriZZK9HkOziH4YWvO_8cZzHTAVKXPa7Uj8E';
 
 const ExpoSecureStoreAdapter = {
-  getItem: async (key: string) => {
-    try {
-      return await SecureStore.getItemAsync(key);
-    } catch {
-      if (Platform.OS === 'web') {
-        return localStorage.getItem(key);
-      }
-      return null;
-    }
-  },
-  setItem: async (key: string, value: string) => {
-    try {
-      await SecureStore.setItemAsync(key, value);
-    } catch {
-      if (Platform.OS === 'web') {
-        localStorage.setItem(key, value);
-      }
-    }
-  },
-  removeItem: async (key: string) => {
-    try {
-      await SecureStore.deleteItemAsync(key);
-    } catch {
-      if (Platform.OS === 'web') {
-        localStorage.removeItem(key);
-      }
-    }
-  },
+  getItem: async (key: string) => storage.getItem(key),
+  setItem: async (key: string, value: string) => storage.setItem(key, value),
+  removeItem: async (key: string) => storage.removeItem(key),
 };
 
 export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {

@@ -2,7 +2,7 @@ import * as FileSystem from 'expo-file-system';
 import { z } from 'zod';
 import { apiClient, DEFAULT_TIMEOUT, TOKEN_KEYS } from './api';
 import { Platform } from 'react-native';
-import * as SecureStore from 'expo-secure-store';
+import * as storage from '../lib/storage';
 
 // Zod schemas for validation
 export const MandiPriceSchema = z.object({
@@ -125,7 +125,7 @@ export async function sendVoiceAdvisory(
     // Web: send JSON instead of FormData (data URI can't be read by FileSystem)
     if (Platform.OS === 'web' || audioUri.startsWith('data:')) {
       onProgress?.('predicting_price', 'Analyzing your request...');
-      const profileRaw = await SecureStore.getItemAsync(TOKEN_KEYS.FARMER_PROFILE);
+      const profileRaw = await storage.getItem(TOKEN_KEYS.FARMER_PROFILE);
       const profile = profileRaw ? (JSON.parse(profileRaw) as { name?: string; language?: string }) : null;
 
       const response = await apiClient.post('/api/advisory', {
@@ -235,7 +235,7 @@ export async function submitHarvestIntent(
     // Validate input
     const validatedInput = HarvestIntentInputSchema.parse(intent);
 
-    const profileRaw = await SecureStore.getItemAsync(TOKEN_KEYS.FARMER_PROFILE);
+    const profileRaw = await storage.getItem(TOKEN_KEYS.FARMER_PROFILE);
     const profile = profileRaw ? (JSON.parse(profileRaw) as { block?: string }) : null;
 
     const payload = {

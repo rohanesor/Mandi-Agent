@@ -1,6 +1,5 @@
 import axios, { AxiosError, AxiosInstance, InternalAxiosRequestConfig } from 'axios';
-import * as SecureStore from 'expo-secure-store';
-import { Platform } from 'react-native';
+import * as storage from '../lib/storage';
 import { supabase } from '../lib/supabase';
 
 // Configuration
@@ -75,7 +74,7 @@ const apiClient: AxiosInstance = axios.create({
 // Helper: Get stored tokens
 async function getAccessToken(): Promise<string | null> {
   try {
-    return await SecureStore.getItemAsync(TOKEN_KEYS.ACCESS_TOKEN);
+    return await storage.getItem(TOKEN_KEYS.ACCESS_TOKEN);
   } catch {
     return null;
   }
@@ -83,7 +82,7 @@ async function getAccessToken(): Promise<string | null> {
 
 async function getRefreshToken(): Promise<string | null> {
   try {
-    return await SecureStore.getItemAsync(TOKEN_KEYS.REFRESH_TOKEN);
+    return await storage.getItem(TOKEN_KEYS.REFRESH_TOKEN);
   } catch {
     return null;
   }
@@ -91,7 +90,7 @@ async function getRefreshToken(): Promise<string | null> {
 
 async function getStoredFarmerProfile(): Promise<{ id?: string; preferred_language?: string } | null> {
   try {
-    const profile = await SecureStore.getItemAsync(TOKEN_KEYS.FARMER_PROFILE);
+    const profile = await storage.getItem(TOKEN_KEYS.FARMER_PROFILE);
     return profile ? JSON.parse(profile) : null;
   } catch {
     return null;
@@ -100,20 +99,20 @@ async function getStoredFarmerProfile(): Promise<{ id?: string; preferred_langua
 
 // Helper: Store tokens
 export async function storeTokens(accessToken: string, refreshToken: string): Promise<void> {
-  await SecureStore.setItemAsync(TOKEN_KEYS.ACCESS_TOKEN, accessToken);
-  await SecureStore.setItemAsync(TOKEN_KEYS.REFRESH_TOKEN, refreshToken);
+  await storage.setItem(TOKEN_KEYS.ACCESS_TOKEN, accessToken);
+  await storage.setItem(TOKEN_KEYS.REFRESH_TOKEN, refreshToken);
 }
 
 // Helper: Store farmer profile
 export async function storeFarmerProfile(profile: Record<string, unknown>): Promise<void> {
-  await SecureStore.setItemAsync(TOKEN_KEYS.FARMER_PROFILE, JSON.stringify(profile));
+  await storage.setItem(TOKEN_KEYS.FARMER_PROFILE, JSON.stringify(profile));
 }
 
 // Helper: Clear all stored data
 export async function clearStoredData(): Promise<void> {
-  await SecureStore.deleteItemAsync(TOKEN_KEYS.ACCESS_TOKEN);
-  await SecureStore.deleteItemAsync(TOKEN_KEYS.REFRESH_TOKEN);
-  await SecureStore.deleteItemAsync(TOKEN_KEYS.FARMER_PROFILE);
+  await storage.removeItem(TOKEN_KEYS.ACCESS_TOKEN);
+  await storage.removeItem(TOKEN_KEYS.REFRESH_TOKEN);
+  await storage.removeItem(TOKEN_KEYS.FARMER_PROFILE);
 }
 
 // Refresh token function (defined before interceptors to avoid hoisting issues)
@@ -140,8 +139,8 @@ async function refreshAccessToken(): Promise<string | null> {
       }
       AUTH_REFRESH_AVAILABLE = true;
       const token = data.session.access_token;
-      await SecureStore.setItemAsync(TOKEN_KEYS.ACCESS_TOKEN, token);
-      await SecureStore.setItemAsync(TOKEN_KEYS.REFRESH_TOKEN, data.session.refresh_token);
+      await storage.setItem(TOKEN_KEYS.ACCESS_TOKEN, token);
+      await storage.setItem(TOKEN_KEYS.REFRESH_TOKEN, data.session.refresh_token);
       return token;
     } catch {
       AUTH_REFRESH_AVAILABLE = false;
