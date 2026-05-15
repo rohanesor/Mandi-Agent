@@ -61,7 +61,7 @@ async def complete_farmer_profile(
     supabase = await get_supabase_async()
     if supabase:
         try:
-            await supabase.table("farmers").upsert(farmer_profile, on_conflict="id").execute()
+            await supabase.table("farmer_profiles").upsert(farmer_profile, on_conflict="id").execute()
         except Exception as e:
             logger.error("Supabase farmer upsert failed: %s", str(e)[:200])
             raise HTTPException(status_code=502, detail="Failed to save profile. Please try again.")
@@ -100,7 +100,7 @@ async def register_farmer(req: dict[str, Any]) -> Any:
     supabase = await get_supabase_async()
     if supabase:
         try:
-            await supabase.table("farmers").upsert(farmer_profile, on_conflict="id").execute()
+            await supabase.table("farmer_profiles").upsert(farmer_profile, on_conflict="id").execute()
         except Exception as e:
             logger.error("Supabase farmer insert failed: %s", str(e)[:200])
             raise HTTPException(status_code=502, detail="Failed to register. Please try again.")
@@ -128,7 +128,7 @@ async def get_farmer_by_phone(
     supabase = await get_supabase_async()
     if supabase:
         try:
-            resp = await supabase.table("farmers").select("*").eq("phone", phone).execute()
+            resp = await supabase.table("farmer_profiles").select("*").eq("phone", phone).execute()
             if resp.data:
                 return resp.data[0]
         except Exception as e:
@@ -146,7 +146,7 @@ async def get_farmer_by_google(
     supabase = await get_supabase_async()
     if supabase:
         try:
-            resp = await supabase.table("farmers").select("*").eq("id", google_id).execute()
+            resp = await supabase.table("farmer_profiles").select("*").eq("id", google_id).execute()
             if resp.data:
                 return resp.data[0]
         except Exception as e:

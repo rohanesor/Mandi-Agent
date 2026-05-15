@@ -68,7 +68,7 @@ async def login(req: LoginRequest) -> AuthLoginResponse:
     # Look up farmer profile in Supabase DB
     if supabase:
         try:
-            resp = supabase.table("farmers").select("*").eq("phone", phone).execute()
+            resp = supabase.table("farmer_profiles").select("*").eq("phone", phone).execute()
             if resp.data:
                 farmer = resp.data[0]
                 access_token = new_token("access")
