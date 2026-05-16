@@ -391,16 +391,42 @@ export default function OnboardingScreen() {
 
         {step === 'complete' && (
           <View style={styles.completeContainer}>
-            <Text style={styles.successEmoji}>🎉</Text>
-            <Text style={styles.completeTitle}>Welcome!</Text>
-            <Text style={styles.completeSubtitle}>
-              Your account is created. Your season plan is ready.
+            <Text style={styles.wheatRow}>🌾 🌾 🌾</Text>
+            <Text style={styles.completeTitle}>
+              Welcome, {name.split(' ')[0]}!
             </Text>
+            <Text style={styles.completeSubtitle}>
+              Your farm is all set up
+            </Text>
+
+            <View style={styles.completeCard}>
+              <Text style={styles.completeCardTitle}>YOUR PROFILE</Text>
+              <View style={styles.completeRow}>
+                <Text style={styles.completeLabel}>Crops</Text>
+                <Text style={styles.completeValue}>{selectedCrops.join(', ')}</Text>
+              </View>
+              <View style={styles.completeRow}>
+                <Text style={styles.completeLabel}>State</Text>
+                <Text style={styles.completeValue}>{selectedState}</Text>
+              </View>
+              <View style={[styles.completeRow, { borderBottomWidth: 0 }]}>
+                <Text style={styles.completeLabel}>Season</Text>
+                <Text style={styles.completeValue}>Kharif {new Date().getFullYear()}</Text>
+              </View>
+            </View>
+
+            <View style={styles.completeCard}>
+              <Text style={styles.completeCardTitle}>WHAT'S NEXT</Text>
+              <Text style={styles.completeAction}>Check mandi prices</Text>
+              <Text style={styles.completeAction}>Join a cooperative bundle</Text>
+              <Text style={styles.completeAction}>AI crop advisory</Text>
+            </View>
+
             <TouchableOpacity
-              style={styles.button}
+              style={styles.completeBtn}
               onPress={() => router.replace('/(tabs)')}
             >
-              <Text style={styles.buttonText}>Get Started</Text>
+              <Text style={styles.completeBtnText}>Go to Dashboard</Text>
             </TouchableOpacity>
           </View>
         )}
@@ -495,10 +521,24 @@ const styles = StyleSheet.create({
   button: { backgroundColor: COLORS.sprout, borderRadius: 12, paddingVertical: 16, alignItems: 'center', marginTop: 8 },
   buttonDisabled: { backgroundColor: COLORS.forest },
   buttonText: { color: COLORS.night, fontFamily: FONTS.bold, fontSize: 16 },
-  completeContainer: { alignItems: 'center', gap: 16, paddingTop: 48 },
-  successEmoji: { fontSize: 64 },
-  completeTitle: { color: COLORS.white, fontFamily: FONTS.bold, fontSize: 28, textAlign: 'center' },
-  completeSubtitle: { color: COLORS.muted, fontFamily: FONTS.body, fontSize: 14, textAlign: 'center', lineHeight: 22 },
+  completeContainer: { alignItems: 'center', paddingTop: 32, paddingBottom: 24 },
+  wheatRow: { fontSize: 28, marginBottom: 8 },
+  completeTitle: { color: COLORS.white, fontFamily: FONTS.bold, fontSize: 28, textAlign: 'center', marginBottom: 4 },
+  completeSubtitle: { color: COLORS.muted, fontFamily: FONTS.body, fontSize: 14, textAlign: 'center', marginBottom: 28 },
+  completeCard: {
+    width: '100%', backgroundColor: COLORS.forest, borderRadius: 14, padding: 16,
+    marginBottom: 14,
+  },
+  completeCardTitle: { color: COLORS.harvest, fontFamily: FONTS.bold, fontSize: 11, letterSpacing: 1.2, marginBottom: 12 },
+  completeRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: COLORS.canopy },
+  completeLabel: { color: COLORS.sprout, fontFamily: FONTS.medium, fontSize: 13 },
+  completeValue: { color: COLORS.white, fontFamily: FONTS.medium, fontSize: 13, textAlign: 'right', flex: 1, marginLeft: 16 },
+  completeAction: { color: COLORS.white, fontFamily: FONTS.body, fontSize: 14, paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: COLORS.canopy },
+  completeBtn: {
+    width: '100%', backgroundColor: COLORS.harvest, borderRadius: 12, paddingVertical: 14,
+    alignItems: 'center', marginTop: 8,
+  },
+  completeBtnText: { color: COLORS.night, fontFamily: FONTS.bold, fontSize: 16 },
   footer: { alignItems: 'center', marginTop: 32 },
   footerText: { color: COLORS.muted, fontFamily: FONTS.body, fontSize: 11, textAlign: 'center' },
 });
