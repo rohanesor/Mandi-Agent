@@ -12,9 +12,9 @@ from pathlib import Path
 # Add project root to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from mandi_agent.backend.agents.benchmark_dataset import download_dataset, sample_dataset
-from mandi_agent.backend.agents.benchmark_runner import run_benchmark
+from mandi_agent.backend.agents.benchmark_dataset import sample_dataset
 from mandi_agent.backend.agents.benchmark_report import generate_report
+from mandi_agent.backend.agents.benchmark_runner import run_benchmark
 
 
 def setup_env():
@@ -47,15 +47,15 @@ async def run_full_benchmark(
 
     # Step 2: Sample images
     print(f"\n[2/4] Sampling {samples_per_class} images per class...")
-    manifest = sample_dataset(
+    sample_dataset(
         dataset_dir=dataset_dir,
         samples_per_class=samples_per_class,
         output_dir=benchmark_dir,
     )
 
     # Step 3: Run benchmark
-    print(f"\n[3/4] Running benchmark...")
-    results = await run_benchmark(
+    print("\n[3/4] Running benchmark...")
+    await run_benchmark(
         manifest_path=f"{benchmark_dir}/manifest.json",
         prompt_versions=["v0_baseline", "v1_expert_context", "v2_multi_shot", "v3_chain_of_thought"],
         model_key="flash_2_0",
@@ -64,7 +64,7 @@ async def run_full_benchmark(
     )
 
     # Step 4: Generate report
-    print(f"\n[4/4] Generating report...")
+    print("\n[4/4] Generating report...")
     benchmark_files = list(Path(results_dir).glob("*.json"))
     if benchmark_files:
         latest = max(benchmark_files, key=lambda f: f.stat().st_mtime)
@@ -97,4 +97,5 @@ async def run_full_benchmark(
 
 if __name__ == "__main__":
     import asyncio
+
     asyncio.run(run_full_benchmark())

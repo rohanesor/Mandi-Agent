@@ -8,7 +8,6 @@ per disease class and per prompt version.
 import json
 from collections import defaultdict
 from pathlib import Path
-from typing import Optional
 
 
 def normalize_disease_name(name: str) -> str:
@@ -105,7 +104,12 @@ def compute_single_version_metrics(preds: list[dict]) -> dict:
     per_disease_metrics = {}
     for disease, stats in by_disease.items():
         tp = stats["correct"]
-        fp = sum(1 for p in preds if normalize_disease_name(p.get("prediction", {}).get("predicted_disease", "")) == disease and p["ground_truth"] != disease)
+        fp = sum(
+            1
+            for p in preds
+            if normalize_disease_name(p.get("prediction", {}).get("predicted_disease", "")) == disease
+            and p["ground_truth"] != disease
+        )
         fn = stats["total"] - tp
 
         precision = tp / max(1, tp + fp)
@@ -155,7 +159,7 @@ def compute_single_version_metrics(preds: list[dict]) -> dict:
 
 def generate_report(
     benchmark_path: str,
-    output_path: Optional[str] = None,
+    output_path: str | None = None,
 ) -> dict:
     data = json.loads(Path(benchmark_path).read_text())
     report = compute_metrics(data["predictions"])
@@ -168,7 +172,7 @@ def generate_report(
     }
 
     print("\n" + "=" * 80)
-    print(f"BENCHMARK REPORT")
+    print("BENCHMARK REPORT")
     print(f"Model: {report['run_info']['model']}")
     print(f"Images: {report['run_info']['total_images']}")
     print(f"Versions: {', '.join(report['run_info']['prompt_versions_tested'])}")
@@ -176,17 +180,21 @@ def generate_report(
 
     for version, metrics in report["versions"].items():
         print(f"\n--- {version} ---")
-        print(f"  Accuracy: {metrics['accuracy']:.1%} ({metrics['correct']}/{metrics['total_images']}, {metrics['errors']} errors)")
+        print(
+            f"  Accuracy: {metrics['accuracy']:.1%} ({metrics['correct']}/{metrics['total_images']}, {metrics['errors']} errors)"
+        )
 
-        print(f"\n  Per Crop:")
+        print("\n  Per Crop:")
         for crop, cm in sorted(metrics["per_crop"].items()):
             print(f"    {crop:15s}: {cm['accuracy']:.1%} ({cm['correct']}/{cm['total']})")
 
-        print(f"\n  Per Disease:")
+        print("\n  Per Disease:")
         for disease, dm in sorted(metrics["per_disease"].items(), key=lambda x: x[1]["f1_score"], reverse=True):
-            print(f"    {disease:25s}: P={dm['precision']:.2f} R={dm['recall']:.2f} F1={dm['f1_score']:.2f} (n={dm['total']})")
+            print(
+                f"    {disease:25s}: P={dm['precision']:.2f} R={dm['recall']:.2f} F1={dm['f1_score']:.2f} (n={dm['total']})"
+            )
 
-        print(f"\n  Confidence Calibration:")
+        print("\n  Confidence Calibration:")
         for bin_key, cal in sorted(metrics["confidence_calibration"].items()):
             print(f"    {bin_key}%: {cal['accuracy']:.1%} (n={cal['total']})")
 
@@ -199,6 +207,7 @@ def generate_report(
 
 if __name__ == "__main__":
     import sys
+
     if len(sys.argv) < 2:
         print("Usage: python benchmark_report.py <benchmark_results.json> [output_report.json]")
         sys.exit(1)

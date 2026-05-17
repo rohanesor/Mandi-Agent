@@ -10,8 +10,7 @@ Delegates to the real data source modules:
 import asyncio
 import logging
 import os
-from datetime import date, datetime, timezone
-from typing import List, Optional
+from datetime import date
 
 from mandi_agent.backend.api.core_schemas import MandiPrice
 
@@ -20,11 +19,11 @@ logger = logging.getLogger(__name__)
 
 async def fetch_agmarknet_prices(
     state: str,
-    from_date: Optional[date] = None,
-    to_date: Optional[date] = None,
-    commodity: Optional[str] = None,
+    from_date: date | None = None,
+    to_date: date | None = None,
+    commodity: str | None = None,
     limit: int = 100,
-) -> List[MandiPrice]:
+) -> list[MandiPrice]:
     """
     Fetch daily prices from Agmarknet API.
 
@@ -53,7 +52,9 @@ async def fetch_agmarknet_prices(
         )
         logger.info(
             "Ingested %d Agmarknet prices for state=%s commodity=%s",
-            len(prices), state, commodity,
+            len(prices),
+            state,
+            commodity,
         )
         return prices
 
@@ -64,11 +65,11 @@ async def fetch_agmarknet_prices(
 
 async def fetch_enam_prices(
     state: str,
-    from_date: Optional[date] = None,
-    to_date: Optional[date] = None,
-    commodity: Optional[str] = None,
+    from_date: date | None = None,
+    to_date: date | None = None,
+    commodity: str | None = None,
     limit: int = 100,
-) -> List[MandiPrice]:
+) -> list[MandiPrice]:
     """
     Fetch daily prices from eNAM (electronic National Agriculture Market).
 
@@ -97,7 +98,9 @@ async def fetch_enam_prices(
         )
         logger.info(
             "Ingested %d eNAM prices for state=%s commodity=%s",
-            len(prices), state, commodity,
+            len(prices),
+            state,
+            commodity,
         )
         return prices
 
@@ -108,10 +111,10 @@ async def fetch_enam_prices(
 
 async def ingest_all_prices(
     state: str,
-    from_date: Optional[date] = None,
-    to_date: Optional[date] = None,
-    commodity: Optional[str] = None,
-) -> List[MandiPrice]:
+    from_date: date | None = None,
+    to_date: date | None = None,
+    commodity: str | None = None,
+) -> list[MandiPrice]:
     """
     Fetch prices from ALL data sources concurrently and merge results.
 
@@ -127,19 +130,13 @@ async def ingest_all_prices(
     Returns:
         Merged, deduplicated list of MandiPrice records
     """
-    agmarknet_task = fetch_agmarknet_prices(
-        state=state, from_date=from_date, to_date=to_date, commodity=commodity
-    )
-    enam_task = fetch_enam_prices(
-        state=state, from_date=from_date, to_date=to_date, commodity=commodity
-    )
+    agmarknet_task = fetch_agmarknet_prices(state=state, from_date=from_date, to_date=to_date, commodity=commodity)
+    enam_task = fetch_enam_prices(state=state, from_date=from_date, to_date=to_date, commodity=commodity)
 
-    agmarknet_prices, enam_prices = await asyncio.gather(
-        agmarknet_task, enam_task, return_exceptions=True
-    )
+    agmarknet_prices, enam_prices = await asyncio.gather(agmarknet_task, enam_task, return_exceptions=True)
 
     # Handle exceptions from gather
-    all_prices: List[MandiPrice] = []
+    all_prices: list[MandiPrice] = []
     if isinstance(agmarknet_prices, list):
         all_prices.extend(agmarknet_prices)
     else:
@@ -152,7 +149,7 @@ async def ingest_all_prices(
 
     # Deduplicate by (mandi, commodity, date) — prefer Agmarknet data
     seen = set()
-    deduplicated: List[MandiPrice] = []
+    deduplicated: list[MandiPrice] = []
     for price in all_prices:
         key = (price.mandi_name.lower(), price.commodity.lower(), str(price.price_date))
         if key not in seen:
@@ -170,7 +167,7 @@ async def ingest_all_prices(
     return deduplicated
 
 
-async def store_prices_to_supabase(prices: List[MandiPrice]) -> int:
+async def store_prices_to_supabase(prices: list[MandiPrice]) -> int:
     """
     Store MandiPrice records to Supabase.
 
@@ -195,10 +192,14 @@ async def store_prices_to_supabase(prices: List[MandiPrice]) -> int:
         records = [p.model_dump(mode="json") for p in prices]
 
         # Upsert to avoid duplicates
-        response = await supabase.table("mandi_prices").upsert(
-            records,
-            on_conflict="mandi_name,commodity,price_date",
-        ).execute()
+        response = (
+            await supabase.table("mandi_prices")
+            .upsert(
+                records,
+                on_conflict="mandi_name,commodity,price_date",
+            )
+            .execute()
+        )
 
         stored_count = len(response.data) if response.data else 0
         logger.info("Stored %d price records to Supabase", stored_count)

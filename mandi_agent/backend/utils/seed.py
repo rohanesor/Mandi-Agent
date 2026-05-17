@@ -4,7 +4,6 @@ Skip demo farmers — real farmers come via signup.
 """
 
 import logging
-from datetime import datetime, timezone
 
 from mandi_agent.backend.db.supabase import get_supabase_sync
 

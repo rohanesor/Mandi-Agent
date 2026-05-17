@@ -2,23 +2,19 @@
 Authentication routes (OTP, Login, Refresh, Logout) using Supabase Auth.
 """
 
-from typing import Optional
-
 import logging
 
-from fastapi import APIRouter, HTTPException, Header
+from fastapi import APIRouter, Header, HTTPException
 
 from mandi_agent.backend.api.schemas import (
+    AuthLoginResponse,
+    FrontendFarmer,
+    LoginRequest,
     OtpRequest,
     OtpResponse,
-    LoginRequest,
-    AuthLoginResponse,
     RefreshResponse,
-    FrontendFarmer,
 )
 from mandi_agent.backend.utils.tokens import (
-    OTP_STORE,
-    AUTH_FARMERS_BY_PHONE,
     AUTH_REFRESH_TOKENS,
     new_token,
 )
@@ -35,6 +31,7 @@ async def request_otp(req: OtpRequest) -> OtpResponse:
         raise HTTPException(status_code=400, detail="phone is required")
 
     from mandi_agent.backend.db.supabase import get_supabase_sync
+
     supabase = get_supabase_sync()
     if supabase:
         try:
@@ -53,6 +50,7 @@ async def login(req: LoginRequest) -> AuthLoginResponse:
     otp = req.otp.strip()
 
     from mandi_agent.backend.db.supabase import get_supabase_sync
+
     supabase = get_supabase_sync()
     if supabase:
         try:
@@ -86,7 +84,7 @@ async def login(req: LoginRequest) -> AuthLoginResponse:
 
 
 @router.get("/refresh", response_model=RefreshResponse)
-async def refresh_token(authorization: Optional[str] = Header(None)) -> RefreshResponse:
+async def refresh_token(authorization: str | None = Header(None)) -> RefreshResponse:
     """Refresh access token using refresh token in Authorization header."""
     if not authorization or not authorization.startswith("Bearer "):
         raise HTTPException(status_code=401, detail="Missing refresh token")
@@ -99,7 +97,7 @@ async def refresh_token(authorization: Optional[str] = Header(None)) -> RefreshR
 
 
 @router.post("/logout")
-async def logout(authorization: Optional[str] = Header(None)) -> dict[str, bool]:
+async def logout(authorization: str | None = Header(None)) -> dict[str, bool]:
     """Logout endpoint (best effort)."""
     if authorization and authorization.startswith("Bearer "):
         refresh_token_val = authorization.replace("Bearer ", "").strip()

@@ -5,21 +5,19 @@ Implements 4 rule-based checks and logs to Braintrust.
 
 import asyncio
 import logging
-from datetime import date, datetime, timedelta
-from typing import Any, Optional
+from datetime import UTC, date, datetime
+from typing import Any
 
 import httpx
-
-from mandi_agent.backend.utils.geo import haversine_distance as _haversine_distance
 
 from mandi_agent.backend.api.core_schemas import (
     FarmerAdvisory,
     FarmerProfile,
     GuardrailResult,
-    GuardrailStatus,
     HarvestIntent,
     Recommendation,
 )
+from mandi_agent.backend.utils.geo import haversine_distance as _haversine_distance
 
 logger = logging.getLogger(__name__)
 
@@ -29,17 +27,20 @@ BRAINTRUST_PROJECT_ID = "mandi-agent-guardrails"
 
 def _get_braintrust_api_key() -> str:
     import os
+
     return os.getenv("BRAINTRUST_API_KEY", "")
 
 
 def _get_google_maps_api_key() -> str:
     import os
+
     return os.getenv("GOOGLE_MAPS_API_KEY", "")
 
 
 # =============================================================================
 # Distance check using Google Maps Distance Matrix API
 # =============================================================================
+
 
 async def _check_distance(
     farmer_lat: float,
@@ -58,9 +59,7 @@ async def _check_distance(
     if not api_key:
         # Fallback: use Haversine distance
         dist = _haversine_distance(farmer_lat, farmer_lng, mandi_lat, mandi_lng)
-        logger.warning(
-            "GOOGLE_MAPS_API_KEY not set — using Haversine fallback (%.0fkm)", dist
-        )
+        logger.warning("GOOGLE_MAPS_API_KEY not set — using Haversine fallback (%.0fkm)", dist)
         return dist <= 150.0, dist
 
     try:
@@ -98,6 +97,7 @@ async def _check_distance(
 # Check 1: Confidence threshold
 # =============================================================================
 
+
 def _check_confidence(advisory: FarmerAdvisory) -> tuple[bool, float]:
     """
     Check if advisory confidence meets minimum threshold.
@@ -113,6 +113,7 @@ def _check_confidence(advisory: FarmerAdvisory) -> tuple[bool, float]:
 # =============================================================================
 # Check 2: Distance feasibility
 # =============================================================================
+
 
 async def _check_distance_feasibility(
     farmer: FarmerProfile,
@@ -154,16 +155,11 @@ async def _check_distance_feasibility(
                 break
 
     if not coords:
-        logger.warning(
-            "Mandi coordinates unknown for '%s' — skipping distance check",
-            advisory.target_mandi
-        )
+        logger.warning("Mandi coordinates unknown for '%s' — skipping distance check", advisory.target_mandi)
         return True, 0.0
 
     mandi_lat, mandi_lng = coords
-    is_feasible, distance_km = await _check_distance(
-        farmer.latitude, farmer.longitude, mandi_lat, mandi_lng
-    )
+    is_feasible, distance_km = await _check_distance(farmer.latitude, farmer.longitude, mandi_lat, mandi_lng)
 
     return is_feasible, distance_km
 
@@ -171,6 +167,7 @@ async def _check_distance_feasibility(
 # =============================================================================
 # Check 3: Crop stage consistency
 # =============================================================================
+
 
 def _check_crop_stage_consistency(
     advisory: FarmerAdvisory,
@@ -202,17 +199,16 @@ def _check_crop_stage_consistency(
         if days_until_harvest >= 0:
             return True, f"crop can be held until {harvest_date}"
         else:
-            return False, (
-                f"hold recommended but harvest date {harvest_date} is in the past"
-            )
+            return False, (f"hold recommended but harvest date {harvest_date} is in the past")
 
     # redirect_mandi: check is flexible
-    return True, f"redirect_mandi is always valid"
+    return True, "redirect_mandi is always valid"
 
 
 # =============================================================================
 # Check 4: Price sanity
 # =============================================================================
+
 
 async def _check_price_sanity(
     advisory: FarmerAdvisory,
@@ -259,10 +255,7 @@ async def _check_price_sanity(
     upper_bound = avg_price + threshold
 
     if lower_bound <= forecasted_price <= upper_bound:
-        return True, (
-            f"forecast price ₹{forecasted_price:.0f} is within ±40% "
-            f"of baseline ₹{avg_price:.0f}"
-        )
+        return True, (f"forecast price ₹{forecasted_price:.0f} is within ±40% of baseline ₹{avg_price:.0f}")
     else:
         deviation = ((forecasted_price - avg_price) / avg_price) * 100
         return False, (
@@ -274,6 +267,7 @@ async def _check_price_sanity(
 # =============================================================================
 # Braintrust logging
 # =============================================================================
+
 
 async def _log_to_braintrust(
     advisory: FarmerAdvisory,
@@ -318,7 +312,7 @@ async def _log_to_braintrust(
                         "farmer_id": farmer.farmer_id,
                         "crop": intent.crop,
                         "block_id": farmer.block_id,
-                        "timestamp": datetime.now(timezone.utc).isoformat(),
+                        "timestamp": datetime.now(UTC).isoformat(),
                     },
                 },
                 timeout=10.0,
@@ -386,9 +380,7 @@ class GuardrailAgent:
 
         # Check 2: Distance feasibility
         dist_passed, distance_km = await _check_distance_feasibility(farmer, advisory, intent)
-        checks_run.append(
-            f"distance_feasibility({'pass' if dist_passed else 'fail'}: {distance_km:.0f}km)"
-        )
+        checks_run.append(f"distance_feasibility({'pass' if dist_passed else 'fail'}: {distance_km:.0f}km)")
         if not dist_passed:
             all_passed = False
 
@@ -407,13 +399,10 @@ class GuardrailAgent:
         # Determine recommendation
         if all_passed:
             recommendation = Recommendation.APPROVE
-            guardrail_status = GuardrailStatus.APPROVED
         elif low_confidence_flag and dist_passed and stage_passed:
             recommendation = Recommendation.REVIEW
-            guardrail_status = GuardrailStatus.REVIEW
         else:
             recommendation = Recommendation.FLAG
-            guardrail_status = GuardrailStatus.FLAGGED
 
         result = GuardrailResult(
             passed=all_passed,
@@ -427,16 +416,16 @@ class GuardrailAgent:
 
         # Log to Braintrust asynchronously (fire and forget)
         asyncio.create_task(
-            _log_to_braintrust(
-                advisory, farmer, intent, result,
-                {"price_sanity": (price_passed, price_reason)}
-            )
+            _log_to_braintrust(advisory, farmer, intent, result, {"price_sanity": (price_passed, price_reason)})
         )
 
         logger.info(
             "Guardrail validation: farmer=%s crop=%s decision=%s — %s (checks: %s)",
-            farmer.farmer_id, intent.crop, advisory.decision.value,
-            recommendation.value, len(checks_run)
+            farmer.farmer_id,
+            intent.crop,
+            advisory.decision.value,
+            recommendation.value,
+            len(checks_run),
         )
 
         return result
@@ -456,6 +445,7 @@ async def validate_advisory(
 if __name__ == "__main__":
     # Smoke test
     import asyncio
+
     logging.basicConfig(level=logging.INFO)
 
     async def test():

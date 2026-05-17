@@ -6,13 +6,14 @@ Integration tests for Gemini Vision require GEMINI_API_KEY.
 """
 
 import json
+from unittest.mock import AsyncMock, MagicMock, patch
+
 import pytest
-from unittest.mock import AsyncMock, patch, MagicMock
 
 from mandi_agent.backend.agents.disease_detector import (
+    CROP_DISEASE_CONTEXT,
     _build_prompt,
     _fallback_diagnosis,
-    CROP_DISEASE_CONTEXT,
 )
 from mandi_agent.backend.api.core_schemas import DiseaseDiagnosis, Severity
 
@@ -127,25 +128,29 @@ class TestDiseaseDetectionIntegration:
 
     async def test_detect_crop_disease_valid_response(self):
         mock_response = MagicMock()
-        mock_response.text = json.dumps({
-            "disease_name": "Early Blight",
-            "confidence": 0.85,
-            "severity": "medium",
-            "symptoms_observed": ["brown spots", "concentric rings"],
-            "preventive_actions": ["crop rotation", "remove debris"],
-            "treatment_actions": ["Mancozeb 2.5g/L"],
-            "escalation_required": False,
-        })
+        mock_response.text = json.dumps(
+            {
+                "disease_name": "Early Blight",
+                "confidence": 0.85,
+                "severity": "medium",
+                "symptoms_observed": ["brown spots", "concentric rings"],
+                "preventive_actions": ["crop rotation", "remove debris"],
+                "treatment_actions": ["Mancozeb 2.5g/L"],
+                "escalation_required": False,
+            }
+        )
 
-        with patch("mandi_agent.backend.agents.disease_detector.base64.b64decode", return_value=b"fake_image_data"), \
-             patch("mandi_agent.backend.agents.disease_detector._get_model") as mock_model:
+        with (
+            patch("mandi_agent.backend.agents.disease_detector.base64.b64decode", return_value=b"fake_image_data"),
+            patch("mandi_agent.backend.agents.disease_detector._get_model") as mock_model,
+        ):
             mock_instance = MagicMock()
             mock_instance.generate_content_async = AsyncMock(return_value=mock_response)
             mock_model.return_value = mock_instance
 
-            result = await __import__("mandi_agent.backend.agents.disease_detector", fromlist=["detect_crop_disease"]).detect_crop_disease(
-                "fake_base64_image_data", "tomato"
-            )
+            result = await __import__(
+                "mandi_agent.backend.agents.disease_detector", fromlist=["detect_crop_disease"]
+            ).detect_crop_disease("fake_base64_image_data", "tomato")
 
             assert isinstance(result, DiseaseDiagnosis)
             assert result.crop == "tomato"
@@ -157,25 +162,29 @@ class TestDiseaseDetectionIntegration:
 
     async def test_detect_crop_disease_healthy_detection(self):
         mock_response = MagicMock()
-        mock_response.text = json.dumps({
-            "disease_name": "Healthy",
-            "confidence": 0.95,
-            "severity": "low",
-            "symptoms_observed": ["green leaves", "no spots"],
-            "preventive_actions": ["maintain current practices"],
-            "treatment_actions": [],
-            "escalation_required": False,
-        })
+        mock_response.text = json.dumps(
+            {
+                "disease_name": "Healthy",
+                "confidence": 0.95,
+                "severity": "low",
+                "symptoms_observed": ["green leaves", "no spots"],
+                "preventive_actions": ["maintain current practices"],
+                "treatment_actions": [],
+                "escalation_required": False,
+            }
+        )
 
-        with patch("mandi_agent.backend.agents.disease_detector.base64.b64decode", return_value=b"fake_image_data"), \
-             patch("mandi_agent.backend.agents.disease_detector._get_model") as mock_model:
+        with (
+            patch("mandi_agent.backend.agents.disease_detector.base64.b64decode", return_value=b"fake_image_data"),
+            patch("mandi_agent.backend.agents.disease_detector._get_model") as mock_model,
+        ):
             mock_instance = MagicMock()
             mock_instance.generate_content_async = AsyncMock(return_value=mock_response)
             mock_model.return_value = mock_instance
 
-            result = await __import__("mandi_agent.backend.agents.disease_detector", fromlist=["detect_crop_disease"]).detect_crop_disease(
-                "fake_base64_image_data", "potato"
-            )
+            result = await __import__(
+                "mandi_agent.backend.agents.disease_detector", fromlist=["detect_crop_disease"]
+            ).detect_crop_disease("fake_base64_image_data", "potato")
 
             assert result.disease_name == "Healthy"
             assert result.confidence >= 0.9
@@ -185,9 +194,9 @@ class TestDiseaseDetectionIntegration:
         with patch("mandi_agent.backend.agents.disease_detector._get_model") as mock_model:
             mock_model.side_effect = Exception("API error")
 
-            result = await __import__("mandi_agent.backend.agents.disease_detector", fromlist=["detect_crop_disease"]).detect_crop_disease(
-                "fake_base64_image_data", "onion"
-            )
+            result = await __import__(
+                "mandi_agent.backend.agents.disease_detector", fromlist=["detect_crop_disease"]
+            ).detect_crop_disease("fake_base64_image_data", "onion")
 
             assert isinstance(result, DiseaseDiagnosis)
             assert result.escalation_required is True

@@ -6,7 +6,7 @@ import asyncio
 import logging
 import time
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from supabase import AsyncClient
 
@@ -21,15 +21,16 @@ MIN_SIMILARITY = 0.65
 @dataclass
 class RetrievedChunk:
     """A retrieved document chunk with similarity score."""
+
     content: str
     source: str
     similarity: float
-    crop: Optional[str] = None
-    mandi: Optional[str] = None
-    state: Optional[str] = None
-    metadata: Optional[Dict[str, Any]] = None
+    crop: str | None = None
+    mandi: str | None = None
+    state: str | None = None
+    metadata: dict[str, Any] | None = None
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "content": self.content,
             "source": self.source,
@@ -64,7 +65,7 @@ class RAGRetriever:
     def __init__(
         self,
         supabase: AsyncClient,
-        embedding_service: Optional[EmbeddingService] = None,
+        embedding_service: EmbeddingService | None = None,
         min_similarity: float = MIN_SIMILARITY,
     ):
         """
@@ -81,9 +82,9 @@ class RAGRetriever:
 
     def _build_retrieval_query(
         self,
-        query_embedding: List[float],
-        crop: Optional[str],
-        state: Optional[str],
+        query_embedding: list[float],
+        crop: str | None,
+        state: str | None,
         top_k: int,
     ) -> tuple[str, dict]:
         """
@@ -103,7 +104,7 @@ class RAGRetriever:
         """
         # Build dynamic filter conditions
         filters = []
-        params: Dict[str, Any] = {}
+        params: dict[str, Any] = {}
 
         if crop:
             filters.append("(crop = %(crop)s OR crop IS NULL)")
@@ -139,10 +140,10 @@ class RAGRetriever:
     async def retrieve(
         self,
         query: str,
-        crop: Optional[str] = None,
-        state: Optional[str] = None,
+        crop: str | None = None,
+        state: str | None = None,
         top_k: int = 8,
-    ) -> List[RetrievedChunk]:
+    ) -> list[RetrievedChunk]:
         """
         Retrieve most relevant document chunks for a query.
 
@@ -191,7 +192,7 @@ class RAGRetriever:
                     "match_state": state.lower() if state else None,
                     "match_threshold": self._min_similarity,
                     "match_count": top_k,
-                }
+                },
             ).execute()
             rows = response.data
 
@@ -211,7 +212,7 @@ class RAGRetriever:
                 return []
 
         # 3. Filter by minimum similarity and build results
-        results: List[RetrievedChunk] = []
+        results: list[RetrievedChunk] = []
         for row in rows:
             try:
                 similarity = float(row.get("similarity", 0.0))
@@ -239,9 +240,14 @@ class RAGRetriever:
         top_similarity = results[0].similarity if results else 0.0
 
         logger.info(
-            "RAG retrieval: query=%.32s crop=%s state=%s top_k=%d — "
-            "retrieved=%d top_similarity=%.3f time=%.0fms",
-            query[:32], crop, state, top_k, len(results), top_similarity, retrieval_time_ms
+            "RAG retrieval: query=%.32s crop=%s state=%s top_k=%d — retrieved=%d top_similarity=%.3f time=%.0fms",
+            query[:32],
+            crop,
+            state,
+            top_k,
+            len(results),
+            top_similarity,
+            retrieval_time_ms,
         )
 
         return results
@@ -249,10 +255,10 @@ class RAGRetriever:
     async def retrieve_with_expansion(
         self,
         query: str,
-        crop: Optional[str] = None,
-        state: Optional[str] = None,
+        crop: str | None = None,
+        state: str | None = None,
         top_k: int = 8,
-    ) -> List[RetrievedChunk]:
+    ) -> list[RetrievedChunk]:
         """
         Retrieve with query expansion — runs multiple queries and merges results.
 
@@ -278,7 +284,7 @@ class RAGRetriever:
             f"agricultural {query}",
         ]
 
-        all_chunks: Dict[str, RetrievedChunk] = {}
+        all_chunks: dict[str, RetrievedChunk] = {}
         seen_contents: set = set()
 
         for q in queries:
@@ -314,10 +320,10 @@ class RAGRetriever:
 # Convenience function
 async def retrieve(
     query: str,
-    crop: Optional[str] = None,
-    state: Optional[str] = None,
+    crop: str | None = None,
+    state: str | None = None,
     top_k: int = 8,
-) -> List[Dict[str, Any]]:
+) -> list[dict[str, Any]]:
     """
     Retrieve relevant documents for a query.
 
@@ -333,7 +339,8 @@ async def retrieve(
         List of result dicts with content, source, similarity
     """
     import os
-    from supabase import create_async_client, AsyncClient
+
+    from supabase import AsyncClient, create_async_client
 
     supabase_url = os.getenv("SUPABASE_URL", "")
     supabase_key = os.getenv("SUPABASE_SERVICE_KEY", "")
@@ -353,7 +360,8 @@ if __name__ == "__main__":
 
     async def test():
         import os
-        from supabase import create_async_client, AsyncClient
+
+        from supabase import AsyncClient, create_async_client
 
         supabase_url = os.getenv("SUPABASE_URL", "")
         supabase_key = os.getenv("SUPABASE_SERVICE_KEY", "")

@@ -7,11 +7,10 @@ import asyncio
 import hashlib
 import logging
 import time
-from typing import List, Optional
+from typing import Optional
 
 import cohere
-import httpx
-import numpy as np
+import redis
 
 logger = logging.getLogger(__name__)
 
@@ -30,16 +29,19 @@ EMBEDDING_CACHE_TTL = 24 * 60 * 60
 
 def _get_cohere_api_key() -> str:
     import os
+
     return os.getenv("COHERE_API_KEY", "")
 
 
 def _get_gemini_api_key() -> str:
     import os
+
     return os.getenv("GEMINI_API_KEY", os.getenv("GOOGLE_API_KEY", ""))
 
 
 def _get_redis_url() -> str:
     import os
+
     return os.getenv("REDIS_URL", "redis://localhost:6379")
 
 
@@ -66,15 +68,15 @@ class EmbeddingService:
 
     def __init__(
         self,
-        redis_url: Optional[str] = None,
-        cohere_key: Optional[str] = None,
-        gemini_key: Optional[str] = None,
+        redis_url: str | None = None,
+        cohere_key: str | None = None,
+        gemini_key: str | None = None,
     ):
         self._cohere_key = cohere_key or _get_cohere_api_key()
         self._gemini_key = gemini_key or _get_gemini_api_key()
         self._redis_url = redis_url or _get_redis_url()
-        self._cohere_client: Optional[cohere.AsyncClient] = None
-        self._redis: Optional["redis.Redis"] = None
+        self._cohere_client: cohere.AsyncClient | None = None
+        self._redis: redis.Redis | None = None
         self._fallback_to_gemini = False
 
     async def _get_cohere(self) -> cohere.AsyncClient:
@@ -93,6 +95,7 @@ class EmbeddingService:
 
         try:
             import redis.asyncio as redis
+
             self._redis = redis.from_url(
                 self._redis_url,
                 encoding="utf-8",
@@ -106,7 +109,7 @@ class EmbeddingService:
 
         return self._redis
 
-    async def _get_cache(self, text: str) -> Optional[List[float]]:
+    async def _get_cache(self, text: str) -> list[float] | None:
         """Get cached embedding from Redis."""
         r = await self._get_redis()
         if not r:
@@ -117,13 +120,14 @@ class EmbeddingService:
             cached = await r.get(cache_key)
             if cached:
                 import json
+
                 return json.loads(cached)
         except Exception as e:
             logger.debug("Embedding cache read error: %s", str(e)[:100])
 
         return None
 
-    async def _set_cache(self, text: str, embedding: List[float]) -> None:
+    async def _set_cache(self, text: str, embedding: list[float]) -> None:
         """Store embedding in Redis cache."""
         r = await self._get_redis()
         if not r:
@@ -131,12 +135,13 @@ class EmbeddingService:
 
         try:
             import json
+
             cache_key = f"emb:{_text_hash(text)}"
             await r.setex(cache_key, EMBEDDING_CACHE_TTL, json.dumps(embedding))
         except Exception as e:
             logger.debug("Embedding cache write error: %s", str(e)[:100])
 
-    async def embed_text(self, text: str) -> Optional[List[float]]:
+    async def embed_text(self, text: str) -> list[float] | None:
         """
         Generate 1024-dim embedding for a single text.
 
@@ -183,7 +188,7 @@ class EmbeddingService:
 
         return None
 
-    async def embed_batch(self, texts: List[str]) -> List[Optional[List[float]]]:
+    async def embed_batch(self, texts: list[str]) -> list[list[float] | None]:
         """
         Generate embeddings for multiple texts with automatic batching.
 
@@ -205,7 +210,7 @@ class EmbeddingService:
             return [None] * len(texts)
 
         # Check cache for all texts
-        results: List[Optional[List[float]]] = [None] * len(texts)
+        results: list[list[float] | None] = [None] * len(texts)
         uncached_indices: list[int] = []
         uncached_texts: list[str] = []
 
@@ -222,9 +227,9 @@ class EmbeddingService:
             return results
 
         # Process uncached texts in batches of 96
-        all_embeddings: list[Optional[List[float]]] = []
+        all_embeddings: list[list[float] | None] = []
         for batch_start in range(0, len(uncached_texts), COHERE_BATCH_LIMIT):
-            batch = uncached_texts[batch_start:batch_start + COHERE_BATCH_LIMIT]
+            batch = uncached_texts[batch_start : batch_start + COHERE_BATCH_LIMIT]
 
             if self._cohere_key and not self._fallback_to_gemini:
                 try:
@@ -255,12 +260,13 @@ class EmbeddingService:
                 await self._set_cache(valid_texts[idx][1], emb)
 
         cached_count = len(valid_texts) - len(uncached_texts)
-        logger.info("Batch embed complete: %d total, %d cache hits, %d fresh",
-                   len(texts), cached_count, len(uncached_texts))
+        logger.info(
+            "Batch embed complete: %d total, %d cache hits, %d fresh", len(texts), cached_count, len(uncached_texts)
+        )
 
         return results
 
-    async def _embed_cohere(self, texts: List[str]) -> List[List[float]]:
+    async def _embed_cohere(self, texts: list[str]) -> list[list[float]]:
         """
         Generate embeddings using Cohere API.
 
@@ -284,14 +290,11 @@ class EmbeddingService:
         embeddings = response.embeddings.float_
         latency_ms = (time.monotonic() - start) * 1000
 
-        logger.debug(
-            "Cohere embed: %d texts, %.0fms, dim=%d",
-            len(texts), latency_ms, len(embeddings[0])
-        )
+        logger.debug("Cohere embed: %d texts, %.0fms, dim=%d", len(texts), latency_ms, len(embeddings[0]))
 
         return [list(e) for e in embeddings]
 
-    async def _embed_gemini(self, texts: List[str]) -> List[List[float]]:
+    async def _embed_gemini(self, texts: list[str]) -> list[list[float]]:
         """
         Generate embeddings using Google Gemini API (fallback).
 
@@ -302,22 +305,21 @@ class EmbeddingService:
             List of embedding vectors (768-dim)
         """
         import google.generativeai as genai
+
         genai.configure(api_key=self._gemini_key)
         start = time.monotonic()
-        
+
         # GenerativeAI embed_content accepts a list
-        response = genai.embed_content(
-            model=GEMINI_EMBEDDING_MODEL,
-            content=texts,
-            task_type="retrieval_document"
-        )
-        
-        embeddings = response['embedding']
+        response = genai.embed_content(model=GEMINI_EMBEDDING_MODEL, content=texts, task_type="retrieval_document")
+
+        embeddings = response["embedding"]
         latency_ms = (time.monotonic() - start) * 1000
 
         logger.debug(
             "Gemini embed fallback: %d texts, %.0fms, dim=%d",
-            len(texts), latency_ms, len(embeddings[0]) if embeddings else 0
+            len(texts),
+            latency_ms,
+            len(embeddings[0]) if embeddings else 0,
         )
 
         return embeddings
@@ -329,7 +331,7 @@ class EmbeddingService:
 
 
 # Default service instance
-_default_service: Optional[EmbeddingService] = None
+_default_service: EmbeddingService | None = None
 
 
 def get_embedding_service() -> EmbeddingService:
@@ -340,13 +342,13 @@ def get_embedding_service() -> EmbeddingService:
     return _default_service
 
 
-async def embed_text(text: str) -> Optional[List[float]]:
+async def embed_text(text: str) -> list[float] | None:
     """Convenience: embed a single text."""
     service = get_embedding_service()
     return await service.embed_text(text)
 
 
-async def embed_batch(texts: List[str]) -> List[Optional[List[float]]]:
+async def embed_batch(texts: list[str]) -> list[list[float] | None]:
     """Convenience: embed multiple texts."""
     service = get_embedding_service()
     return await service.embed_batch(texts)
@@ -361,11 +363,13 @@ if __name__ == "__main__":
         vec = await service.embed_text("Tomato price in Karnataka")
         print(f"Single embed: {len(vec) if vec else 'FAILED'} dims")
         # Test batch
-        vecs = await service.embed_batch([
-            "Onion harvest in Maharashtra",
-            "Wheat price in Punjab",
-            "Rice cultivation in Tamil Nadu",
-        ])
+        vecs = await service.embed_batch(
+            [
+                "Onion harvest in Maharashtra",
+                "Wheat price in Punjab",
+                "Rice cultivation in Tamil Nadu",
+            ]
+        )
         print(f"Batch embed: {sum(1 for v in vecs if v)}/{len(vecs)} succeeded")
         await service.close()
 

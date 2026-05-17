@@ -2,6 +2,7 @@
 Language detection utilities for Indian languages.
 """
 
+
 def detect_language_by_script(text: str) -> str:
     """
     Detect language from text using Unicode script ranges.

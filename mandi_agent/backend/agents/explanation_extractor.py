@@ -13,11 +13,10 @@ Output: StructuredExplanation with key facts (no randomness)
 
 import logging
 from dataclasses import dataclass
-from typing import Any, Optional
+from typing import Any
 
 from mandi_agent.backend.agents.decision_engine import (
     StructuredDecision,
-    DecisionFactor,
 )
 from mandi_agent.backend.api.core_schemas import PriceDirection
 
@@ -30,6 +29,7 @@ class StructuredExplanation:
     Structured explanation — deterministic and testable.
     Extracted from RAG context + decision logic, not generated.
     """
+
     # Key facts
     current_situation: str  # 1 sentence: what's happening now
     price_context: str  # 1 sentence: why prices are moving this way
@@ -54,15 +54,31 @@ def extract_price_context(
     # Search RAG context for price-related keywords
     keywords_by_direction = {
         PriceDirection.RISING: [
-            "demand", "festival", "shortage", "low arrivals",
-            "premium", "export", "scarcity", "reserve",
+            "demand",
+            "festival",
+            "shortage",
+            "low arrivals",
+            "premium",
+            "export",
+            "scarcity",
+            "reserve",
         ],
         PriceDirection.FALLING: [
-            "oversupply", "glut", "surplus", "arrivals", "competition",
-            "quality decline", "market saturation", "weak demand",
+            "oversupply",
+            "glut",
+            "surplus",
+            "arrivals",
+            "competition",
+            "quality decline",
+            "market saturation",
+            "weak demand",
         ],
         PriceDirection.STABLE: [
-            "equilibrium", "balanced", "steady", "normal", "expected",
+            "equilibrium",
+            "balanced",
+            "steady",
+            "normal",
+            "expected",
         ],
     }
 
@@ -226,12 +242,13 @@ def extract_explanation(
 # Unit tests
 if __name__ == "__main__":
     from datetime import date
+
+    from mandi_agent.backend.agents.decision_engine import make_decision
     from mandi_agent.backend.api.core_schemas import (
         PriceForecast,
-        SpoilageRisk,
         RiskLevel,
+        SpoilageRisk,
     )
-    from mandi_agent.backend.agents.decision_engine import make_decision
 
     # Setup test data
     price = PriceForecast(

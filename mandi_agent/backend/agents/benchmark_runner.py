@@ -5,16 +5,13 @@ Runs multiple prompt versions against sampled dataset images,
 collects predictions, and saves results for analysis.
 """
 
-import base64
 import json
 import logging
 import time
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
 
 import google.generativeai as genai
-import httpx
 
 logger = logging.getLogger(__name__)
 
@@ -85,6 +82,7 @@ PROMPT_VERSIONS = {
     ),
 }
 
+
 def _get_gemini_model(model_key: str) -> genai.GenerativeModel:
     model_name = GEMINI_MODELS.get(model_key, GEMINI_MODELS["flash_2_0"])
     api_key = __import__("os").getenv("GEMINI_API_KEY", __import__("os").getenv("GOOGLE_API_KEY", ""))
@@ -109,10 +107,12 @@ async def run_single_prediction(
 
     try:
         model = _get_gemini_model(model_key)
-        response = await model.generate_content_async([
-            {"mime_type": "image/jpeg", "data": image_bytes},
-            prompt,
-        ])
+        response = await model.generate_content_async(
+            [
+                {"mime_type": "image/jpeg", "data": image_bytes},
+                prompt,
+            ]
+        )
         raw = (response.text or "").strip()
         if "```json" in raw:
             raw = raw.split("```json", 1)[1].split("```", 1)[0].strip()
@@ -128,7 +128,7 @@ async def run_single_prediction(
             "raw_response": raw[:500],
         }
     except Exception as e:
-        return {"error": str(e)[:200], "raw_response": raw[:200] if 'raw' in locals() else ""}
+        return {"error": str(e)[:200], "raw_response": raw[:200] if "raw" in locals() else ""}
 
 
 async def run_benchmark(
@@ -180,7 +180,9 @@ async def run_benchmark(
 
             status = "OK" if "error" not in pred else f"ERROR: {pred['error'][:40]}"
             pred_disease = pred.get("predicted_disease", "?")
-            print(f"  [{i+1}/{len(manifest)}] {sample['crop']:10s} | {pv:20s} | GT: {sample['disease']:20s} | Pred: {pred_disease:25s} | {elapsed:.1f}s | {status}")
+            print(
+                f"  [{i + 1}/{len(manifest)}] {sample['crop']:10s} | {pv:20s} | GT: {sample['disease']:20s} | Pred: {pred_disease:25s} | {elapsed:.1f}s | {status}"
+            )
 
             if delay_between_requests:
                 time.sleep(delay_between_requests)
@@ -194,5 +196,6 @@ async def run_benchmark(
 
 if __name__ == "__main__":
     import asyncio
+
     logging.basicConfig(level=logging.INFO)
     asyncio.run(run_benchmark())

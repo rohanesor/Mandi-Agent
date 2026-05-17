@@ -4,9 +4,9 @@ Bundle / Cooperative routes.
 
 import logging
 import uuid
-from datetime import datetime, timedelta, timezone
-from typing import Optional
-from fastapi import APIRouter, HTTPException, status
+from datetime import UTC, datetime, timedelta
+
+from fastapi import APIRouter, HTTPException
 
 router = APIRouter(tags=["Bundles"])
 logger = logging.getLogger(__name__)
@@ -33,7 +33,7 @@ def _format_bundle(bundle: dict) -> dict:
         "negotiated_price": bundle.get("negotiated_price"),
         "status": bundle["status"],
         "created_at": bundle["created_at"],
-        "closes_at": bundle.get("closes_at", (datetime.now(timezone.utc) + timedelta(days=7)).isoformat()),
+        "closes_at": bundle.get("closes_at", (datetime.now(UTC) + timedelta(days=7)).isoformat()),
     }
 
 
@@ -42,7 +42,7 @@ async def create_bundle(request: dict):
     """Create a new cooperative bundle."""
     try:
         bundle_id = _generate_id()
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         block_id = request.get("block_id", _generate_id())
         if len(block_id) < 10:
             block_id = _generate_id()
@@ -100,7 +100,7 @@ async def join_bundle(bundle_id: str, request: dict):
         "farmer_id": farmer_id,
         "farmer_name": "Farmer",
         "quantity": request.get("quantity", 0),
-        "harvest_date": request.get("harvest_date", datetime.now(timezone.utc).isoformat()),
+        "harvest_date": request.get("harvest_date", datetime.now(UTC).isoformat()),
         "status": "pending",
     }
     bundle["farmers"].append(farmer_entry)
@@ -184,7 +184,7 @@ async def respond_to_invitation(invitation_id: str, request: dict):
                 "farmer_id": farmer_id,
                 "farmer_name": "Farmer",
                 "quantity": quantity,
-                "harvest_date": request.get("harvest_date", datetime.now(timezone.utc).isoformat()),
+                "harvest_date": request.get("harvest_date", datetime.now(UTC).isoformat()),
                 "status": "confirmed",
             }
             bundle["farmers"].append(farmer_entry)
@@ -209,19 +209,21 @@ async def get_bundle_settlement(bundle_id: str):
     for farmer in bundle.get("farmers", []):
         share_pct = (farmer["quantity"] / total_qty * 100) if total_qty > 0 else 0
         amount = (farmer["quantity"] / total_qty * total_amount) if total_qty > 0 else 0
-        settlements.append({
-            "farmer_id": farmer["farmer_id"],
-            "farmer_name": farmer.get("farmer_name", "Farmer"),
-            "quantity": farmer["quantity"],
-            "share_percentage": round(share_pct, 2),
-            "amount": round(amount, 2),
-            "status": "pending",
-        })
+        settlements.append(
+            {
+                "farmer_id": farmer["farmer_id"],
+                "farmer_name": farmer.get("farmer_name", "Farmer"),
+                "quantity": farmer["quantity"],
+                "share_percentage": round(share_pct, 2),
+                "amount": round(amount, 2),
+                "status": "pending",
+            }
+        )
 
     return {
         "bundle_id": bundle_id,
         "total_amount": round(total_amount, 2),
         "settlements": settlements,
         "sold_price": sold_price,
-        "sold_at": bundle.get("sold_at", datetime.now(timezone.utc).isoformat()),
+        "sold_at": bundle.get("sold_at", datetime.now(UTC).isoformat()),
     }

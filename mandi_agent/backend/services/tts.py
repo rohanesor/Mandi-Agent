@@ -13,7 +13,6 @@ import base64
 import io
 import logging
 import os
-from typing import Optional
 
 import httpx  # type: ignore
 
@@ -91,9 +90,7 @@ async def reverie_tts(
             except Exception as exc:
                 last_error = f"{speaker}: {str(exc)[:150]}"
 
-    raise RuntimeError(
-        f"Reverie TTS failed for all speakers ({language}): {last_error}"
-    )
+    raise RuntimeError(f"Reverie TTS failed for all speakers ({language}): {last_error}")
 
 
 async def gtts_fallback(text: str, language: str) -> dict:
@@ -121,6 +118,7 @@ async def upload_audio_to_supabase(result: dict) -> dict:
     Returns the updated *result*.
     """
     import uuid as _uuid
+
     from supabase import create_client  # type: ignore
 
     audio_b64 = result.get("audio_base64")
@@ -143,14 +141,10 @@ async def upload_audio_to_supabase(result: dict) -> dict:
 
     try:
         supabase = create_client(supabase_url, supabase_key)
-        supabase.storage.from_("audio-files").upload(
-            file_name, audio_bytes, {"content-type": c_type}
-        )
+        supabase.storage.from_("audio-files").upload(file_name, audio_bytes, {"content-type": c_type})
         public_url = supabase.storage.from_("audio-files").get_public_url(file_name)
         result["audio_url"] = public_url
-        result["twiml_url"] = (
-            f"http://host.docker.internal:8000/api/tts/twiml/{file_name}"
-        )
+        result["twiml_url"] = f"http://host.docker.internal:8000/api/tts/twiml/{file_name}"
         logger.info("Supabase storage TTS upload successful: %s", public_url)
     except Exception as exc:
         logger.error("Supabase Storage upload failed: %s", str(exc)[:300])

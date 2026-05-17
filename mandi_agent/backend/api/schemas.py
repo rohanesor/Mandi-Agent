@@ -4,7 +4,8 @@ Pydantic request/response schemas used across API routes.
 Keeping them in one place avoids circular imports between route modules.
 """
 
-from typing import Any, Optional
+from typing import Any
+
 from pydantic import BaseModel, Field
 
 from mandi_agent.backend.api.core_schemas import (
@@ -14,10 +15,10 @@ from mandi_agent.backend.api.core_schemas import (
     VoiceSession,
 )
 
-
 # ---------------------------------------------------------------------------
 # Auth / Registration
 # ---------------------------------------------------------------------------
+
 
 class OtpRequest(BaseModel):
     phone: str
@@ -40,9 +41,9 @@ class FrontendFarmer(BaseModel):
     state: str
     district: str
     block: str
-    village: Optional[str] = None
+    village: str | None = None
     primary_crops: list[str] = []
-    land_size_hectares: Optional[float] = None
+    land_size_hectares: float | None = None
     preferred_language: str = "hi"
     created_at: str
 
@@ -76,10 +77,11 @@ class AdvisoryHistoryResponse(BaseModel):
 # Advisory
 # ---------------------------------------------------------------------------
 
+
 class AdvisoryRequest(BaseModel):
     farmer_id: str
-    audio_base64: Optional[str] = Field(None, description="Base64-encoded audio input")
-    text_input: Optional[str] = Field(None, description="Text input if no audio")
+    audio_base64: str | None = Field(None, description="Base64-encoded audio input")
+    text_input: str | None = Field(None, description="Text input if no audio")
 
 
 class AdvisoryResponse(BaseModel):
@@ -97,6 +99,7 @@ class TriggerVoiceAdvisoryRequest(BaseModel):
 # ---------------------------------------------------------------------------
 # Harvest Intent
 # ---------------------------------------------------------------------------
+
 
 class HarvestIntentRequest(BaseModel):
     intent: HarvestIntent
@@ -117,17 +120,19 @@ class HarvestIntentSyncRequest(BaseModel):
 # Block
 # ---------------------------------------------------------------------------
 
+
 class BlockStatusResponse(BaseModel):
     block_id: str
     active_intents: int
     oversupply_crops: list[str]
     active_bundles: list[str]
-    avg_forecast_price: Optional[float]
+    avg_forecast_price: float | None
 
 
 # ---------------------------------------------------------------------------
 # Health
 # ---------------------------------------------------------------------------
+
 
 class HealthResponse(BaseModel):
     status: str
@@ -140,6 +145,7 @@ class HealthResponse(BaseModel):
 # ---------------------------------------------------------------------------
 # Misc agents
 # ---------------------------------------------------------------------------
+
 
 class DiseaseDetectionRequest(BaseModel):
     image_base64: str
@@ -164,13 +170,13 @@ class FAQVoiceRequest(BaseModel):
 class WeatherAlertRequest(BaseModel):
     state: str
     district: str
-    block_id: Optional[str] = None
-    crop: Optional[str] = None
-    lat: Optional[float] = None
-    lon: Optional[float] = None
-    forecast_rain_mm: Optional[float] = None
-    hail_probability: Optional[float] = None
-    wind_kmph: Optional[float] = None
+    block_id: str | None = None
+    crop: str | None = None
+    lat: float | None = None
+    lon: float | None = None
+    forecast_rain_mm: float | None = None
+    hail_probability: float | None = None
+    wind_kmph: float | None = None
 
 
 class FPOAnalyticsResponse(BaseModel):
@@ -187,18 +193,19 @@ class SMSFallbackRequest(BaseModel):
 
 
 class NotificationRequest(BaseModel):
-    article_id: Optional[str] = None
-    alert_id: Optional[str] = None
-    urgency: Optional[str] = "normal"
-    title: Optional[str] = None
-    message: Optional[str] = None
-    farmer_phone: Optional[str] = None
-    farmer_id: Optional[str] = None
+    article_id: str | None = None
+    alert_id: str | None = None
+    urgency: str | None = "normal"
+    title: str | None = None
+    message: str | None = None
+    farmer_phone: str | None = None
+    farmer_id: str | None = None
 
 
 # ---------------------------------------------------------------------------
 # n8n / Automation triggers
 # ---------------------------------------------------------------------------
+
 
 class TriggerPriceCrashRequest(BaseModel):
     block_id: str

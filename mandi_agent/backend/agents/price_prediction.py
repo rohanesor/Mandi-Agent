@@ -6,7 +6,7 @@ Predicts mandi prices 3, 7, and 14 days ahead.
 import asyncio
 import logging
 from datetime import date, timedelta
-from typing import Any, Optional
+from typing import Any
 
 import google.generativeai as genai
 from pydantic import BaseModel, Field
@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 GEMINI_MODEL = "gemini-2.0-flash"
 
 # Gemini client model (lazy init)
-_gemini_model: Optional[genai.GenerativeModel] = None
+_gemini_model: genai.GenerativeModel | None = None
 
 
 def _get_model() -> genai.GenerativeModel:
@@ -31,6 +31,7 @@ def _get_model() -> genai.GenerativeModel:
     global _gemini_model
     if _gemini_model is None:
         import os
+
         api_key = os.getenv("GEMINI_API_KEY", os.getenv("GOOGLE_API_KEY", ""))
         if not api_key:
             raise ValueError("GEMINI_API_KEY or GOOGLE_API_KEY not set")
@@ -42,6 +43,7 @@ def _get_model() -> genai.GenerativeModel:
 # =============================================================================
 # Tool definitions
 # =============================================================================
+
 
 def get_seasonal_index(crop: str, month: int) -> float:
     """
@@ -61,44 +63,144 @@ def get_seasonal_index(crop: str, month: int) -> float:
     # Values derived from Agmarknet 2020-2024 monthly averages
     SEASONAL_INDEX: dict[str, dict[int, float]] = {
         "tomato": {
-            1: 0.85, 2: 0.90, 3: 1.10, 4: 1.25, 5: 1.40, 6: 1.20,
-            7: 0.90, 8: 0.80, 9: 0.85, 10: 0.90, 11: 0.95, 12: 0.88,
+            1: 0.85,
+            2: 0.90,
+            3: 1.10,
+            4: 1.25,
+            5: 1.40,
+            6: 1.20,
+            7: 0.90,
+            8: 0.80,
+            9: 0.85,
+            10: 0.90,
+            11: 0.95,
+            12: 0.88,
         },
         "onion": {
-            1: 1.10, 2: 1.05, 3: 0.95, 4: 0.88, 5: 0.85, 6: 0.90,
-            7: 0.95, 8: 1.00, 9: 1.10, 10: 1.15, 11: 1.20, 12: 1.18,
+            1: 1.10,
+            2: 1.05,
+            3: 0.95,
+            4: 0.88,
+            5: 0.85,
+            6: 0.90,
+            7: 0.95,
+            8: 1.00,
+            9: 1.10,
+            10: 1.15,
+            11: 1.20,
+            12: 1.18,
         },
         "potato": {
-            1: 0.95, 2: 0.92, 3: 0.88, 4: 0.85, 5: 0.82, 6: 0.88,
-            7: 0.92, 8: 0.95, 9: 1.00, 10: 1.05, 11: 1.08, 12: 1.02,
+            1: 0.95,
+            2: 0.92,
+            3: 0.88,
+            4: 0.85,
+            5: 0.82,
+            6: 0.88,
+            7: 0.92,
+            8: 0.95,
+            9: 1.00,
+            10: 1.05,
+            11: 1.08,
+            12: 1.02,
         },
         "wheat": {
-            1: 1.05, 2: 1.00, 3: 0.95, 4: 0.90, 5: 0.88, 6: 0.92,
-            7: 0.95, 8: 0.98, 9: 1.00, 10: 1.02, 11: 1.05, 12: 1.08,
+            1: 1.05,
+            2: 1.00,
+            3: 0.95,
+            4: 0.90,
+            5: 0.88,
+            6: 0.92,
+            7: 0.95,
+            8: 0.98,
+            9: 1.00,
+            10: 1.02,
+            11: 1.05,
+            12: 1.08,
         },
         "rice": {
-            1: 1.00, 2: 0.98, 3: 0.95, 4: 0.92, 5: 0.90, 6: 0.95,
-            7: 1.00, 8: 1.05, 9: 1.10, 10: 1.15, 11: 1.12, 12: 1.08,
+            1: 1.00,
+            2: 0.98,
+            3: 0.95,
+            4: 0.92,
+            5: 0.90,
+            6: 0.95,
+            7: 1.00,
+            8: 1.05,
+            9: 1.10,
+            10: 1.15,
+            11: 1.12,
+            12: 1.08,
         },
         "maize": {
-            1: 0.98, 2: 0.95, 3: 0.92, 4: 0.88, 5: 0.85, 6: 0.90,
-            7: 0.95, 8: 1.00, 9: 1.05, 10: 1.08, 11: 1.05, 12: 1.00,
+            1: 0.98,
+            2: 0.95,
+            3: 0.92,
+            4: 0.88,
+            5: 0.85,
+            6: 0.90,
+            7: 0.95,
+            8: 1.00,
+            9: 1.05,
+            10: 1.08,
+            11: 1.05,
+            12: 1.00,
         },
         "sugarcane": {
-            1: 1.00, 2: 1.00, 3: 1.00, 4: 1.00, 5: 1.02, 6: 1.02,
-            7: 1.00, 8: 1.00, 9: 1.00, 10: 1.00, 11: 1.00, 12: 1.00,
+            1: 1.00,
+            2: 1.00,
+            3: 1.00,
+            4: 1.00,
+            5: 1.02,
+            6: 1.02,
+            7: 1.00,
+            8: 1.00,
+            9: 1.00,
+            10: 1.00,
+            11: 1.00,
+            12: 1.00,
         },
         "chilli": {
-            1: 1.15, 2: 1.10, 3: 1.05, 4: 1.00, 5: 0.95, 6: 0.90,
-            7: 0.88, 8: 0.92, 9: 1.00, 10: 1.10, 11: 1.18, 12: 1.20,
+            1: 1.15,
+            2: 1.10,
+            3: 1.05,
+            4: 1.00,
+            5: 0.95,
+            6: 0.90,
+            7: 0.88,
+            8: 0.92,
+            9: 1.00,
+            10: 1.10,
+            11: 1.18,
+            12: 1.20,
         },
         "turmeric": {
-            1: 1.05, 2: 1.00, 3: 0.98, 4: 0.95, 5: 0.92, 6: 0.90,
-            7: 0.88, 8: 0.92, 9: 0.98, 10: 1.02, 11: 1.08, 12: 1.10,
+            1: 1.05,
+            2: 1.00,
+            3: 0.98,
+            4: 0.95,
+            5: 0.92,
+            6: 0.90,
+            7: 0.88,
+            8: 0.92,
+            9: 0.98,
+            10: 1.02,
+            11: 1.08,
+            12: 1.10,
         },
         "groundnut": {
-            1: 1.02, 2: 1.00, 3: 0.98, 4: 0.95, 5: 0.90, 6: 0.88,
-            7: 0.90, 8: 0.95, 9: 1.00, 10: 1.05, 11: 1.08, 12: 1.05,
+            1: 1.02,
+            2: 1.00,
+            3: 0.98,
+            4: 0.95,
+            5: 0.90,
+            6: 0.88,
+            7: 0.90,
+            8: 0.95,
+            9: 1.00,
+            10: 1.05,
+            11: 1.08,
+            12: 1.05,
         },
     }
 
@@ -147,27 +249,19 @@ def get_competing_mandi_prices(
 # Output schema
 # =============================================================================
 
+
 class PricePredictionInput(BaseModel):
     """Structured input schema for price prediction."""
+
     crop: str = Field(..., description="Crop name")
     mandi_name: str = Field(..., description="Target mandi name")
     state: str = Field(..., description="State name")
     historical_prices: list[dict[str, Any]] = Field(
-        default_factory=list,
-        description="Recent MandiPrice records as dicts"
+        default_factory=list, description="Recent MandiPrice records as dicts"
     )
-    weather_summary: str = Field(
-        default="",
-        description="Weather context string"
-    )
-    soil_moisture_pct: Optional[float] = Field(
-        None,
-        description="Soil moisture percentage"
-    )
-    xgboost_prediction: Optional[float] = Field(
-        None,
-        description="XGBoost model base prediction (INR/quintal)"
-    )
+    weather_summary: str = Field(default="", description="Weather context string")
+    soil_moisture_pct: float | None = Field(None, description="Soil moisture percentage")
+    xgboost_prediction: float | None = Field(None, description="XGBoost model base prediction (INR/quintal)")
 
 
 # =============================================================================
@@ -243,11 +337,11 @@ async def predict_price(
     mandi_name: str,
     state: str,
     historical_prices: list[MandiPrice],
-    weather: Optional[dict[str, Any]] = None,
-    soil_moisture: Optional[float] = None,
-    xgboost_base: Optional[float] = None,
+    weather: dict[str, Any] | None = None,
+    soil_moisture: float | None = None,
+    xgboost_base: float | None = None,
     days_ahead: int = 7,
-) -> Optional[PriceForecast]:
+) -> PriceForecast | None:
     """
     Predict price for a crop at a mandi N days ahead.
 
@@ -272,13 +366,15 @@ async def predict_price(
     # Build context for Gemini
     hist_data = []
     for p in historical_prices[-10:]:
-        hist_data.append({
-            "date": p.price_date.isoformat(),
-            "modal_price": p.modal_price,
-            "min_price": p.min_price,
-            "max_price": p.max_price,
-            "arrival_tonnes": p.arrival_tonnes,
-        })
+        hist_data.append(
+            {
+                "date": p.price_date.isoformat(),
+                "modal_price": p.modal_price,
+                "min_price": p.min_price,
+                "max_price": p.max_price,
+                "arrival_tonnes": p.arrival_tonnes,
+            }
+        )
 
     # Seasonal pattern
     forecast_date = date.today() + timedelta(days=days_ahead)
@@ -287,10 +383,13 @@ async def predict_price(
 
     # Competing mandi data
     competing = get_competing_mandi_prices(mandi_name)
-    competing_str = "\n".join(
-        f"  - {c['mandi_name']} ({c['state']}): ₹{c['modal_price']}/q, {c['distance_km']}km away"
-        for c in competing
-    ) if competing else "  (no nearby mandi data)"
+    competing_str = (
+        "\n".join(
+            f"  - {c['mandi_name']} ({c['state']}): ₹{c['modal_price']}/q, {c['distance_km']}km away" for c in competing
+        )
+        if competing
+        else "  (no nearby mandi data)"
+    )
 
     # Weather summary
     weather_str = ""
@@ -348,6 +447,7 @@ Please provide your prediction for {forecast_date} ({days_ahead} days ahead) as 
             response_text = response_text[start:end].strip()
 
         import json
+
         pred_data = json.loads(response_text)
 
         # Map to PriceForecast
@@ -381,7 +481,7 @@ Please provide your prediction for {forecast_date} ({days_ahead} days ahead) as 
 
 async def predict_price_batch(
     requests: list[dict[str, Any]],
-) -> list[Optional[PriceForecast]]:
+) -> list[PriceForecast | None]:
     """
     Run multiple price predictions concurrently.
 
@@ -405,6 +505,7 @@ if __name__ == "__main__":
     async def test():
         # Create sample historical prices
         from datetime import date as date_cls
+
         sample_prices = [
             MandiPrice(
                 mandi_name="Vashi Navi Mumbai",

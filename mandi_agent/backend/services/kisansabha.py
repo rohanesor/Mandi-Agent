@@ -41,16 +41,16 @@ CATEGORY_TYPE_MAP = {
 
 # KisanSabha state → approximate lat/lon centres used for distance calc
 STATE_CENTRES: dict[str, tuple[float, float]] = {
-    "Karnataka":        (14.9581, 75.8201),
-    "Andhra Pradesh":   (15.9129, 79.7400),
-    "Telangana":        (18.1124, 79.0193),
-    "Tamil Nadu":       (11.1271, 78.6569),
-    "Maharashtra":      (19.7515, 75.7139),
-    "Gujarat":          (22.2587, 71.1924),
-    "Rajasthan":        (27.0238, 74.2179),
-    "Madhya Pradesh":   (22.9734, 78.6569),
-    "Uttar Pradesh":    (26.8467, 80.9462),
-    "Punjab":           (31.1471, 75.3412),
+    "Karnataka": (14.9581, 75.8201),
+    "Andhra Pradesh": (15.9129, 79.7400),
+    "Telangana": (18.1124, 79.0193),
+    "Tamil Nadu": (11.1271, 78.6569),
+    "Maharashtra": (19.7515, 75.7139),
+    "Gujarat": (22.2587, 71.1924),
+    "Rajasthan": (27.0238, 74.2179),
+    "Madhya Pradesh": (22.9734, 78.6569),
+    "Uttar Pradesh": (26.8467, 80.9462),
+    "Punjab": (31.1471, 75.3412),
 }
 
 HEADERS = {
@@ -70,6 +70,7 @@ REQUEST_DELAY = 1.5
 # ---------------------------------------------------------------------------
 # Scraper
 # ---------------------------------------------------------------------------
+
 
 class KisanSabhaScraper:
     """Asynchronous scraper for the KisanSabha transporter directory."""
@@ -122,7 +123,9 @@ class KisanSabhaScraper:
                 cat_name = CATEGORY_TYPE_MAP.get(cat_type, "Transporter")
                 logger.info(
                     "Scraping KisanSabha: state=%s, category=%s (type=%d)",
-                    state, cat_name, cat_type,
+                    state,
+                    cat_name,
+                    cat_type,
                 )
                 try:
                     results = await self._scrape_category(
@@ -136,9 +139,7 @@ class KisanSabhaScraper:
                             seen_ids.add(uid)
                             agencies.append(agency)
                 except Exception as exc:
-                    logger.warning(
-                        "Failed scraping state=%s cat=%d: %s", state, cat_type, exc
-                    )
+                    logger.warning("Failed scraping state=%s cat=%d: %s", state, cat_type, exc)
                 await asyncio.sleep(REQUEST_DELAY)
 
         logger.info("KisanSabha scrape complete: %d unique agencies", len(agencies))
@@ -148,9 +149,7 @@ class KisanSabhaScraper:
     # Internal helpers                                                     #
     # ------------------------------------------------------------------ #
 
-    async def _scrape_category(
-        self, state: str, category_type: int, max_pages: int
-    ) -> list[dict[str, Any]]:
+    async def _scrape_category(self, state: str, category_type: int, max_pages: int) -> list[dict[str, Any]]:
         agencies: list[dict[str, Any]] = []
         cat_name = CATEGORY_TYPE_MAP.get(category_type, "Transporter")
 
@@ -171,9 +170,7 @@ class KisanSabhaScraper:
                 break
 
             soup = BeautifulSoup(resp.text, "html.parser")
-            listings = self._parse_listings(
-                soup, state=state, category_type=category_type, cat_name=cat_name
-            )
+            listings = self._parse_listings(soup, state=state, category_type=category_type, cat_name=cat_name)
 
             if not listings:
                 logger.debug("No more results at page %d (state=%s)", page, state)
@@ -209,9 +206,7 @@ class KisanSabhaScraper:
 
         for card in cards:
             try:
-                agency = self._extract_agency(
-                    card, state=state, category_type=category_type, cat_name=cat_name
-                )
+                agency = self._extract_agency(card, state=state, category_type=category_type, cat_name=cat_name)
                 if agency:
                     agencies.append(agency)
             except Exception as exc:
@@ -256,7 +251,7 @@ class KisanSabhaScraper:
             "state": state,
             "city": city.strip() if city else state,
             "phone": phone,
-            "whatsapp": phone,           # assume same until overridden
+            "whatsapp": phone,  # assume same until overridden
             "category_type": category_type,
             "category_name": cat_name,
             "rating": min(5.0, max(0.0, rating)),
@@ -296,6 +291,7 @@ class KisanSabhaScraper:
 # ---------------------------------------------------------------------------
 # Module-level helper used by the FastAPI route
 # ---------------------------------------------------------------------------
+
 
 async def scrape_kisansabha_transporters(
     states: list[str] | None = None,

@@ -2,21 +2,15 @@
 Tests for Pydantic v2 domain schemas — validation, constraints, edge cases.
 """
 
-from datetime import date, datetime, timezone
+from datetime import date
 
 import pytest
 
 from mandi_agent.backend.api.core_schemas import (
-    Decision,
-    FarmerAdvisory,
     FarmerProfile,
-    GuardrailStatus,
-    HarvestIntent,
     MandiPrice,
     PriceDirection,
     PriceForecast,
-    RiskLevel,
-    SpoilageRisk,
 )
 
 

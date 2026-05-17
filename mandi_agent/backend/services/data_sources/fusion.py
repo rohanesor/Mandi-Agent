@@ -4,22 +4,20 @@ Runs all 4 fetchers concurrently and merges results.
 """
 
 import asyncio
-import logging
 import json
-import hashlib
-from datetime import datetime, timedelta, timezone, date
-from typing import Optional
-from dataclasses import dataclass, field, asdict
-from enum import Enum
+import logging
+from dataclasses import asdict, dataclass, field
+from datetime import UTC, date, datetime
+from enum import StrEnum
 
-import redis.asyncio as redis
 import httpx
+import redis.asyncio as redis
 
-from mandi_agent.backend.services.data_sources.agmarknet import fetch_agmarknet_prices
-from mandi_agent.backend.services.data_sources.nasa_power import fetch_soil_moisture, SoilMoistureReading
-from mandi_agent.backend.services.data_sources.imd_weather import fetch_weather_forecast, WeatherForecast
-from mandi_agent.backend.services.data_sources.enam import fetch_enam_prices
 from mandi_agent.backend.api.core_schemas import MandiPrice
+from mandi_agent.backend.services.data_sources.agmarknet import fetch_agmarknet_prices
+from mandi_agent.backend.services.data_sources.enam import fetch_enam_prices
+from mandi_agent.backend.services.data_sources.imd_weather import WeatherForecast, fetch_weather_forecast
+from mandi_agent.backend.services.data_sources.nasa_power import SoilMoistureReading, fetch_soil_moisture
 
 logger = logging.getLogger(__name__)
 
@@ -29,11 +27,13 @@ FUSION_CACHE_TTL_SECONDS = 15 * 60
 
 def _get_redis_url() -> str:
     import os
+
     return os.getenv("REDIS_URL", "redis://localhost:6379")
 
 
 def _get_api_key() -> str:
     import os
+
     return os.getenv("DATA_GOV_API_KEY", "")
 
 
@@ -42,8 +42,9 @@ def _build_cache_key(block_id: str, crop: str) -> str:
     return f"fusion:{block_id}:{crop.lower()}"
 
 
-class DataSourceStatus(str, Enum):
+class DataSourceStatus(StrEnum):
     """Status of each data source."""
+
     SUCCESS = "success"
     FAILED = "failed"
     PARTIAL = "partial"
@@ -53,11 +54,12 @@ class DataSourceStatus(str, Enum):
 @dataclass
 class DataSourceMetrics:
     """Metrics for each data source in fusion."""
+
     source: str
     status: DataSourceStatus
     record_count: int
     latency_ms: float
-    error_message: Optional[str] = None
+    error_message: str | None = None
 
 
 @dataclass
@@ -67,13 +69,14 @@ class FusedContext:
 
     Created by DataFusionEngine.fuse() — passed to all downstream agents.
     """
+
     block_id: str
     crop: str
     mandi_prices: list[MandiPrice] = field(default_factory=list)
-    soil_moisture: Optional[SoilMoistureReading] = None
-    weather_forecast: Optional[WeatherForecast] = None
+    soil_moisture: SoilMoistureReading | None = None
+    weather_forecast: WeatherForecast | None = None
     enam_prices: list[MandiPrice] = field(default_factory=list)
-    fusion_timestamp: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    fusion_timestamp: datetime = field(default_factory=lambda: datetime.now(UTC))
     data_quality_score: float = 0.0  # 0.0 to 1.0
     source_metrics: list[DataSourceMetrics] = field(default_factory=list)
     total_fetch_time_ms: float = 0.0
@@ -118,7 +121,7 @@ class DataFusionEngine:
         context = await engine.fuse(block_id="KA-001", crop="tomato", farmer_location=(lat, lng))
     """
 
-    def __init__(self, redis_url: Optional[str] = None):
+    def __init__(self, redis_url: str | None = None):
         """
         Initialize fusion engine.
 
@@ -126,10 +129,10 @@ class DataFusionEngine:
             redis_url: Redis connection URL (defaults to REDIS_URL env var)
         """
         self._redis_url = redis_url or _get_redis_url()
-        self._redis: Optional[redis.Redis] = None
-        self._http_client: Optional[httpx.AsyncClient] = None
+        self._redis: redis.Redis | None = None
+        self._http_client: httpx.AsyncClient | None = None
 
-    async def _get_redis(self) -> Optional[redis.Redis]:
+    async def _get_redis(self) -> redis.Redis | None:
         """Lazy Redis connection."""
         if self._redis is None:
             try:
@@ -162,10 +165,10 @@ class DataFusionEngine:
     async def _fetch_agmarknet(
         self,
         crop: str,
-        state: Optional[str] = None,
+        state: str | None = None,
     ) -> tuple[list[MandiPrice], DataSourceMetrics]:
         """Fetch Agmarknet prices with timing."""
-        start = datetime.now(timezone.utc)
+        start = datetime.now(UTC)
         try:
             prices = await fetch_agmarknet_prices(
                 commodity=crop,
@@ -173,7 +176,7 @@ class DataFusionEngine:
                 from_date=date.today(),
                 to_date=date.today(),
             )
-            latency_ms = (datetime.now(timezone.utc) - start).total_seconds() * 1000
+            latency_ms = (datetime.now(UTC) - start).total_seconds() * 1000
             return prices, DataSourceMetrics(
                 source="agmarknet",
                 status=DataSourceStatus.SUCCESS if prices else DataSourceStatus.PARTIAL,
@@ -181,7 +184,7 @@ class DataFusionEngine:
                 latency_ms=latency_ms,
             )
         except Exception as e:
-            latency_ms = (datetime.now(timezone.utc) - start).total_seconds() * 1000
+            latency_ms = (datetime.now(UTC) - start).total_seconds() * 1000
             logger.warning("Agmarknet fetch failed: %s", str(e)[:100])
             return [], DataSourceMetrics(
                 source="agmarknet",
@@ -196,12 +199,12 @@ class DataFusionEngine:
         lat: float,
         lng: float,
         block_id: str,
-    ) -> tuple[Optional[SoilMoistureReading], DataSourceMetrics]:
+    ) -> tuple[SoilMoistureReading | None, DataSourceMetrics]:
         """Fetch soil moisture with timing."""
-        start = datetime.now(timezone.utc)
+        start = datetime.now(UTC)
         try:
             reading = await fetch_soil_moisture(lat=lat, lng=lng, block_id=block_id)
-            latency_ms = (datetime.now(timezone.utc) - start).total_seconds() * 1000
+            latency_ms = (datetime.now(UTC) - start).total_seconds() * 1000
             return reading, DataSourceMetrics(
                 source="nasa_power",
                 status=DataSourceStatus.SUCCESS,
@@ -209,7 +212,7 @@ class DataFusionEngine:
                 latency_ms=latency_ms,
             )
         except Exception as e:
-            latency_ms = (datetime.now(timezone.utc) - start).total_seconds() * 1000
+            latency_ms = (datetime.now(UTC) - start).total_seconds() * 1000
             logger.warning("NASA POWER fetch failed: %s", str(e)[:100])
             return None, DataSourceMetrics(
                 source="nasa_power",
@@ -223,11 +226,11 @@ class DataFusionEngine:
         self,
         district: str,
         state: str,
-        lat: Optional[float] = None,
-        lon: Optional[float] = None,
-    ) -> tuple[Optional[WeatherForecast], DataSourceMetrics]:
+        lat: float | None = None,
+        lon: float | None = None,
+    ) -> tuple[WeatherForecast | None, DataSourceMetrics]:
         """Fetch weather with timing."""
-        start = datetime.now(timezone.utc)
+        start = datetime.now(UTC)
         try:
             forecast = await fetch_weather_forecast(
                 district=district,
@@ -235,7 +238,7 @@ class DataFusionEngine:
                 lat=lat,
                 lon=lon,
             )
-            latency_ms = (datetime.now(timezone.utc) - start).total_seconds() * 1000
+            latency_ms = (datetime.now(UTC) - start).total_seconds() * 1000
             day_count = len(forecast.forecast_days) if forecast else 0
             return forecast, DataSourceMetrics(
                 source=forecast.source if forecast else "unknown",
@@ -244,7 +247,7 @@ class DataFusionEngine:
                 latency_ms=latency_ms,
             )
         except Exception as e:
-            latency_ms = (datetime.now(timezone.utc) - start).total_seconds() * 1000
+            latency_ms = (datetime.now(UTC) - start).total_seconds() * 1000
             logger.warning("Weather fetch failed: %s", str(e)[:100])
             return None, DataSourceMetrics(
                 source="imd",
@@ -257,10 +260,10 @@ class DataFusionEngine:
     async def _fetch_enam(
         self,
         crop: str,
-        state: Optional[str] = None,
+        state: str | None = None,
     ) -> tuple[list[MandiPrice], DataSourceMetrics]:
         """Fetch eNAM prices with timing."""
-        start = datetime.now(timezone.utc)
+        start = datetime.now(UTC)
         try:
             prices = await fetch_enam_prices(
                 commodity=crop,
@@ -268,7 +271,7 @@ class DataFusionEngine:
                 from_date=date.today(),
                 to_date=date.today(),
             )
-            latency_ms = (datetime.now(timezone.utc) - start).total_seconds() * 1000
+            latency_ms = (datetime.now(UTC) - start).total_seconds() * 1000
             return prices, DataSourceMetrics(
                 source="enam",
                 status=DataSourceStatus.SUCCESS if prices else DataSourceStatus.PARTIAL,
@@ -276,7 +279,7 @@ class DataFusionEngine:
                 latency_ms=latency_ms,
             )
         except Exception as e:
-            latency_ms = (datetime.now(timezone.utc) - start).total_seconds() * 1000
+            latency_ms = (datetime.now(UTC) - start).total_seconds() * 1000
             logger.warning("eNAM fetch failed: %s", str(e)[:100])
             return [], DataSourceMetrics(
                 source="enam",
@@ -324,7 +327,7 @@ class DataFusionEngine:
 
         return min(1.0, score)
 
-    async def _check_cache(self, cache_key: str) -> Optional[FusedContext]:
+    async def _check_cache(self, cache_key: str) -> FusedContext | None:
         """Check Redis cache for existing fusion data."""
         r = await self._get_redis()
         if not r:
@@ -335,9 +338,11 @@ class DataFusionEngine:
             if cached:
                 data = json.loads(cached)
                 ctx = FusedContext.from_dict(data)
-                logger.info("Cache HIT for %s (%.0f min old)",
-                           cache_key,
-                           (datetime.now(timezone.utc) - ctx.fusion_timestamp).total_seconds() / 60)
+                logger.info(
+                    "Cache HIT for %s (%.0f min old)",
+                    cache_key,
+                    (datetime.now(UTC) - ctx.fusion_timestamp).total_seconds() / 60,
+                )
                 return ctx
         except (json.JSONDecodeError, KeyError, ValueError) as e:
             logger.warning("Cache parse error for %s: %s", cache_key, str(e)[:100])
@@ -394,7 +399,7 @@ class DataFusionEngine:
             if cached:
                 return cached
 
-        overall_start = datetime.now(timezone.utc)
+        overall_start = datetime.now(UTC)
 
         # Run all 4 fetchers concurrently
         # Using asyncio.gather with return_exceptions=True to handle individual failures
@@ -414,8 +419,8 @@ class DataFusionEngine:
 
         # Unpack results
         agmarknet_prices: list[MandiPrice] = []
-        soil_moisture: Optional[SoilMoistureReading] = None
-        weather_forecast: Optional[WeatherForecast] = None
+        soil_moisture: SoilMoistureReading | None = None
+        weather_forecast: WeatherForecast | None = None
         enam_prices: list[MandiPrice] = []
         source_metrics: list[DataSourceMetrics] = []
 
@@ -424,39 +429,59 @@ class DataFusionEngine:
             agmarknet_prices, m = results[0]
             source_metrics.append(m)
         else:
-            source_metrics.append(DataSourceMetrics(
-                source="agmarknet", status=DataSourceStatus.FAILED,
-                record_count=0, latency_ms=0.0, error_message=str(results[0])[:200]
-            ))
+            source_metrics.append(
+                DataSourceMetrics(
+                    source="agmarknet",
+                    status=DataSourceStatus.FAILED,
+                    record_count=0,
+                    latency_ms=0.0,
+                    error_message=str(results[0])[:200],
+                )
+            )
 
         if not isinstance(results[1], Exception):
             soil_moisture, m = results[1]
             source_metrics.append(m)
         else:
-            source_metrics.append(DataSourceMetrics(
-                source="nasa_power", status=DataSourceStatus.FAILED,
-                record_count=0, latency_ms=0.0, error_message=str(results[1])[:200]
-            ))
+            source_metrics.append(
+                DataSourceMetrics(
+                    source="nasa_power",
+                    status=DataSourceStatus.FAILED,
+                    record_count=0,
+                    latency_ms=0.0,
+                    error_message=str(results[1])[:200],
+                )
+            )
 
         if not isinstance(results[2], Exception):
             weather_forecast, m = results[2]
             source_metrics.append(m)
         else:
-            source_metrics.append(DataSourceMetrics(
-                source="imd", status=DataSourceStatus.FAILED,
-                record_count=0, latency_ms=0.0, error_message=str(results[2])[:200]
-            ))
+            source_metrics.append(
+                DataSourceMetrics(
+                    source="imd",
+                    status=DataSourceStatus.FAILED,
+                    record_count=0,
+                    latency_ms=0.0,
+                    error_message=str(results[2])[:200],
+                )
+            )
 
         if not isinstance(results[3], Exception):
             enam_prices, m = results[3]
             source_metrics.append(m)
         else:
-            source_metrics.append(DataSourceMetrics(
-                source="enam", status=DataSourceStatus.FAILED,
-                record_count=0, latency_ms=0.0, error_message=str(results[3])[:200]
-            ))
+            source_metrics.append(
+                DataSourceMetrics(
+                    source="enam",
+                    status=DataSourceStatus.FAILED,
+                    record_count=0,
+                    latency_ms=0.0,
+                    error_message=str(results[3])[:200],
+                )
+            )
 
-        total_fetch_time_ms = (datetime.now(timezone.utc) - overall_start).total_seconds() * 1000
+        total_fetch_time_ms = (datetime.now(UTC) - overall_start).total_seconds() * 1000
         total_records = len(agmarknet_prices) + len(enam_prices)
         data_quality_score = self._compute_quality_score(source_metrics, total_records)
 
@@ -467,22 +492,24 @@ class DataFusionEngine:
             soil_moisture=soil_moisture,
             weather_forecast=weather_forecast,
             enam_prices=enam_prices,
-            fusion_timestamp=datetime.now(timezone.utc),
+            fusion_timestamp=datetime.now(UTC),
             data_quality_score=data_quality_score,
             source_metrics=source_metrics,
             total_fetch_time_ms=total_fetch_time_ms,
         )
 
         # Log summary
-        success_count = sum(
-            1 for m in source_metrics if m.status == DataSourceStatus.SUCCESS
-        )
+        success_count = sum(1 for m in source_metrics if m.status == DataSourceStatus.SUCCESS)
         logger.info(
-            "Fusion complete for %s/%s: %dms, quality=%.2f, %d/%d sources, "
-            "prices=%d+%d records",
-            block_id, crop, total_fetch_time_ms, data_quality_score,
-            success_count, len(source_metrics),
-            len(agmarknet_prices), len(enam_prices),
+            "Fusion complete for %s/%s: %dms, quality=%.2f, %d/%d sources, prices=%d+%d records",
+            block_id,
+            crop,
+            total_fetch_time_ms,
+            data_quality_score,
+            success_count,
+            len(source_metrics),
+            len(agmarknet_prices),
+            len(enam_prices),
         )
 
         # Write to cache
@@ -493,7 +520,7 @@ class DataFusionEngine:
 
 
 # Singleton instance for use across the application
-_default_engine: Optional[DataFusionEngine] = None
+_default_engine: DataFusionEngine | None = None
 
 
 async def get_fusion_engine() -> DataFusionEngine:

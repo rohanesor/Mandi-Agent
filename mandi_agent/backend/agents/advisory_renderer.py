@@ -13,7 +13,7 @@ No LLM randomness. Just template variable substitution.
 import logging
 from dataclasses import dataclass
 
-from mandi_agent.backend.agents.decision_engine import StructuredDecision, DecisionFactor
+from mandi_agent.backend.agents.decision_engine import DecisionFactor, StructuredDecision
 from mandi_agent.backend.agents.explanation_extractor import StructuredExplanation
 from mandi_agent.backend.api.core_schemas import Decision, PriceDirection
 
@@ -23,6 +23,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class RenderedAdvisory:
     """Advisory text ready to send via WhatsApp."""
+
     full_text: str  # Complete advisory (2-3 sentences)
     emoji_decision: str  # Visual indicator
     action_summary: str  # 1-line summary
@@ -37,22 +38,22 @@ TEMPLATES = {
             (
                 lambda d, e: d.primary_factor == DecisionFactor.SPOILAGE_CRITICAL,
                 "🚜 Your {crop} needs to be harvested RIGHT NOW — spoilage risk is {spoilage_pct:.0f}%. "
-                "Sell at {target_mandi} for ₹{price_forecast_inr:.0f}/quintal. {recommendation}"
+                "Sell at {target_mandi} for ₹{price_forecast_inr:.0f}/quintal. {recommendation}",
             ),
             # Falling prices → sell immediately
             (
                 lambda d, e: d.primary_factor == DecisionFactor.PRICE_FALLING,
                 "🚜 SELL NOW. Market prices for {crop} are falling. "
                 "Lock in ₹{price_forecast_inr:.0f}/quintal at {target_mandi} today. "
-                "{price_context}"
+                "{price_context}",
             ),
             # Generic harvest now
             (
                 lambda d, e: True,
                 "🚜 Harvest your {crop} and bring to {target_mandi}. "
-                "Current price: ₹{price_forecast_inr:.0f}/quintal. {recommendation}"
+                "Current price: ₹{price_forecast_inr:.0f}/quintal. {recommendation}",
             ),
-        ]
+        ],
     },
     Decision.HOLD_3_DAYS: {
         "emoji": "⏰",
@@ -62,21 +63,21 @@ TEMPLATES = {
                 lambda d, e: d.bundle_available and d.bundle_saving_per_q and d.bundle_saving_per_q >= 200,
                 "⏰ WAIT 3 DAYS. Your {crop} can be bundled with other farmers — "
                 "Save ₹{bundle_saving_per_q:.0f}/quintal on transport! "
-                "Prices will be ₹{price_forecast_inr:.0f}/q. {spoilage_context}"
+                "Prices will be ₹{price_forecast_inr:.0f}/q. {spoilage_context}",
             ),
             # Rising prices + low spoilage
             (
                 lambda d, e: d.price_direction == PriceDirection.RISING and d.spoilage_pct < 40,
                 "⏰ Wait 3 days. Prices for {crop} are RISING toward ₹{price_forecast_inr:.0f}/quintal. "
-                "Spoilage risk is low ({spoilage_pct:.0f}%). {price_context}"
+                "Spoilage risk is low ({spoilage_pct:.0f}%). {price_context}",
             ),
             # Generic hold
             (
                 lambda d, e: True,
                 "⏰ HOLD for 3 days. Market conditions improving for {crop}. "
-                "Target price: ₹{price_forecast_inr:.0f}/quintal. {recommendation}"
+                "Target price: ₹{price_forecast_inr:.0f}/quintal. {recommendation}",
             ),
-        ]
+        ],
     },
     Decision.HOLD_7_DAYS: {
         "emoji": "⏳",
@@ -84,14 +85,14 @@ TEMPLATES = {
             (
                 lambda d, e: d.price_direction == PriceDirection.RISING and d.spoilage_pct < 20,
                 "⏳ HOLD up to 7 days. Prices for {crop} rising strongly toward ₹{price_forecast_inr:.0f}/quintal. "
-                "Storage safe. {price_context}"
+                "Storage safe. {price_context}",
             ),
             (
                 lambda d, e: True,
                 "⏳ Can hold 7 days if storage available. {crop} prices trending to ₹{price_forecast_inr:.0f}/quintal. "
-                "{spoilage_context}"
+                "{spoilage_context}",
             ),
-        ]
+        ],
     },
     Decision.REDIRECT_MANDI: {
         "emoji": "📍",
@@ -100,9 +101,9 @@ TEMPLATES = {
                 lambda d, e: True,
                 "📍 Better prices at {target_mandi}. "
                 "Your {crop} can fetch ₹{price_forecast_inr:.0f}/quintal there vs local market. "
-                "Transport cost: {recommendation}"
+                "Transport cost: {recommendation}",
             ),
-        ]
+        ],
     },
 }
 
@@ -196,13 +197,14 @@ def translate_advisory(
 # Unit tests
 if __name__ == "__main__":
     from datetime import date
-    from mandi_agent.backend.api.core_schemas import (
-        PriceForecast,
-        SpoilageRisk,
-        RiskLevel,
-    )
+
     from mandi_agent.backend.agents.decision_engine import make_decision
     from mandi_agent.backend.agents.explanation_extractor import extract_explanation
+    from mandi_agent.backend.api.core_schemas import (
+        PriceForecast,
+        RiskLevel,
+        SpoilageRisk,
+    )
 
     # Test case 1: HARVEST NOW due to spoilage
     print("Test 1: Critical spoilage → harvest now")

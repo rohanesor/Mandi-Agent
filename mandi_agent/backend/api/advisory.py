@@ -3,24 +3,25 @@ Advisory and Harvest Intent routes.
 Includes WebSocket for live advisory progress and fallback sync methods.
 """
 
-import logging
-from typing import Any
 import asyncio
-from datetime import datetime, timezone
+import contextlib
+import logging
 import uuid
+from datetime import UTC, datetime
+from typing import Any
 
 from fastapi import APIRouter, HTTPException, WebSocket, WebSocketDisconnect, status
 
+from mandi_agent.backend.api.core_schemas import AdvisoryDeliveryResult, HarvestIntentConflict
 from mandi_agent.backend.api.schemas import (
     HarvestIntentRequest,
     HarvestIntentResponse,
     HarvestIntentSyncRequest,
     SMSFallbackRequest,
 )
-from mandi_agent.backend.api.core_schemas import AdvisoryDeliveryResult, HarvestIntentConflict
-from mandi_agent.backend.utils.websocket import manager
 from mandi_agent.backend.db.supabase import get_supabase_async
 from mandi_agent.backend.utils.tokens import HARVEST_INTENT_VERSIONS
+from mandi_agent.backend.utils.websocket import manager
 
 logger = logging.getLogger(__name__)
 router = APIRouter(tags=["Advisory"])
@@ -50,6 +51,7 @@ async def submit_harvest_intent(req: HarvestIntentRequest) -> HarvestIntentRespo
 
         # Trigger n8n workflow for async processing
         from mandi_agent.backend.services.automations.n8n_triggers import trigger_harvest_alert
+
         await trigger_harvest_alert(
             farmer_id=intent.farmer_id,
             crop=intent.crop,
@@ -80,9 +82,9 @@ async def sync_harvest_intent(req: HarvestIntentSyncRequest) -> dict[str, Any]:
     server_version = None
     if supabase:
         try:
-            response = await supabase.table("harvest_intent_versions").select("*").eq(
-                "intent_id", intent.intent_id
-            ).execute()
+            response = (
+                await supabase.table("harvest_intent_versions").select("*").eq("intent_id", intent.intent_id).execute()
+            )
 
             if response.data and len(response.data) > 0:
                 server_version = response.data[0].get("version", 0)
@@ -118,13 +120,19 @@ async def sync_harvest_intent(req: HarvestIntentSyncRequest) -> dict[str, Any]:
     if supabase:
         try:
             # Upsert (insert or update)
-            await supabase.table("harvest_intent_versions").upsert({
-                "intent_id": intent.intent_id,
-                "version": new_version,
-                "farmer_id": intent.farmer_id,
-                "payload": intent.model_dump(mode="json"),
-                "timestamp": datetime.now(timezone.utc).isoformat(),
-            }).execute()
+            await (
+                supabase.table("harvest_intent_versions")
+                .upsert(
+                    {
+                        "intent_id": intent.intent_id,
+                        "version": new_version,
+                        "farmer_id": intent.farmer_id,
+                        "payload": intent.model_dump(mode="json"),
+                        "timestamp": datetime.now(UTC).isoformat(),
+                    }
+                )
+                .execute()
+            )
 
             logger.info("Harvest intent %s synced to version %d", intent.intent_id, new_version)
         except Exception as exc:
@@ -215,9 +223,11 @@ async def websocket_advisory(websocket: WebSocket, farmer_id: str):
                             await websocket.send_json(event)
                             if event.get("event") in ("voice_ready", "error", "fpo_notified"):
                                 break
-                        except asyncio.TimeoutError:
+                        except TimeoutError:
                             # Send heartbeat
-                            await websocket.send_json({"event": "heartbeat", "timestamp": datetime.now(timezone.utc).isoformat()})
+                            await websocket.send_json(
+                                {"event": "heartbeat", "timestamp": datetime.now(UTC).isoformat()}
+                            )
 
                 # Start streaming task
                 stream_task = asyncio.create_task(stream_events())
@@ -232,22 +242,24 @@ async def websocket_advisory(websocket: WebSocket, farmer_id: str):
 
                     # Send final result
                     if session:
-                        await websocket.send_json({
-                            "event": "complete",
-                            "session": session.model_dump(mode="json"),
-                        })
+                        await websocket.send_json(
+                            {
+                                "event": "complete",
+                                "session": session.model_dump(mode="json"),
+                            }
+                        )
                     else:
-                        await websocket.send_json({
-                            "event": "error",
-                            "error": "Advisory generation failed",
-                        })
+                        await websocket.send_json(
+                            {
+                                "event": "error",
+                                "error": "Advisory generation failed",
+                            }
+                        )
 
                 finally:
                     stream_task.cancel()
-                    try:
+                    with contextlib.suppress(asyncio.CancelledError):
                         await stream_task
-                    except asyncio.CancelledError:
-                        pass
 
             elif action == "cancel":
                 await websocket.send_json({"event": "cancelled"})
@@ -257,10 +269,8 @@ async def websocket_advisory(websocket: WebSocket, farmer_id: str):
         manager.disconnect(farmer_id)
     except Exception as e:
         logger.error("WebSocket error: %s", str(e)[:200])
-        try:
+        with contextlib.suppress(Exception):
             await websocket.send_json({"event": "error", "error": str(e)[:100]})
-        except Exception:
-            pass
         manager.disconnect(farmer_id)
 
 
@@ -286,7 +296,7 @@ async def harvest_alerts_due():
             "block_id": "KA-KOL-06",
             "harvest_date": "2025-12-14",
             "days_to_harvest": 2,
-            "location": "Mulbagal, Kolar, Karnataka"
+            "location": "Mulbagal, Kolar, Karnataka",
         },
         {
             "farmer_id": "F-KA-2801",
@@ -297,6 +307,6 @@ async def harvest_alerts_due():
             "block_id": "KA-KOL-06",
             "harvest_date": "2025-12-14",
             "days_to_harvest": 2,
-            "location": "Mulbagal, Kolar, Karnataka"
-        }
+            "location": "Mulbagal, Kolar, Karnataka",
+        },
     ]

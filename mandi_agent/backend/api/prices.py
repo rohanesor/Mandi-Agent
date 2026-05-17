@@ -3,9 +3,7 @@ Prices and Forecasts routes.
 """
 
 import logging
-import uuid
-from datetime import date, datetime, timedelta, timezone
-from typing import Optional
+from datetime import UTC, date, datetime, timedelta
 
 from fastapi import APIRouter, HTTPException, status
 
@@ -13,8 +11,17 @@ router = APIRouter(tags=["Prices"])
 logger = logging.getLogger(__name__)
 
 SUPPORTED_CROPS = [
-    "Tomato", "Onion", "Potato", "Rice", "Wheat", "Maize",
-    "Cotton", "Soybean", "Groundnut", "Chilli", "Turmeric",
+    "Tomato",
+    "Onion",
+    "Potato",
+    "Rice",
+    "Wheat",
+    "Maize",
+    "Cotton",
+    "Soybean",
+    "Groundnut",
+    "Chilli",
+    "Turmeric",
 ]
 
 MANDI_LOCATIONS = [
@@ -32,7 +39,7 @@ PRICE_ALERTS: dict[str, list[dict]] = {}
 
 
 @router.get("/api/prices/{commodity}", response_model=list[dict])
-async def get_prices(commodity: str, state: Optional[str] = None) -> list[dict]:
+async def get_prices(commodity: str, state: str | None = None) -> list[dict]:
     """Get recent mandi prices for a commodity."""
     try:
         from mandi_agent.backend.services.data_sources.agmarknet import fetch_agmarknet_prices
@@ -45,7 +52,7 @@ async def get_prices(commodity: str, state: Optional[str] = None) -> list[dict]:
 
     # Fallback demo data when Agmarknet is unavailable
     import random
-    from datetime import datetime, timezone
+
     random.seed(hash(f"{commodity}-{state}") % (2**32))
 
     base_prices = {
@@ -73,11 +80,11 @@ async def get_prices(commodity: str, state: Optional[str] = None) -> list[dict]:
             "district": m["district"],
             "commodity": commodity,
             "variety": "",
-            "modal_price": round(info["base"] + random.uniform(-info["range"]/2, info["range"]/2), 2),
+            "modal_price": round(info["base"] + random.uniform(-info["range"] / 2, info["range"] / 2), 2),
             "min_price": round(info["base"] - info["range"], 2),
             "max_price": round(info["base"] + info["range"], 2),
             "arrival_tonnes": round(random.uniform(5, 150), 1),
-            "price_date": datetime.now(timezone.utc).isoformat(),
+            "price_date": datetime.now(UTC).isoformat(),
             "source": "fallback",
         }
         for m in mandis
@@ -87,8 +94,8 @@ async def get_prices(commodity: str, state: Optional[str] = None) -> list[dict]:
 @router.get("/api/forecast/{crop}", response_model=list[dict])
 async def get_forecast(
     crop: str,
-    mandi_name: Optional[str] = None,
-    state: Optional[str] = None,
+    mandi_name: str | None = None,
+    state: str | None = None,
     days_ahead: int = 7,
 ) -> list[dict]:
     """Get price forecast for a crop."""
@@ -118,8 +125,8 @@ async def get_forecast(
 @router.get("/api/prices/history")
 async def get_price_history(
     crop: str,
-    mandi: Optional[str] = None,
-    state: Optional[str] = None,
+    mandi: str | None = None,
+    state: str | None = None,
     months: int = 3,
 ):
     """Get historical price data for a crop."""
@@ -152,6 +159,7 @@ async def get_price_history(
 
     # Fallback: generate realistic demo data
     import random
+
     random.seed(hash(f"{crop}-{mandi}") % (2**32))
     base_price = {"Tomato": 30, "Onion": 25, "Potato": 20, "Rice": 35, "Wheat": 22, "Maize": 18}.get(crop, 25)
 
@@ -159,10 +167,12 @@ async def get_price_history(
     for i in range(months * 30):
         d = start_date + timedelta(days=i)
         variation = random.uniform(-0.3, 0.4)
-        history.append({
-            "date": d.isoformat(),
-            "modal_price": round(base_price * (1 + variation), 2),
-        })
+        history.append(
+            {
+                "date": d.isoformat(),
+                "modal_price": round(base_price * (1 + variation), 2),
+            }
+        )
 
     return {
         "crop": crop,
@@ -173,7 +183,7 @@ async def get_price_history(
 
 
 @router.get("/api/mandis/nearby")
-async def get_nearby_mandis(state: str, district: Optional[str] = None, crop: Optional[str] = None):
+async def get_nearby_mandis(state: str, district: str | None = None, crop: str | None = None):
     """Get nearby mandis for a state/district."""
     try:
         mandis = [m for m in MANDI_LOCATIONS if m["state"].lower() == state.lower()]

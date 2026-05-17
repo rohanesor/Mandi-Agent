@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import logging
 import os
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from twilio.base.exceptions import TwilioException
 from twilio.rest import Client
@@ -39,7 +39,7 @@ async def deliver_sms(advisory: FarmerAdvisory, farmer: FarmerProfile) -> Adviso
             fallback_channel=DeliveryChannel.SMS,
             delivered=False,
             failure_reason="Farmer has not opted in for SMS",
-            delivered_at=datetime.now(timezone.utc),
+            delivered_at=datetime.now(UTC),
         )
 
     sid = os.getenv("TWILIO_ACCOUNT_SID", "")
@@ -56,7 +56,7 @@ async def deliver_sms(advisory: FarmerAdvisory, farmer: FarmerProfile) -> Adviso
             fallback_channel=DeliveryChannel.SMS,
             delivered=True,
             provider_message_id=f"sim-{advisory.advisory_id}",
-            delivered_at=datetime.now(timezone.utc),
+            delivered_at=datetime.now(UTC),
         )
 
     try:
@@ -73,7 +73,7 @@ async def deliver_sms(advisory: FarmerAdvisory, farmer: FarmerProfile) -> Adviso
             fallback_channel=DeliveryChannel.SMS,
             delivered=True,
             provider_message_id=msg.sid,
-            delivered_at=datetime.now(timezone.utc),
+            delivered_at=datetime.now(UTC),
         )
     except TwilioException as exc:
         logger.error("Twilio SMS delivery failed: %s", str(exc)[:200])
@@ -84,5 +84,5 @@ async def deliver_sms(advisory: FarmerAdvisory, farmer: FarmerProfile) -> Adviso
             fallback_channel=DeliveryChannel.SMS,
             delivered=False,
             failure_reason=str(exc)[:180],
-            delivered_at=datetime.now(timezone.utc),
+            delivered_at=datetime.now(UTC),
         )

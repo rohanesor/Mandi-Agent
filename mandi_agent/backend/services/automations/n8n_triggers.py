@@ -5,8 +5,8 @@ Each method POSTs to a specific n8n webhook endpoint.
 
 import asyncio
 import logging
-from datetime import datetime, timezone
-from typing import Any, Optional
+from datetime import UTC, datetime
+from typing import Any
 
 import httpx
 
@@ -23,17 +23,20 @@ N8N_BASE_URL = ""
 
 def _get_n8n_url() -> str:
     import os
+
     return os.getenv("N8N_WEBHOOK_URL", "")
 
 
 def _get_n8n_api_key() -> str:
     import os
+
     return os.getenv("N8N_API_KEY", "")
 
 
 # =============================================================================
 # N8NClient
 # =============================================================================
+
 
 class N8NClient:
     """
@@ -50,8 +53,8 @@ class N8NClient:
 
     def __init__(
         self,
-        base_url: Optional[str] = None,
-        api_key: Optional[str] = None,
+        base_url: str | None = None,
+        api_key: str | None = None,
     ):
         """
         Initialize n8n client.
@@ -62,7 +65,7 @@ class N8NClient:
         """
         self._base_url = base_url or _get_n8n_url()
         self._api_key = api_key or _get_n8n_api_key()
-        self._client: Optional[httpx.AsyncClient] = None
+        self._client: httpx.AsyncClient | None = None
 
     async def _get_client(self) -> httpx.AsyncClient:
         """Lazy HTTP client."""
@@ -87,13 +90,13 @@ class N8NClient:
         # For test mode: paths must match the webhook trigger names in workflows
         path_map = {
             "advisory-delivered": "advisory-delivered",
-            "bundle-formed": "fwrsTA7jqgOwHV8u",      # Bundle Notification workflow ID
+            "bundle-formed": "fwrsTA7jqgOwHV8u",  # Bundle Notification workflow ID
             "spoilage-emergency": "spoilage-emergency",
             "price-crash": "price-crash",
             "scheme-check": "scheme-check",
             "weather-alert": "weather-alert",
-            "advisory-webhook": "whatsapp-inbound",   # WhatsApp Advisory Loop custom path
-            "mandi-advisory": "whatsapp-inbound",     # Alias for advisory-webhook
+            "advisory-webhook": "whatsapp-inbound",  # WhatsApp Advisory Loop custom path
+            "mandi-advisory": "whatsapp-inbound",  # Alias for advisory-webhook
             # The following are Schedule Triggers in n8n, not webhooks!
             "fpo-digest": None,
             "harvest-alert": None,
@@ -120,12 +123,23 @@ class N8NClient:
             logger.info("n8n POST to %s with payload: %s", url, payload)
             response = await client.post(url, json=payload, headers=headers)
             response.raise_for_status()
-            logger.info("n8n trigger %s (mapped to %s): %d | Response: %s", endpoint, mapped_endpoint, response.status_code, response.text[:200])
+            logger.info(
+                "n8n trigger %s (mapped to %s): %d | Response: %s",
+                endpoint,
+                mapped_endpoint,
+                response.status_code,
+                response.text[:200],
+            )
             return True
 
         except httpx.HTTPStatusError as e:
-            logger.warning("n8n HTTP %d for %s: %s | Response: %s",
-                         e.response.status_code, endpoint, str(e)[:100], e.response.text[:200])
+            logger.warning(
+                "n8n HTTP %d for %s: %s | Response: %s",
+                e.response.status_code,
+                endpoint,
+                str(e)[:100],
+                e.response.text[:200],
+            )
         except httpx.TimeoutException:
             logger.warning("n8n timeout for %s (URL: %s)", endpoint, url)
         except httpx.RequestError as e:
@@ -184,7 +198,7 @@ class N8NClient:
             "advisory_id": advisory_id,
             "language": language,
             "channel": channel,
-            "delivered_at": datetime.now(timezone.utc).isoformat(),
+            "delivered_at": datetime.now(UTC).isoformat(),
         }
         return await self._post("advisory-delivered", payload)
 
@@ -192,7 +206,7 @@ class N8NClient:
         self,
         bundle: CooperativeBundle,
         farmer_phones: list[str],
-        message_template: Optional[str] = None,
+        message_template: str | None = None,
     ) -> bool:
         """
         Trigger when a Virtual Cooperative bundle is formed.
@@ -254,7 +268,7 @@ class N8NClient:
             ),
             "message_template": message_template,
             "farmer_phones": farmer_phones,
-            "triggered_at": datetime.now(timezone.utc).isoformat(),
+            "triggered_at": datetime.now(UTC).isoformat(),
         }
         return await self._post("bundle-formed", payload)
 
@@ -266,7 +280,7 @@ class N8NClient:
         recommended_action: str,
         transit_hours: float,
         ambient_temp: float,
-        nearest_cold_storage: Optional[str] = None,
+        nearest_cold_storage: str | None = None,
     ) -> bool:
         """
         Trigger spoilage emergency workflow.
@@ -296,7 +310,7 @@ class N8NClient:
             "ambient_temp_celsius": ambient_temp,
             "nearest_cold_storage": nearest_cold_storage,
             "severity": "critical" if spoilage_pct >= 80 else "high",
-            "triggered_at": datetime.now(timezone.utc).isoformat(),
+            "triggered_at": datetime.now(UTC).isoformat(),
         }
         return await self._post("spoilage-emergency", payload)
 
@@ -308,8 +322,8 @@ class N8NClient:
         current_price: float,
         drop_pct: float,
         affected_farmer_ids: list[str],
-        alternative_mandi: Optional[str] = None,
-        alternative_price: Optional[float] = None,
+        alternative_mandi: str | None = None,
+        alternative_price: float | None = None,
     ) -> bool:
         """
         Trigger price crash warning broadcast.
@@ -341,7 +355,7 @@ class N8NClient:
             "alternative_mandi": alternative_mandi,
             "alternative_price": alternative_price,
             "telegram_broadcast": True,
-            "triggered_at": datetime.now(timezone.utc).isoformat(),
+            "triggered_at": datetime.now(UTC).isoformat(),
         }
         return await self._post("price-crash", payload)
 
@@ -349,7 +363,7 @@ class N8NClient:
         self,
         fpo_id: str,
         weekly_stats: dict[str, Any],
-        coordinator_email: Optional[str] = None,
+        coordinator_email: str | None = None,
     ) -> bool:
         """
         Trigger weekly FPO digest.
@@ -381,7 +395,7 @@ class N8NClient:
                 "active_farmers": weekly_stats.get("active_farmers", 0),
             },
             "coordinator_email": coordinator_email,
-            "triggered_at": datetime.now(timezone.utc).isoformat(),
+            "triggered_at": datetime.now(UTC).isoformat(),
         }
         return await self._post("fpo-digest", payload)
 
@@ -404,7 +418,7 @@ class N8NClient:
         payload = {
             "event": "scheme_check",
             "farmer": farmer.model_dump(mode="json"),
-            "triggered_at": datetime.now(timezone.utc).isoformat(),
+            "triggered_at": datetime.now(UTC).isoformat(),
         }
         return await self._post("scheme-check", payload)
 
@@ -439,7 +453,7 @@ class N8NClient:
             "harvest_date": harvest_date,
             "days_until_harvest": days_until_harvest,
             "advisory_preview": advisory_preview,
-            "triggered_at": datetime.now(timezone.utc).isoformat(),
+            "triggered_at": datetime.now(UTC).isoformat(),
         }
         return await self._post("harvest-reminder", payload)
 
@@ -447,7 +461,7 @@ class N8NClient:
         self,
         state: str,
         district: str,
-        block_id: Optional[str],
+        block_id: str | None,
         alert_type: str,
         severity: str,
         advisory_text: str,
@@ -461,7 +475,7 @@ class N8NClient:
             "alert_type": alert_type,
             "severity": severity,
             "advisory_text": advisory_text,
-            "triggered_at": datetime.now(timezone.utc).isoformat(),
+            "triggered_at": datetime.now(UTC).isoformat(),
         }
         return await self._post("weather-alert", payload)
 
@@ -469,6 +483,7 @@ class N8NClient:
 # =============================================================================
 # Convenience functions — single-shot triggers
 # =============================================================================
+
 
 async def trigger_voice_advisory(
     farmer_id: str,
@@ -501,7 +516,7 @@ async def trigger_advisory_delivered(
 async def trigger_bundle_formed(
     bundle: CooperativeBundle,
     farmer_phones: list[str],
-    message_template: Optional[str] = None,
+    message_template: str | None = None,
 ) -> bool:
     """Trigger bundle formed event."""
     client = N8NClient()
@@ -518,14 +533,13 @@ async def trigger_spoilage_emergency(
     recommended_action: str,
     transit_hours: float = 0.0,
     ambient_temp: float = 30.0,
-    nearest_cold_storage: Optional[str] = None,
+    nearest_cold_storage: str | None = None,
 ) -> bool:
     """Trigger spoilage emergency event."""
     client = N8NClient()
     try:
         return await client.trigger_spoilage_emergency(
-            farmer_id, crop, spoilage_pct, recommended_action,
-            transit_hours, ambient_temp, nearest_cold_storage
+            farmer_id, crop, spoilage_pct, recommended_action, transit_hours, ambient_temp, nearest_cold_storage
         )
     finally:
         await client.close()
@@ -538,15 +552,21 @@ async def trigger_price_crash_warning(
     current_price: float,
     drop_pct: float,
     affected_farmer_ids: list[str],
-    alternative_mandi: Optional[str] = None,
-    alternative_price: Optional[float] = None,
+    alternative_mandi: str | None = None,
+    alternative_price: float | None = None,
 ) -> bool:
     """Trigger price crash warning event."""
     client = N8NClient()
     try:
         return await client.trigger_price_crash_warning(
-            block_id, crop, forecast_price, current_price, drop_pct,
-            affected_farmer_ids, alternative_mandi, alternative_price
+            block_id,
+            crop,
+            forecast_price,
+            current_price,
+            drop_pct,
+            affected_farmer_ids,
+            alternative_mandi,
+            alternative_price,
         )
     finally:
         await client.close()
@@ -555,7 +575,7 @@ async def trigger_price_crash_warning(
 async def trigger_fpo_digest(
     fpo_id: str,
     weekly_stats: dict[str, Any],
-    coordinator_email: Optional[str] = None,
+    coordinator_email: str | None = None,
 ) -> bool:
     """Trigger FPO weekly digest."""
     client = N8NClient()
@@ -592,7 +612,7 @@ async def trigger_harvest_alert(
             "farmer_id": farmer_id,
             "crop": crop,
             "harvest_date": harvest_date,
-            "triggered_at": datetime.now(timezone.utc).isoformat(),
+            "triggered_at": datetime.now(UTC).isoformat(),
         }
         return await client._post("harvest-alert", payload)
     finally:
@@ -602,7 +622,7 @@ async def trigger_harvest_alert(
 async def trigger_weather_alert(
     state: str,
     district: str,
-    block_id: Optional[str],
+    block_id: str | None,
     alert_type: str,
     severity: str,
     advisory_text: str,
@@ -673,7 +693,7 @@ async def trigger_truck_booking(
                 cost_per_q=int(cost_per_q),
                 booking_id=booking_id,
             ),
-            "triggered_at": datetime.now(timezone.utc).isoformat(),
+            "triggered_at": datetime.now(UTC).isoformat(),
         }
         return await client._post("truck_booking", payload)
     finally:
@@ -683,6 +703,7 @@ async def trigger_truck_booking(
 if __name__ == "__main__":
     # Smoke test
     import asyncio
+
     logging.basicConfig(level=logging.INFO)
 
     async def test():

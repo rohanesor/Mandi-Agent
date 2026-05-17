@@ -5,18 +5,15 @@ oversupply → negotiation → advisory → guardrails → voice delivery (Rever
 """
 
 import asyncio
+import contextlib
 import logging
-import time
 import uuid
-from datetime import datetime, timezone
-from typing import Any, Optional
+from datetime import UTC, datetime
+
+from langgraph.graph import END, START, StateGraph
 from typing_extensions import TypedDict
 
-from langgraph.graph import StateGraph, START, END
-
 from mandi_agent.backend.api.core_schemas import (
-    BlockOversupplyAlert,
-    CooperativeBundle,
     FarmerAdvisory,
     FarmerProfile,
     GuardrailResult,
@@ -33,43 +30,46 @@ logger = logging.getLogger(__name__)
 # Graph State Definition
 # =============================================================================
 
+
 class MandiAgentState(TypedDict, total=False):
     """Shared state passed between all agent nodes in the graph."""
-    farmer: Optional[dict]  # Serialized FarmerProfile
-    intent: Optional[dict]  # Serialized HarvestIntent
-    fused_data: Optional[dict]  # FusedContext as dict
+
+    farmer: dict | None  # Serialized FarmerProfile
+    intent: dict | None  # Serialized HarvestIntent
+    fused_data: dict | None  # FusedContext as dict
     rag_context: list[dict]  # Retrieved RAG chunks
-    price_forecast: Optional[dict]  # Serialized PriceForecast
-    spoilage_risk: Optional[dict]  # Serialized SpoilageRisk
-    oversupply_alert: Optional[dict]  # Serialized BlockOversupplyAlert
-    bundle: Optional[dict]  # Serialized CooperativeBundle
-    advisory: Optional[dict]  # Serialized FarmerAdvisory
-    guardrail_result: Optional[dict]  # Serialized GuardrailResult
-    voice_session: Optional[dict]  # Serialized VoiceSession
+    price_forecast: dict | None  # Serialized PriceForecast
+    spoilage_risk: dict | None  # Serialized SpoilageRisk
+    oversupply_alert: dict | None  # Serialized BlockOversupplyAlert
+    bundle: dict | None  # Serialized CooperativeBundle
+    advisory: dict | None  # Serialized FarmerAdvisory
+    guardrail_result: dict | None  # Serialized GuardrailResult
+    voice_session: dict | None  # Serialized VoiceSession
     processing_start: str  # ISO timestamp
     total_ms: int  # Total processing time
     current_step: str  # Current node name for WebSocket updates
     errors: list[str]
-    ws_event_queue: Optional[asyncio.Queue]  # For WebSocket streaming
-    audio_base64: Optional[str] # Input audio for voice pipeline
+    ws_event_queue: asyncio.Queue | None  # For WebSocket streaming
+    audio_base64: str | None  # Input audio for voice pipeline
 
 
 def _ws_emit(state: MandiAgentState, event: str, data: dict = None) -> None:
     """Emit a WebSocket event if queue is available."""
     if state.get("ws_event_queue"):
-        try:
-            state["ws_event_queue"].put_nowait({
-                "event": event,
-                "data": data or {},
-                "timestamp": datetime.now(timezone.utc).isoformat(),
-            })
-        except Exception:
-            pass
+        with contextlib.suppress(Exception):
+            state["ws_event_queue"].put_nowait(
+                {
+                    "event": event,
+                    "data": data or {},
+                    "timestamp": datetime.now(UTC).isoformat(),
+                }
+            )
 
 
 # =============================================================================
 # Helper: dict <-> Pydantic conversions
 # =============================================================================
+
 
 def _dict_to_profile(d: dict) -> FarmerProfile:
     if isinstance(d, FarmerProfile):
@@ -86,33 +86,36 @@ def _dict_to_intent(d: dict) -> HarvestIntent:
         d["submitted_at"] = datetime.fromisoformat(d["submitted_at"].replace("Z", "+00:00"))
     if d.get("expected_harvest_date") and isinstance(d["expected_harvest_date"], str):
         from datetime import date as date_cls
+
         d["expected_harvest_date"] = date_cls.fromisoformat(d["expected_harvest_date"])
     return HarvestIntent(**d)
 
 
-def _dict_to_price_forecast(d: dict) -> Optional[PriceForecast]:
+def _dict_to_price_forecast(d: dict) -> PriceForecast | None:
     if not d:
         return None
     if isinstance(d, PriceForecast):
         return d
     if d.get("forecast_date") and isinstance(d["forecast_date"], str):
         from datetime import date as date_cls
+
         d["forecast_date"] = date_cls.fromisoformat(d["forecast_date"])
     return PriceForecast(**d)
 
 
-def _dict_to_spoilage(d: dict) -> Optional[SpoilageRisk]:
+def _dict_to_spoilage(d: dict) -> SpoilageRisk | None:
     if not d:
         return None
     if isinstance(d, SpoilageRisk):
         return d
     if d.get("harvest_date") and isinstance(d["harvest_date"], str):
         from datetime import date as date_cls
+
         d["harvest_date"] = date_cls.fromisoformat(d["harvest_date"])
     return SpoilageRisk(**d)
 
 
-def _dict_to_advisory(d: dict) -> Optional[FarmerAdvisory]:
+def _dict_to_advisory(d: dict) -> FarmerAdvisory | None:
     if not d:
         return None
     if isinstance(d, FarmerAdvisory):
@@ -122,7 +125,7 @@ def _dict_to_advisory(d: dict) -> Optional[FarmerAdvisory]:
     return FarmerAdvisory(**d)
 
 
-def _dict_to_guardrail(d: dict) -> Optional[GuardrailResult]:
+def _dict_to_guardrail(d: dict) -> GuardrailResult | None:
     if not d:
         return None
     if isinstance(d, GuardrailResult):
@@ -133,6 +136,7 @@ def _dict_to_guardrail(d: dict) -> Optional[GuardrailResult]:
 # =============================================================================
 # Graph Nodes — one per agent
 # =============================================================================
+
 
 async def ingest_data(state: MandiAgentState) -> MandiAgentState:
     """
@@ -163,20 +167,27 @@ async def ingest_data(state: MandiAgentState) -> MandiAgentState:
         state["fused_data"] = fused.to_dict()
         state["errors"] = state.get("errors", [])
 
-        _ws_emit(state, "data_fetched", {
-            "quality_score": fused.data_quality_score,
-            "fetch_time_ms": fused.total_fetch_time_ms,
-            "prices": len(fused.mandi_prices),
-            "weather_days": len(fused.weather_forecast.forecast_days) if fused.weather_forecast else 0,
-        })
+        _ws_emit(
+            state,
+            "data_fetched",
+            {
+                "quality_score": fused.data_quality_score,
+                "fetch_time_ms": fused.total_fetch_time_ms,
+                "prices": len(fused.mandi_prices),
+                "weather_days": len(fused.weather_forecast.forecast_days) if fused.weather_forecast else 0,
+            },
+        )
 
         logger.info(
             "Data fusion complete: block=%s crop=%s quality=%.2f",
-            farmer.block_id, intent.crop, fused.data_quality_score
+            farmer.block_id,
+            intent.crop,
+            fused.data_quality_score,
         )
 
     except Exception as e:
         import traceback
+
         logger.error("Data fusion failed: %s\n%s", str(e)[:200], traceback.format_exc())
         state["errors"] = state.get("errors", []) + [f"ingest_data: {str(e)[:100]}"]
         state["fused_data"] = None
@@ -195,9 +206,11 @@ async def retrieve_rag(state: MandiAgentState) -> MandiAgentState:
         farmer = _dict_to_profile(state["farmer"])
         intent = _dict_to_intent(state["intent"])
 
-        from mandi_agent.backend.services.rag.retrieval import RAGRetriever
-        from supabase import create_async_client
         import os
+
+        from supabase import create_async_client
+
+        from mandi_agent.backend.services.rag.retrieval import RAGRetriever
 
         supabase_url = os.getenv("SUPABASE_URL", "")
         supabase_key = os.getenv("SUPABASE_SERVICE_KEY", "")
@@ -209,10 +222,7 @@ async def retrieve_rag(state: MandiAgentState) -> MandiAgentState:
         supabase = await create_async_client(supabase_url, supabase_key)
         retriever = RAGRetriever(supabase)
 
-        query = (
-            f"{intent.crop} price forecast for {farmer.location}. "
-            f"Harvest in {intent.current_growth_stage} stage. "
-        )
+        query = f"{intent.crop} price forecast for {farmer.location}. Harvest in {intent.current_growth_stage} stage. "
 
         results = await retriever.retrieve(
             query=query,
@@ -224,10 +234,14 @@ async def retrieve_rag(state: MandiAgentState) -> MandiAgentState:
         state["rag_context"] = [r.to_dict() for r in results]
         state["errors"] = state.get("errors", [])
 
-        _ws_emit(state, "rag_retrieved", {
-            "chunks": len(state["rag_context"]),
-            "top_similarity": state["rag_context"][0]["similarity"] if state["rag_context"] else 0,
-        })
+        _ws_emit(
+            state,
+            "rag_retrieved",
+            {
+                "chunks": len(state["rag_context"]),
+                "top_similarity": state["rag_context"][0]["similarity"] if state["rag_context"] else 0,
+            },
+        )
 
     except Exception as e:
         logger.error("RAG retrieval failed: %s", str(e)[:200])
@@ -253,10 +267,8 @@ async def predict_price(state: MandiAgentState) -> MandiAgentState:
 
         mandi_prices = []
         for p_dict in fused_data.get("mandi_prices", []):
-            try:
+            with contextlib.suppress(Exception):
                 mandi_prices.append(MandiPrice(**p_dict))
-            except Exception:
-                pass
 
         weather_data = None
         wf = fused_data.get("weather_forecast")
@@ -283,11 +295,15 @@ async def predict_price(state: MandiAgentState) -> MandiAgentState:
 
         if forecast:
             state["price_forecast"] = forecast.model_dump(mode="json")
-            _ws_emit(state, "price_predicted", {
-                "price": forecast.predicted_price,
-                "direction": forecast.price_direction.value,
-                "confidence": forecast.confidence,
-            })
+            _ws_emit(
+                state,
+                "price_predicted",
+                {
+                    "price": forecast.predicted_price,
+                    "direction": forecast.price_direction.value,
+                    "confidence": forecast.confidence,
+                },
+            )
         else:
             state["price_forecast"] = None
             state["errors"] = state.get("errors", []) + ["Price prediction returned None"]
@@ -326,10 +342,14 @@ async def assess_spoilage(state: MandiAgentState) -> MandiAgentState:
 
         if spoilage:
             state["spoilage_risk"] = spoilage.model_dump(mode="json")
-            _ws_emit(state, "spoilage_assessed", {
-                "probability": spoilage.spoilage_probability,
-                "risk_level": spoilage.risk_level.value,
-            })
+            _ws_emit(
+                state,
+                "spoilage_assessed",
+                {
+                    "probability": spoilage.spoilage_probability,
+                    "risk_level": spoilage.risk_level.value,
+                },
+            )
 
     except Exception as e:
         logger.error("Spoilage assessment failed: %s", str(e)[:200])
@@ -358,11 +378,15 @@ async def detect_oversupply(state: MandiAgentState) -> MandiAgentState:
 
         if alert:
             state["oversupply_alert"] = alert.model_dump(mode="json")
-            _ws_emit(state, "oversupply_detected", {
-                "severity": alert.severity.value,
-                "ratio": alert.oversupply_ratio,
-                "farmers_affected": len(alert.affected_farmer_ids),
-            })
+            _ws_emit(
+                state,
+                "oversupply_detected",
+                {
+                    "severity": alert.severity.value,
+                    "ratio": alert.oversupply_ratio,
+                    "farmers_affected": len(alert.affected_farmer_ids),
+                },
+            )
         else:
             state["oversupply_alert"] = None
 
@@ -403,10 +427,14 @@ async def negotiate_bundle(state: MandiAgentState) -> MandiAgentState:
 
         if bundle:
             state["bundle"] = bundle.model_dump(mode="json")
-            _ws_emit(state, "bundle_formed", {
-                "bundle_id": bundle.bundle_id,
-                "quantity": bundle.total_quantity_quintals,
-            })
+            _ws_emit(
+                state,
+                "bundle_formed",
+                {
+                    "bundle_id": bundle.bundle_id,
+                    "quantity": bundle.total_quantity_quintals,
+                },
+            )
 
     except Exception as e:
         logger.error("Bundle negotiation failed: %s", str(e)[:200])
@@ -434,6 +462,7 @@ async def generate_advisory(state: MandiAgentState) -> MandiAgentState:
         bundle = None
         if state.get("bundle"):
             from mandi_agent.backend.api.core_schemas import CooperativeBundle
+
             bundle_data = state["bundle"]
             if bundle_data.get("created_at") and isinstance(bundle_data["created_at"], str):
                 bundle_data["created_at"] = datetime.fromisoformat(bundle_data["created_at"].replace("Z", "+00:00"))
@@ -456,6 +485,7 @@ async def generate_advisory(state: MandiAgentState) -> MandiAgentState:
         if not advisory_obj:
             # Fallback to rule-based if LLM fails
             from mandi_agent.backend.agents.rag_advisory import generate_advisory_fallback
+
             advisory_obj = await generate_advisory_fallback(
                 farmer=farmer,
                 intent=intent,
@@ -465,9 +495,13 @@ async def generate_advisory(state: MandiAgentState) -> MandiAgentState:
             )
 
         state["advisory"] = advisory_obj.model_dump(mode="json")
-        _ws_emit(state, "advisory_generated", {
-            "decision": advisory_obj.decision.value,
-        })
+        _ws_emit(
+            state,
+            "advisory_generated",
+            {
+                "decision": advisory_obj.decision.value,
+            },
+        )
 
     except Exception as e:
         logger.error("Advisory generation failed: %s", str(e)[:200])
@@ -479,6 +513,7 @@ async def generate_advisory(state: MandiAgentState) -> MandiAgentState:
 
 def _make_dummy_forecast() -> PriceForecast:
     from datetime import date as date_cls
+
     return PriceForecast(
         crop="unknown",
         mandi_name="unknown",
@@ -494,6 +529,7 @@ def _make_dummy_forecast() -> PriceForecast:
 
 def _make_dummy_spoilage(farmer_id: str, crop: str) -> SpoilageRisk:
     from datetime import date as date_cls
+
     return SpoilageRisk(
         farmer_id=farmer_id,
         crop=crop,
@@ -521,6 +557,7 @@ async def validate_output(state: MandiAgentState) -> MandiAgentState:
             return state
 
         from mandi_agent.backend.agents.guardrails import validate_advisory
+
         result = await validate_advisory(advisory, farmer, intent)
 
         state["guardrail_result"] = result.model_dump(mode="json")
@@ -546,6 +583,7 @@ async def deliver_voice(state: MandiAgentState) -> MandiAgentState:
             return state
 
         from mandi_agent.backend.services.voice.reverie_voice import ReverieVoiceService
+
         service = ReverieVoiceService()
 
         if state.get("audio_base64"):
@@ -572,7 +610,7 @@ async def deliver_voice(state: MandiAgentState) -> MandiAgentState:
                 response_text_local=advisory.full_text_local,
                 response_audio_url=f"data:audio/wav;base64,{audio_b64}" if audio_b64 else None,
                 processing_ms=0,
-                created_at=datetime.now(timezone.utc),
+                created_at=datetime.now(UTC),
             )
 
         state["voice_session"] = session.model_dump(mode="json")
@@ -592,6 +630,7 @@ async def notify_fpo_coordinator(state: MandiAgentState) -> MandiAgentState:
     state["current_step"] = "notify_fpo"
     try:
         from mandi_agent.backend.services.automations.n8n_triggers import trigger_harvest_alert
+
         farmer = _dict_to_profile(state["farmer"])
         intent = state.get("intent", {})
 
@@ -632,10 +671,14 @@ def _build_orchestrator_graph() -> StateGraph:
             return "negotiate_bundle"
         return "generate_advisory"
 
-    graph.add_conditional_edges("detect_oversupply", oversupply_router, {
-        "negotiate_bundle": "negotiate_bundle",
-        "generate_advisory": "generate_advisory",
-    })
+    graph.add_conditional_edges(
+        "detect_oversupply",
+        oversupply_router,
+        {
+            "negotiate_bundle": "negotiate_bundle",
+            "generate_advisory": "generate_advisory",
+        },
+    )
 
     graph.add_edge("negotiate_bundle", "generate_advisory")
     graph.add_edge("generate_advisory", "validate_output")
@@ -646,10 +689,14 @@ def _build_orchestrator_graph() -> StateGraph:
             return "notify_fpo_coordinator"
         return "deliver_voice"
 
-    graph.add_conditional_edges("validate_output", guardrail_router, {
-        "deliver_voice": "deliver_voice",
-        "notify_fpo_coordinator": "notify_fpo_coordinator",
-    })
+    graph.add_conditional_edges(
+        "validate_output",
+        guardrail_router,
+        {
+            "deliver_voice": "deliver_voice",
+            "notify_fpo_coordinator": "notify_fpo_coordinator",
+        },
+    )
 
     graph.add_edge("deliver_voice", END)
     graph.add_edge("notify_fpo_coordinator", END)
@@ -664,12 +711,13 @@ class MandiAgentOrchestrator:
     async def process_farmer_request(
         self,
         farmer_id: str,
-        audio_base64: Optional[str] = None,
+        audio_base64: str | None = None,
         text_input: str = "",
-        ws_event_queue: Optional[asyncio.Queue] = None,
-    ) -> Optional[VoiceSession]:
-        from mandi_agent.backend.api.core_schemas import FarmerProfile, HarvestIntent, MandiPrice
+        ws_event_queue: asyncio.Queue | None = None,
+    ) -> VoiceSession | None:
         from datetime import date
+
+        from mandi_agent.backend.api.core_schemas import FarmerProfile, HarvestIntent
 
         # Mock database lookup for farmer
         farmer = FarmerProfile(
@@ -701,16 +749,21 @@ class MandiAgentOrchestrator:
             audio_base64=audio_base64,
             ws_event_queue=ws_event_queue,
             errors=[],
-            processing_start=datetime.now(timezone.utc).isoformat(),
+            processing_start=datetime.now(UTC).isoformat(),
         )
 
         try:
             final_state = await self._graph.ainvoke(initial_state)
             if final_state.get("voice_session"):
                 return VoiceSession(**final_state["voice_session"])
-            import sys
             import json
-            print("FINAL STATE MISSING VOICE SESSION:", json.dumps({k: v for k, v in final_state.items() if k != "audio_base64"}, default=str), file=sys.stderr)
+            import sys
+
+            print(
+                "FINAL STATE MISSING VOICE SESSION:",
+                json.dumps({k: v for k, v in final_state.items() if k != "audio_base64"}, default=str),
+                file=sys.stderr,
+            )
             return None
         except Exception as e:
             logger.error("Orchestrator execution failed: %s", str(e))

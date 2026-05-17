@@ -7,13 +7,10 @@ import asyncio
 import logging
 import math
 import random
-from datetime import datetime, timedelta, timezone, date
-from typing import Optional
 from dataclasses import dataclass
+from datetime import UTC, date, datetime
 
 import httpx
-
-from mandi_agent.backend.api.core_schemas import MandiPrice
 
 logger = logging.getLogger(__name__)
 
@@ -23,12 +20,14 @@ MOSDAC_BASE_URL = "https://mosdac.gov.in/api"
 def _get_api_token() -> str:
     """Fetch ISRO MOSDAC token from environment."""
     import os
+
     return os.getenv("ISRO_MOSDAC_TOKEN", "")
 
 
 @dataclass
 class SoilMoistureReading:
     """Soil moisture data from satellite observation."""
+
     block_id: str
     soil_moisture_pct: float
     reading_date: date
@@ -49,8 +48,7 @@ def _haversine_distance(lat1: float, lon1: float, lat2: float, lon2: float) -> f
     delta_lat = math.radians(lat2 - lat1)
     delta_lon = math.radians(lon2 - lon1)
 
-    a = (math.sin(delta_lat / 2) ** 2 +
-         math.cos(lat1_rad) * math.cos(lat2_rad) * math.sin(delta_lon / 2) ** 2)
+    a = math.sin(delta_lat / 2) ** 2 + math.cos(lat1_rad) * math.cos(lat2_rad) * math.sin(delta_lon / 2) ** 2
     c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
 
     return R * c
@@ -96,16 +94,11 @@ def _generate_simulated_soil_moisture(
     soil_moisture_pct = max(45.0, min(85.0, soil_moisture_pct))  # Clamp to realistic range
 
     # Satellite pass time — typically morning (6-10 AM local)
-    today = datetime.now(timezone.utc).date()
-    satellite_pass = datetime.combine(
-        today,
-        datetime.strptime("07:30", "%H:%M").time(),
-        tzinfo=timezone.utc
-    )
+    today = datetime.now(UTC).date()
+    satellite_pass = datetime.combine(today, datetime.strptime("07:30", "%H:%M").time(), tzinfo=UTC)
 
     logger.debug(
-        "Generated simulated soil moisture for block %s (%.2f, %.2f): %.1f%%",
-        block_id, lat, lng, soil_moisture_pct
+        "Generated simulated soil moisture for block %s (%.2f, %.2f): %.1f%%", block_id, lat, lng, soil_moisture_pct
     )
 
     return SoilMoistureReading(
@@ -160,8 +153,8 @@ async def fetch_soil_moisture(
 
             # Parse MOSDAC response — exact field names depend on API
             soil_moisture_pct = float(data.get("soil_moisture_percent", 0.0))
-            reading_date_str = data.get("date", datetime.now(timezone.utc).isoformat())
-            pass_time_str = data.get("satellite_pass_utc", datetime.now(timezone.utc).isoformat())
+            reading_date_str = data.get("date", datetime.now(UTC).isoformat())
+            pass_time_str = data.get("satellite_pass_utc", datetime.now(UTC).isoformat())
 
             # Parse dates
             reading_date = datetime.fromisoformat(reading_date_str.replace("Z", "+00:00")).date()
@@ -177,17 +170,14 @@ async def fetch_soil_moisture(
 
     except httpx.HTTPStatusError as e:
         logger.warning(
-            "MOSDAC HTTP %d for (%.2f, %.2f) — using simulated: %s",
-            e.response.status_code, lat, lng, str(e)[:100]
+            "MOSDAC HTTP %d for (%.2f, %.2f) — using simulated: %s", e.response.status_code, lat, lng, str(e)[:100]
         )
     except httpx.TimeoutException:
         logger.warning("MOSDAC timeout for (%.2f, %.2f) — using simulated", lat, lng)
     except httpx.RequestError as e:
-        logger.warning("MOSDAC request error for (%.2f, %.2f) — using simulated: %s",
-                      lat, lng, str(e)[:100])
+        logger.warning("MOSDAC request error for (%.2f, %.2f) — using simulated: %s", lat, lng, str(e)[:100])
     except (KeyError, ValueError) as e:
-        logger.warning("MOSDAC parse error for (%.2f, %.2f) — using simulated: %s",
-                      lat, lng, str(e)[:100])
+        logger.warning("MOSDAC parse error for (%.2f, %.2f) — using simulated: %s", lat, lng, str(e)[:100])
 
     # Fallback to simulated data
     return _generate_simulated_soil_moisture(lat, lng, block_id)
@@ -197,11 +187,7 @@ if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
 
     # Test with sample Karnataka coordinates
-    result = asyncio.run(fetch_soil_moisture(
-        lat=13.5833,
-        lng=76.0364,
-        block_id="KA-001"
-    ))
+    result = asyncio.run(fetch_soil_moisture(lat=13.5833, lng=76.0364, block_id="KA-001"))
     print(f"Block: {result.block_id}")
     print(f"Soil Moisture: {result.soil_moisture_pct}%")
     print(f"Date: {result.reading_date}")

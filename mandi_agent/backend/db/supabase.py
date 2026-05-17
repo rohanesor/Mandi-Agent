@@ -5,7 +5,6 @@ don't need to repeat env-var lookups and client creation.
 """
 
 import os
-from typing import Optional
 
 
 def _creds() -> tuple[str, str]:

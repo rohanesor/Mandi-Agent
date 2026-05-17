@@ -5,7 +5,7 @@ Text-to-Speech (TTS) and Translation routes.
 import logging
 import os
 
-from fastapi import APIRouter, HTTPException, Body, Response
+from fastapi import APIRouter, Body, HTTPException, Response
 
 router = APIRouter(tags=["Voice & Translation"])
 logger = logging.getLogger(__name__)
@@ -69,7 +69,7 @@ async def tts_synthesize(req: dict = Body(...)):
     Reverie Text-to-Speech endpoint.
     Accepts text + language and returns synthesised audio.
     """
-    from mandi_agent.backend.services.tts import reverie_tts, gtts_fallback, upload_audio_to_supabase
+    from mandi_agent.backend.services.tts import gtts_fallback, reverie_tts, upload_audio_to_supabase
 
     text = req.get("text", "").strip()
     language = req.get("language", os.getenv("REVERIE_VOICE_LANG", "hi"))
@@ -81,6 +81,7 @@ async def tts_synthesize(req: dict = Body(...)):
     voice_config = req.get("voice_config", {})
     if isinstance(voice_config, str):
         import json as _json
+
         try:
             voice_config = _json.loads(voice_config)
         except Exception:
@@ -119,6 +120,7 @@ async def get_twiml_play(file_name: str):
         raise HTTPException(status_code=500, detail="Missing Supabase config for TwiML")
 
     from supabase import create_client  # type: ignore
+
     supabase = create_client(supabase_url, supabase_key)
     public_url = supabase.storage.from_("audio-files").get_public_url(file_name)
 

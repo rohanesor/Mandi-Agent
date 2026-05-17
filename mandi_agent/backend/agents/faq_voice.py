@@ -5,9 +5,8 @@ from __future__ import annotations
 import re
 import uuid
 
-from mandi_agent.backend.api.core_schemas import FAQVoiceItem
 from mandi_agent.backend.agents.voice_interface import text_to_speech, translate_text
-
+from mandi_agent.backend.api.core_schemas import FAQVoiceItem
 
 FAQ_BANK_EN: list[dict[str, str]] = [
     {
@@ -74,9 +73,32 @@ FAQ_BANK_EN: list[dict[str, str]] = [
 
 
 STOP_WORDS = {
-    "what", "when", "how", "is", "the", "a", "an", "to", "for", "in",
-    "of", "do", "should", "i", "my", "me", "can", "are", "this", "that",
-    "it", "be", "with", "on", "at", "from",
+    "what",
+    "when",
+    "how",
+    "is",
+    "the",
+    "a",
+    "an",
+    "to",
+    "for",
+    "in",
+    "of",
+    "do",
+    "should",
+    "i",
+    "my",
+    "me",
+    "can",
+    "are",
+    "this",
+    "that",
+    "it",
+    "be",
+    "with",
+    "on",
+    "at",
+    "from",
 }
 
 

@@ -15,18 +15,18 @@ from fastapi.middleware.cors import CORSMiddleware
 load_dotenv()
 
 # Import all routers
-from mandi_agent.backend.api.farmers import router as farmers_router
-from mandi_agent.backend.api.auth import router as auth_router
 from mandi_agent.backend.api.advisory import router as advisory_router
-from mandi_agent.backend.api.prices import router as prices_router
-from mandi_agent.backend.api.weather import router as weather_router
-from mandi_agent.backend.api.fpo import router as fpo_router
-from mandi_agent.backend.api.news import router as news_router
-from mandi_agent.backend.api.tts import router as tts_router
+from mandi_agent.backend.api.auth import router as auth_router
 from mandi_agent.backend.api.automations import router as automations_router
-from mandi_agent.backend.api.misc import router as misc_router
-from mandi_agent.backend.api.truck import router as truck_router
 from mandi_agent.backend.api.bundles import router as bundles_router
+from mandi_agent.backend.api.farmers import router as farmers_router
+from mandi_agent.backend.api.fpo import router as fpo_router
+from mandi_agent.backend.api.misc import router as misc_router
+from mandi_agent.backend.api.news import router as news_router
+from mandi_agent.backend.api.prices import router as prices_router
+from mandi_agent.backend.api.truck import router as truck_router
+from mandi_agent.backend.api.tts import router as tts_router
+from mandi_agent.backend.api.weather import router as weather_router
 
 logger = logging.getLogger(__name__)
 
@@ -39,6 +39,7 @@ async def lifespan(app: FastAPI):
     # Seed demo farmers
     try:
         from mandi_agent.backend.utils.seed import seed_reference_data
+
         await seed_reference_data()
         logger.info("Demo farmers seeded successfully")
     except Exception as e:
@@ -48,12 +49,14 @@ async def lifespan(app: FastAPI):
     # Cleanup
     try:
         from mandi_agent.backend.services.data_sources.fusion import close_fusion_engine
+
         await close_fusion_engine()
     except Exception:
         pass
-        
+
     try:
         from mandi_agent.backend.services.voice.reverie_voice import close_voice_service
+
         await close_voice_service()
     except Exception:
         pass
@@ -63,7 +66,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="Mandi-Agent",
     description="AI platform for Indian smallholder farmers — price prediction, "
-                "Virtual Cooperatives, and voice advisories in 22 Indian languages.",
+    "Virtual Cooperatives, and voice advisories in 22 Indian languages.",
     version="0.1.0",
     lifespan=lifespan,
 )
@@ -101,4 +104,5 @@ app.include_router(bundles_router)
 
 if __name__ == "__main__":
     import uvicorn
+
     uvicorn.run("mandi_agent.backend.main:app", host="0.0.0.0", port=8000, reload=True)

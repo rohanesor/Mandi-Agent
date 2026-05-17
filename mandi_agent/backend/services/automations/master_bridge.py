@@ -1,19 +1,19 @@
-
-import os
 import logging
+import os
+from typing import Any
+
 import httpx
-from typing import Dict, Any, Optional
 
 logger = logging.getLogger(__name__)
+
 
 class MasterBridge:
     """
     Unified bridge between Mandi-Agent Backend and n8n Production Webhooks.
     Acts as the single point of entry for frontend-triggered automations.
     """
-    
 
-    def __init__(self, n8n_host: Optional[str] = None):
+    def __init__(self, n8n_host: str | None = None):
         # Prefer Environment Variable from .env
         self.n8n_host = os.getenv("N8N_BASE_URL", n8n_host or "http://n8n:5678")
         # Ensure it starts with http/https
@@ -26,17 +26,17 @@ class MasterBridge:
         # Mapping frontend-friendly IDs to n8n webhook paths
         # These match the webhook trigger names configured in n8n workflows
         self.workflow_map = {
-            "bundle": "bundle-notification",           # Bundle Notification webhook
-            "advisory": "whatsapp-inbound",            # WhatsApp Advisory Loop webhook
-            "news": "agricultural-news",               # Mandi-Agent Agricultural News Alerts webhook
-            "weather": "daily-weather",                # Daily Weather Alerts webhook
-            "harvest": "daily-harvest",                # Daily Harvest Alerts webhook
-            "spoilage": "spoilage-emergency",          # Spoilage Emergency webhook
-            "price_crash": "price-crash",              # Price Crash webhook
-            "truck_booking": "truck-booking"           # Truck Booking Workflow webhook
+            "bundle": "bundle-notification",  # Bundle Notification webhook
+            "advisory": "whatsapp-inbound",  # WhatsApp Advisory Loop webhook
+            "news": "agricultural-news",  # Mandi-Agent Agricultural News Alerts webhook
+            "weather": "daily-weather",  # Daily Weather Alerts webhook
+            "harvest": "daily-harvest",  # Daily Harvest Alerts webhook
+            "spoilage": "spoilage-emergency",  # Spoilage Emergency webhook
+            "price_crash": "price-crash",  # Price Crash webhook
+            "truck_booking": "truck-booking",  # Truck Booking Workflow webhook
         }
 
-    async def trigger(self, workflow_id: str, payload: Dict[str, Any]) -> Dict[str, Any]:
+    async def trigger(self, workflow_id: str, payload: dict[str, Any]) -> dict[str, Any]:
         """Trigger a specific n8n workflow (with fallback to mock for demo)."""
         workflow_internal_id = self.workflow_map.get(workflow_id)
         if not workflow_internal_id:
@@ -61,7 +61,7 @@ class MasterBridge:
                     return {
                         "status": "success",
                         "workflow": workflow_id,
-                        "n8n_response": response.json() if response.text else "OK"
+                        "n8n_response": response.json() if response.text else "OK",
                     }
                 elif response.status_code in [404, 405, 500]:
                     # Webhook not configured - return success for demo (webhook auto-trigger logs the event)
@@ -71,28 +71,25 @@ class MasterBridge:
                         "status": "success",
                         "workflow": workflow_id,
                         "n8n_response": f"Workflow {workflow_id} triggered (check n8n logs)",
-                        "note": "Webhook not active - configure webhook trigger in n8n for full integration"
+                        "note": "Webhook not active - configure webhook trigger in n8n for full integration",
                     }
                 else:
                     logger.warning(f"MasterBridge: FAILED ({response.status_code}) for {workflow_id}")
-                    return {
-                        "status": "fail",
-                        "status_code": response.status_code,
-                        "error": response.text[:200]
-                    }
-        except Exception as e:
+                    return {"status": "fail", "status_code": response.status_code, "error": response.text[:200]}
+        except Exception:
             logger.info(f"MasterBridge: Trigger logged (webhook error): {workflow_id}")
             logger.info(f"[WORKFLOW TRIGGER] {workflow_id}: {payload}")
             # Return success for demo even if webhook fails
             return {
                 "status": "success",
                 "workflow": workflow_id,
-                "n8n_response": f"Workflow {workflow_id} trigger queued"
+                "n8n_response": f"Workflow {workflow_id} trigger queued",
             }
 
 
 # Singleton instance
 _bridge = None
+
 
 def get_bridge():
     global _bridge

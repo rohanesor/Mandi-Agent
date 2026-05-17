@@ -5,15 +5,14 @@ Tests for the haversine distance utility and guardrail validation.
 import math
 
 import pytest
-import pytest_asyncio
 
-from mandi_agent.backend.utils.geo import haversine_distance
 from mandi_agent.backend.agents.guardrails import GuardrailAgent
-
+from mandi_agent.backend.utils.geo import haversine_distance
 
 # ---------------------------------------------------------------------------
 # Haversine distance
 # ---------------------------------------------------------------------------
+
 
 class TestHaversineDistance:
     """Verify the shared haversine implementation."""
@@ -42,37 +41,26 @@ class TestHaversineDistance:
 # Guardrail validation
 # ---------------------------------------------------------------------------
 
+
 class TestGuardrailAgent:
     """Test the safety guardrail checks."""
 
     @pytest.mark.asyncio
-    async def test_high_confidence_advisory_passes(
-        self, sample_advisory, sample_farmer, sample_harvest_intent
-    ):
+    async def test_high_confidence_advisory_passes(self, sample_advisory, sample_farmer, sample_harvest_intent):
         agent = GuardrailAgent()
-        result = await agent.validate(
-            sample_advisory, sample_farmer, sample_harvest_intent
-        )
+        result = await agent.validate(sample_advisory, sample_farmer, sample_harvest_intent)
         # confidence 0.75 ≥ 0.70 threshold
         assert result.confidence_score >= 0.70
 
     @pytest.mark.asyncio
-    async def test_low_confidence_gets_flagged(
-        self, sample_advisory, sample_farmer, sample_harvest_intent
-    ):
+    async def test_low_confidence_gets_flagged(self, sample_advisory, sample_farmer, sample_harvest_intent):
         sample_advisory.confidence = 0.50
         agent = GuardrailAgent()
-        result = await agent.validate(
-            sample_advisory, sample_farmer, sample_harvest_intent
-        )
+        result = await agent.validate(sample_advisory, sample_farmer, sample_harvest_intent)
         assert result.low_confidence_flag is True
 
     @pytest.mark.asyncio
-    async def test_checks_run_list_populated(
-        self, sample_advisory, sample_farmer, sample_harvest_intent
-    ):
+    async def test_checks_run_list_populated(self, sample_advisory, sample_farmer, sample_harvest_intent):
         agent = GuardrailAgent()
-        result = await agent.validate(
-            sample_advisory, sample_farmer, sample_harvest_intent
-        )
+        result = await agent.validate(sample_advisory, sample_farmer, sample_harvest_intent)
         assert len(result.checks_run) == 4  # confidence, distance, crop stage, price

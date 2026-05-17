@@ -5,8 +5,7 @@ will harvest the same crop simultaneously, risking local price crash.
 
 import asyncio
 import logging
-from datetime import date, timedelta
-from typing import Optional
+from datetime import date
 
 from pydantic import BaseModel, Field
 
@@ -25,7 +24,6 @@ logger = logging.getLogger(__name__)
 # =============================================================================
 
 # Re-export for backward compatibility; canonical implementation in utils.geo
-from mandi_agent.backend.utils.geo import haversine_distance as _haversine_distance
 
 
 def _group_intents_by_window(
@@ -52,7 +50,7 @@ def _group_intents_by_window(
     sorted_intents = sorted(intents, key=lambda i: i.expected_harvest_date)
     groups: dict[str, list[HarvestIntent]] = {}
     current_window: list[HarvestIntent] = []
-    window_start: Optional[date] = None
+    window_start: date | None = None
 
     for intent in sorted_intents:
         if not current_window:
@@ -121,23 +119,18 @@ def _severity_from_ratio(ratio: float) -> Severity:
 # Input schema for Gemini
 # =============================================================================
 
+
 class OversupplyInput(BaseModel):
     """Structured input for oversupply detection."""
+
     block_id: str
     crop: str
     harvest_intents: list[dict] = Field(default_factory=list)
     historical_absorption_quintals: float = Field(
-        ...,
-        description="Historical average absorption (quintals) for this crop in this block"
+        ..., description="Historical average absorption (quintals) for this crop in this block"
     )
-    current_arrivals_tonnes: float = Field(
-        default=0.0,
-        description="Current day's arrivals at nearby mandi (tonnes)"
-    )
-    recent_prices: list[dict] = Field(
-        default_factory=list,
-        description="Recent prices at nearby mandi"
-    )
+    current_arrivals_tonnes: float = Field(default=0.0, description="Current day's arrivals at nearby mandi (tonnes)")
+    recent_prices: list[dict] = Field(default_factory=list, description="Recent prices at nearby mandi")
 
 
 # =============================================================================
@@ -184,7 +177,7 @@ async def detect_oversupply(
     mandi_history: list[MandiPrice],
     historical_absorption_quintals: float,
     current_arrivals_tonnes: float = 0.0,
-) -> Optional[BlockOversupplyAlert]:
+) -> BlockOversupplyAlert | None:
     """
     Detect oversupply conditions for a block + crop.
 
@@ -214,10 +207,7 @@ async def detect_oversupply(
     window_groups = _group_intents_by_window(crop_intents, window_days=7)
 
     # Find the window with maximum supply
-    best_window_key = max(
-        window_groups.keys(),
-        key=lambda k: sum(i.quantity_quintals for i in window_groups[k])
-    )
+    best_window_key = max(window_groups.keys(), key=lambda k: sum(i.quantity_quintals for i in window_groups[k]))
     window_intents = window_groups[best_window_key]
 
     # Calculate total projected supply
@@ -233,7 +223,11 @@ async def detect_oversupply(
     if ratio <= 1.0:
         logger.debug(
             "No oversupply for %s/%s: ratio=%.2f (supply=%.0f, absorption=%.0f)",
-            block_id, crop, ratio, total_projected, historical_absorption_quintals
+            block_id,
+            crop,
+            ratio,
+            total_projected,
+            historical_absorption_quintals,
         )
         return None
 
@@ -250,17 +244,14 @@ async def detect_oversupply(
 
     # Build recommendation
     if ratio > 1.5:
-        redirect_pct = 50
         hold_msg = "top 50% of farmers (by quantity) should redirect to alternate mandis or hold 5-7 days"
     elif ratio > 1.2:
-        redirect_pct = 30
         hold_msg = "top 30% of farmers (by quantity) should redirect or hold 3-5 days"
     else:
-        redirect_pct = 20
         hold_msg = "top 20% of farmers should monitor prices and consider early sale"
 
     recommended_action = (
-        f"OVERSUPPLY ALERT: {crop} harvest in {block_id} exceeds mandi capacity by {(ratio-1)*100:.0f}%. "
+        f"OVERSUPPLY ALERT: {crop} harvest in {block_id} exceeds mandi capacity by {(ratio - 1) * 100:.0f}%. "
         f"Projected supply: {total_projected:.0f} quintals. Historical absorption: {historical_absorption_quintals:.0f} quintals. "
         f"Affected farmers: {len(affected_farmer_ids)}. "
         f"Action required: {hold_msg}. "
@@ -269,7 +260,11 @@ async def detect_oversupply(
 
     logger.warning(
         "Oversupply detected: block=%s crop=%s ratio=%.2f severity=%s farmers=%d",
-        block_id, crop, ratio, severity.value, len(affected_farmer_ids)
+        block_id,
+        crop,
+        ratio,
+        severity.value,
+        len(affected_farmer_ids),
     )
 
     return BlockOversupplyAlert(
@@ -306,10 +301,7 @@ async def scan_all_blocks(
 
     for block_id, crop in block_crop_pairs:
         # Get intents for this block + crop
-        intents = [
-            i for i in all_intents
-            if i.block_id == block_id and i.crop.lower() == crop.lower()
-        ]
+        intents = [i for i in all_intents if i.block_id == block_id and i.crop.lower() == crop.lower()]
 
         absorption = historical_absorption.get((block_id, crop), 0.0)
         if absorption <= 0:
@@ -382,7 +374,9 @@ if __name__ == "__main__":
             print(f"Oversupply Alert: {alert.crop} in {alert.block_id}")
             print(f"Severity: {alert.severity.value}")
             print(f"Ratio: {alert.oversupply_ratio:.2f}")
-            print(f"Supply: {alert.projected_supply_quintals:.0f}q / Absorption: {alert.historical_absorption_quintals:.0f}q")
+            print(
+                f"Supply: {alert.projected_supply_quintals:.0f}q / Absorption: {alert.historical_absorption_quintals:.0f}q"
+            )
             print(f"Affected farmers: {len(alert.affected_farmer_ids)}")
             print(f"Action: {alert.recommended_action[:150]}...")
         else:

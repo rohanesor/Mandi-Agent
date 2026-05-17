@@ -5,10 +5,8 @@ Accounts for transit time, ambient temperature, and shelf life.
 
 import asyncio
 import logging
-from datetime import date, datetime, timedelta
-from typing import Any, Optional
-
-from pydantic import BaseModel, Field
+from datetime import date
+from typing import Any
 
 from mandi_agent.backend.api.core_schemas import RiskLevel, SpoilageRisk
 
@@ -19,59 +17,60 @@ logger = logging.getLogger(__name__)
 # =============================================================================
 
 SHELF_LIFE_DB: dict[str, dict[str, Any]] = {
-    "tomato":        {"min_hours": 48, "max_hours": 96, "optimal_temp": 12, "optimal_humidity": 85},
-    "onion":         {"min_hours": 120, "max_hours": 240, "optimal_temp": 0, "optimal_humidity": 65},
-    "potato":        {"min_hours": 168, "max_hours": 504, "optimal_temp": 8, "optimal_humidity": 85},
-    "mango":         {"min_hours": 36, "max_hours": 72, "optimal_temp": 13, "optimal_humidity": 85},
-    "banana":        {"min_hours": 48, "max_hours": 96, "optimal_temp": 13, "optimal_humidity": 90},
-    "cauliflower":   {"min_hours": 24, "max_hours": 48, "optimal_temp": 0, "optimal_humidity": 90},
-    "cabbage":       {"min_hours": 72, "max_hours": 144, "optimal_temp": 0, "optimal_humidity": 90},
-    "okra":          {"min_hours": 24, "max_hours": 48, "optimal_temp": 8, "optimal_humidity": 85},
-    "brinjal":       {"min_hours": 48, "max_hours": 72, "optimal_temp": 10, "optimal_humidity": 80},
-    "green_peas":    {"min_hours": 12, "max_hours": 36, "optimal_temp": 0, "optimal_humidity": 90},
-    "spinach":       {"min_hours": 6, "max_hours": 18, "optimal_temp": 0, "optimal_humidity": 95},
-    "coriander":     {"min_hours": 12, "max_hours": 36, "optimal_temp": 0, "optimal_humidity": 90},
-    "capsicum":      {"min_hours": 72, "max_hours": 120, "optimal_temp": 8, "optimal_humidity": 85},
-    "carrot":        {"min_hours": 96, "max_hours": 168, "optimal_temp": 0, "optimal_humidity": 90},
-    "radish":        {"min_hours": 48, "max_hours": 96, "optimal_temp": 0, "optimal_humidity": 85},
-    "garlic":        {"min_hours": 168, "max_hours": 360, "optimal_temp": 15, "optimal_humidity": 65},
-    "ginger":        {"min_hours": 96, "max_hours": 168, "optimal_temp": 12, "optimal_humidity": 70},
-    "turmeric":      {"min_hours": 720, "max_hours": 1440, "optimal_temp": 25, "optimal_humidity": 60},
-    "chilli":        {"min_hours": 168, "max_hours": 360, "optimal_temp": 10, "optimal_humidity": 65},
-    "pomegranate":    {"min_hours": 168, "max_hours": 336, "optimal_temp": 5, "optimal_humidity": 85},
-    "grapes":        {"min_hours": 72, "max_hours": 120, "optimal_temp": 0, "optimal_humidity": 90},
-    "apple":         {"min_hours": 168, "max_hours": 504, "optimal_temp": 2, "optimal_humidity": 85},
-    "orange":        {"min_hours": 168, "max_hours": 336, "optimal_temp": 5, "optimal_humidity": 85},
-    "papaya":        {"min_hours": 24, "max_hours": 48, "optimal_temp": 10, "optimal_humidity": 85},
-    "guava":         {"min_hours": 48, "max_hours": 72, "optimal_temp": 8, "optimal_humidity": 85},
-    "watermelon":    {"min_hours": 96, "max_hours": 168, "optimal_temp": 10, "optimal_humidity": 80},
-    "muskmelon":     {"min_hours": 72, "max_hours": 120, "optimal_temp": 8, "optimal_humidity": 80},
-    "sweet_lime":    {"min_hours": 168, "max_hours": 336, "optimal_temp": 8, "optimal_humidity": 80},
-    "coconut":       {"min_hours": 168, "max_hours": 360, "optimal_temp": 5, "optimal_humidity": 70},
-    "jackfruit":     {"min_hours": 48, "max_hours": 72, "optimal_temp": 12, "optimal_humidity": 80},
+    "tomato": {"min_hours": 48, "max_hours": 96, "optimal_temp": 12, "optimal_humidity": 85},
+    "onion": {"min_hours": 120, "max_hours": 240, "optimal_temp": 0, "optimal_humidity": 65},
+    "potato": {"min_hours": 168, "max_hours": 504, "optimal_temp": 8, "optimal_humidity": 85},
+    "mango": {"min_hours": 36, "max_hours": 72, "optimal_temp": 13, "optimal_humidity": 85},
+    "banana": {"min_hours": 48, "max_hours": 96, "optimal_temp": 13, "optimal_humidity": 90},
+    "cauliflower": {"min_hours": 24, "max_hours": 48, "optimal_temp": 0, "optimal_humidity": 90},
+    "cabbage": {"min_hours": 72, "max_hours": 144, "optimal_temp": 0, "optimal_humidity": 90},
+    "okra": {"min_hours": 24, "max_hours": 48, "optimal_temp": 8, "optimal_humidity": 85},
+    "brinjal": {"min_hours": 48, "max_hours": 72, "optimal_temp": 10, "optimal_humidity": 80},
+    "green_peas": {"min_hours": 12, "max_hours": 36, "optimal_temp": 0, "optimal_humidity": 90},
+    "spinach": {"min_hours": 6, "max_hours": 18, "optimal_temp": 0, "optimal_humidity": 95},
+    "coriander": {"min_hours": 12, "max_hours": 36, "optimal_temp": 0, "optimal_humidity": 90},
+    "capsicum": {"min_hours": 72, "max_hours": 120, "optimal_temp": 8, "optimal_humidity": 85},
+    "carrot": {"min_hours": 96, "max_hours": 168, "optimal_temp": 0, "optimal_humidity": 90},
+    "radish": {"min_hours": 48, "max_hours": 96, "optimal_temp": 0, "optimal_humidity": 85},
+    "garlic": {"min_hours": 168, "max_hours": 360, "optimal_temp": 15, "optimal_humidity": 65},
+    "ginger": {"min_hours": 96, "max_hours": 168, "optimal_temp": 12, "optimal_humidity": 70},
+    "turmeric": {"min_hours": 720, "max_hours": 1440, "optimal_temp": 25, "optimal_humidity": 60},
+    "chilli": {"min_hours": 168, "max_hours": 360, "optimal_temp": 10, "optimal_humidity": 65},
+    "pomegranate": {"min_hours": 168, "max_hours": 336, "optimal_temp": 5, "optimal_humidity": 85},
+    "grapes": {"min_hours": 72, "max_hours": 120, "optimal_temp": 0, "optimal_humidity": 90},
+    "apple": {"min_hours": 168, "max_hours": 504, "optimal_temp": 2, "optimal_humidity": 85},
+    "orange": {"min_hours": 168, "max_hours": 336, "optimal_temp": 5, "optimal_humidity": 85},
+    "papaya": {"min_hours": 24, "max_hours": 48, "optimal_temp": 10, "optimal_humidity": 85},
+    "guava": {"min_hours": 48, "max_hours": 72, "optimal_temp": 8, "optimal_humidity": 85},
+    "watermelon": {"min_hours": 96, "max_hours": 168, "optimal_temp": 10, "optimal_humidity": 80},
+    "muskmelon": {"min_hours": 72, "max_hours": 120, "optimal_temp": 8, "optimal_humidity": 80},
+    "sweet_lime": {"min_hours": 168, "max_hours": 336, "optimal_temp": 8, "optimal_humidity": 80},
+    "coconut": {"min_hours": 168, "max_hours": 360, "optimal_temp": 5, "optimal_humidity": 70},
+    "jackfruit": {"min_hours": 48, "max_hours": 72, "optimal_temp": 12, "optimal_humidity": 80},
     "custard_apple": {"min_hours": 24, "max_hours": 48, "optimal_temp": 10, "optimal_humidity": 85},
-    "beans":         {"min_hours": 36, "max_hours": 72, "optimal_temp": 8, "optimal_humidity": 85},
-    "bitter_gourd":  {"min_hours": 48, "max_hours": 72, "optimal_temp": 10, "optimal_humidity": 80},
-    "bottle_gourd":  {"min_hours": 72, "max_hours": 120, "optimal_temp": 10, "optimal_humidity": 80},
-    "ridge_gourd":   {"min_hours": 48, "max_hours": 72, "optimal_temp": 10, "optimal_humidity": 80},
-    "snake_gourd":   {"min_hours": 48, "max_hours": 72, "optimal_temp": 10, "optimal_humidity": 80},
-    "tinda":         {"min_hours": 36, "max_hours": 60, "optimal_temp": 8, "optimal_humidity": 85},
-    "parwal":        {"min_hours": 48, "max_hours": 72, "optimal_temp": 10, "optimal_humidity": 80},
-    "eggplant":      {"min_hours": 48, "max_hours": 72, "optimal_temp": 10, "optimal_humidity": 80},
-    "corn":          {"min_hours": 12, "max_hours": 24, "optimal_temp": 0, "optimal_humidity": 85},
-    "mushroom":      {"min_hours": 24, "max_hours": 48, "optimal_temp": 2, "optimal_humidity": 85},
-    "wheat":         {"min_hours": 8760, "max_hours": 26280, "optimal_temp": 20, "optimal_humidity": 65},
-    "rice":          {"min_hours": 8760, "max_hours": 26280, "optimal_temp": 20, "optimal_humidity": 60},
-    "chickpea":      {"min_hours": 8760, "max_hours": 17520, "optimal_temp": 15, "optimal_humidity": 65},
-    "moong_dal":     {"min_hours": 8760, "max_hours": 17520, "optimal_temp": 15, "optimal_humidity": 60},
-    "urad_dal":      {"min_hours": 8760, "max_hours": 17520, "optimal_temp": 15, "optimal_humidity": 60},
-    "masoor_dal":    {"min_hours": 8760, "max_hours": 17520, "optimal_temp": 15, "optimal_humidity": 60},
+    "beans": {"min_hours": 36, "max_hours": 72, "optimal_temp": 8, "optimal_humidity": 85},
+    "bitter_gourd": {"min_hours": 48, "max_hours": 72, "optimal_temp": 10, "optimal_humidity": 80},
+    "bottle_gourd": {"min_hours": 72, "max_hours": 120, "optimal_temp": 10, "optimal_humidity": 80},
+    "ridge_gourd": {"min_hours": 48, "max_hours": 72, "optimal_temp": 10, "optimal_humidity": 80},
+    "snake_gourd": {"min_hours": 48, "max_hours": 72, "optimal_temp": 10, "optimal_humidity": 80},
+    "tinda": {"min_hours": 36, "max_hours": 60, "optimal_temp": 8, "optimal_humidity": 85},
+    "parwal": {"min_hours": 48, "max_hours": 72, "optimal_temp": 10, "optimal_humidity": 80},
+    "eggplant": {"min_hours": 48, "max_hours": 72, "optimal_temp": 10, "optimal_humidity": 80},
+    "corn": {"min_hours": 12, "max_hours": 24, "optimal_temp": 0, "optimal_humidity": 85},
+    "mushroom": {"min_hours": 24, "max_hours": 48, "optimal_temp": 2, "optimal_humidity": 85},
+    "wheat": {"min_hours": 8760, "max_hours": 26280, "optimal_temp": 20, "optimal_humidity": 65},
+    "rice": {"min_hours": 8760, "max_hours": 26280, "optimal_temp": 20, "optimal_humidity": 60},
+    "chickpea": {"min_hours": 8760, "max_hours": 17520, "optimal_temp": 15, "optimal_humidity": 65},
+    "moong_dal": {"min_hours": 8760, "max_hours": 17520, "optimal_temp": 15, "optimal_humidity": 60},
+    "urad_dal": {"min_hours": 8760, "max_hours": 17520, "optimal_temp": 15, "optimal_humidity": 60},
+    "masoor_dal": {"min_hours": 8760, "max_hours": 17520, "optimal_temp": 15, "optimal_humidity": 60},
 }
 
 
 # =============================================================================
 # Temperature multiplier
 # =============================================================================
+
 
 def _temperature_multiplier(ambient_temp_celsius: float) -> float:
     """
@@ -159,8 +158,8 @@ async def assess_spoilage(
     harvest_date: date,
     transit_hours: float,
     ambient_temp_celsius: float,
-    shelf_life_data: Optional[dict[str, Any]] = None,
-) -> Optional[SpoilageRisk]:
+    shelf_life_data: dict[str, Any] | None = None,
+) -> SpoilageRisk | None:
     """
     Assess spoilage risk for a farmer's produce.
 
@@ -210,36 +209,41 @@ async def assess_spoilage(
     # Build recommendation
     if spoilage_probability >= 0.60:
         recommendation = (
-            f"CRITICAL: Spoilage risk is {spoilage_probability*100:.0f}%. "
+            f"CRITICAL: Spoilage risk is {spoilage_probability * 100:.0f}%. "
             f"Transit time ({transit_hours:.0f}h) exceeds safe shelf life at {ambient_temp_celsius}°C. "
             f"Options: (1) Find cold storage within 10km. "
-            f"(2) Use faster transport to reduce transit to <{shelf_life_hours/temp_mult:.0f}h. "
-            f"(3) Redirect to nearest mandi (<{shelf_life_hours/(temp_mult*2):.0f}h away). "
+            f"(2) Use faster transport to reduce transit to <{shelf_life_hours / temp_mult:.0f}h. "
+            f"(3) Redirect to nearest mandi (<{shelf_life_hours / (temp_mult * 2):.0f}h away). "
             f"(4) Sell today at current market price."
         )
     elif spoilage_probability >= 0.40:
         recommendation = (
-            f"HIGH RISK: Spoilage risk is {spoilage_probability*100:.0f}%. "
+            f"HIGH RISK: Spoilage risk is {spoilage_probability * 100:.0f}%. "
             f"Sell within 24 hours at best available price. "
             f"Cold storage recommended if sale is delayed beyond tomorrow. "
             f"Consider bundling with nearby farmers to share cold storage costs."
         )
     elif spoilage_probability >= 0.20:
         recommendation = (
-            f"MODERATE: Spoilage risk is {spoilage_probability*100:.0f}%. "
+            f"MODERATE: Spoilage risk is {spoilage_probability * 100:.0f}%. "
             f"Produce can travel standard distances but avoid delays. "
             f"Recommend selling within 48 hours."
         )
     else:
         recommendation = (
-            f"SAFE: Spoilage risk is {spoilage_probability*100:.0f}%. "
+            f"SAFE: Spoilage risk is {spoilage_probability * 100:.0f}%. "
             f"Produce can safely reach mandi within standard transit time. "
             f"No special precautions needed."
         )
 
     logger.info(
         "Spoilage assessment: farmer=%s crop=%s prob=%.2f level=%s temp=%.0f°C transit=%.0fh",
-        farmer_id, crop, spoilage_probability, risk_level.value, ambient_temp_celsius, transit_hours
+        farmer_id,
+        crop,
+        spoilage_probability,
+        risk_level.value,
+        ambient_temp_celsius,
+        transit_hours,
     )
 
     return SpoilageRisk(
@@ -257,7 +261,7 @@ async def assess_spoilage(
 
 async def assess_spoilage_batch(
     assessments: list[dict[str, Any]],
-) -> list[Optional[SpoilageRisk]]:
+) -> list[SpoilageRisk | None]:
     """
     Run multiple spoilage assessments concurrently.
 
@@ -289,7 +293,7 @@ if __name__ == "__main__":
             print(f"Crop: {result.crop}")
             print(f"Shelf life: {result.shelf_life_hours:.0f}h at optimal temp")
             print(f"Transit: {result.transit_hours:.0f}h at {result.ambient_temp_celsius}°C")
-            print(f"Spoilage probability: {result.spoilage_probability*100:.1f}%")
+            print(f"Spoilage probability: {result.spoilage_probability * 100:.1f}%")
             print(f"Risk level: {result.risk_level.value}")
             print(f"Recommendation: {result.recommendation[:200]}...")
 

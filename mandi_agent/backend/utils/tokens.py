@@ -22,6 +22,7 @@ HARVEST_INTENT_VERSIONS: dict[str, int] = {}
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def new_token(prefix: str) -> str:
     """Generate a random token with a readable prefix, e.g. 'access_<uuid>'."""
     return f"{prefix}_{uuid.uuid4().hex}"

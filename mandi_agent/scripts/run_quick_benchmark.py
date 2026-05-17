@@ -57,14 +57,16 @@ async def download_sample_images(output_dir: str = "data/benchmark_sample") -> l
                             filepath = crop_dir / filename
                             filepath.write_bytes(response.content)
 
-                            manifest.append({
-                                "crop": crop,
-                                "disease": disease,
-                                "ground_truth": f"{crop}___{disease.title()}",
-                                "image_path": str(filepath),
-                                "image_hash": "",
-                                "class_dir": f"{crop}___{disease.title()}",
-                            })
+                            manifest.append(
+                                {
+                                    "crop": crop,
+                                    "disease": disease,
+                                    "ground_truth": f"{crop}___{disease.title()}",
+                                    "image_path": str(filepath),
+                                    "image_hash": "",
+                                    "class_dir": f"{crop}___{disease.title()}",
+                                }
+                            )
                             print(f"  Saved: {filepath}")
                         else:
                             print(f"  Failed: HTTP {response.status_code}")
@@ -102,7 +104,7 @@ async def run_quick_benchmark():
     print("\n[2/3] Running disease detection...")
     from mandi_agent.backend.agents.benchmark_runner import run_benchmark
 
-    results = await run_benchmark(
+    await run_benchmark(
         manifest_path="data/benchmark_sample/manifest.json",
         prompt_versions=["v0_baseline", "v1_expert_context"],
         model_key="flash_2_0",

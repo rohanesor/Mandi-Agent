@@ -74,14 +74,16 @@ async def download_samples(output_dir: str = "data/benchmark_sample") -> list[di
                         filepath = crop_dir / safe_name
                         filepath.write_bytes(response.content)
 
-                        manifest.append({
-                            "crop": crop,
-                            "disease": disease,
-                            "ground_truth": class_dir,
-                            "image_path": str(filepath),
-                            "image_hash": "",
-                            "class_dir": class_dir,
-                        })
+                        manifest.append(
+                            {
+                                "crop": crop,
+                                "disease": disease,
+                                "ground_truth": class_dir,
+                                "image_path": str(filepath),
+                                "image_hash": "",
+                                "class_dir": class_dir,
+                            }
+                        )
                         print(f"    OK: {filepath.name} ({len(response.content)} bytes)")
                     else:
                         print(f"    Skip: HTTP {response.status_code}, size: {len(response.content)}")
@@ -112,7 +114,9 @@ async def run_quick_benchmark():
     if len(manifest) < 2:
         print("\nNot enough images downloaded for benchmark.")
         print("\nManual dataset setup:")
-        print("  cd mandi_agent && git clone --depth 1 https://github.com/spMohanty/PlantVillage-Dataset.git data/plantdisease")
+        print(
+            "  cd mandi_agent && git clone --depth 1 https://github.com/spMohanty/PlantVillage-Dataset.git data/plantdisease"
+        )
         return
 
     sys.path.insert(0, str(Path(__file__).parent.parent.parent))
@@ -121,7 +125,7 @@ async def run_quick_benchmark():
     from mandi_agent.backend.agents.benchmark_runner import run_benchmark
 
     output_path = Path("data/benchmark_sample")
-    results = await run_benchmark(
+    await run_benchmark(
         manifest_path=str(output_path / "manifest.json"),
         prompt_versions=["v0_baseline", "v1_expert_context"],
         model_key="flash_2_0",

@@ -4,12 +4,12 @@ Weather alerts and check routes.
 
 import logging
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from fastapi import APIRouter
 
+from mandi_agent.backend.api.core_schemas import Severity, WeatherAlert, WeatherAlertType
 from mandi_agent.backend.api.schemas import WeatherAlertRequest
-from mandi_agent.backend.api.core_schemas import WeatherAlert, WeatherAlertType, Severity
 
 router = APIRouter(tags=["Weather"])
 logger = logging.getLogger(__name__)
@@ -60,7 +60,9 @@ async def weather_alert_check(req: WeatherAlertRequest) -> WeatherAlert:
     elif hail_probability >= 0.5:
         alert_type = WeatherAlertType.HAIL
         severity = Severity.HIGH
-        advisory = f"Hail warning{crop_label}. Cover produce and delay harvest if possible. Avoid spraying before hail window."
+        advisory = (
+            f"Hail warning{crop_label}. Cover produce and delay harvest if possible. Avoid spraying before hail window."
+        )
     elif forecast_rain_mm >= 60:
         alert_type = WeatherAlertType.HEAVY_RAIN
         severity = Severity.CRITICAL
@@ -76,7 +78,9 @@ async def weather_alert_check(req: WeatherAlertRequest) -> WeatherAlert:
     elif wind_kmph >= 45:
         alert_type = WeatherAlertType.HIGH_WIND
         severity = Severity.MEDIUM
-        advisory = f"Moderate wind advisory ({wind_kmph:.0f} km/h){crop_label}. Check crop staking and postpone foliar sprays."
+        advisory = (
+            f"Moderate wind advisory ({wind_kmph:.0f} km/h){crop_label}. Check crop staking and postpone foliar sprays."
+        )
     elif forecast_rain_mm >= 15:
         alert_type = WeatherAlertType.HEAVY_RAIN
         severity = Severity.LOW
@@ -95,8 +99,8 @@ async def weather_alert_check(req: WeatherAlertRequest) -> WeatherAlert:
         alert_type=alert_type,
         severity=severity,
         advisory_text=advisory,
-        valid_from=datetime.now(timezone.utc),
-        valid_until=datetime.now(timezone.utc) + timedelta(hours=24),
+        valid_from=datetime.now(UTC),
+        valid_until=datetime.now(UTC) + timedelta(hours=24),
         push_sent=severity in {Severity.MEDIUM, Severity.HIGH, Severity.CRITICAL},
         sms_fallback_sent=severity in {Severity.HIGH, Severity.CRITICAL},
     )

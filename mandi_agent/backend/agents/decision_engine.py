@@ -12,23 +12,23 @@ Decision logic:
 
 import logging
 from dataclasses import dataclass
-from enum import Enum
-from typing import Optional
+from enum import StrEnum
 
 from mandi_agent.backend.api.core_schemas import (
+    CooperativeBundle,
     Decision,
     PriceDirection,
-    RiskLevel,
-    CooperativeBundle,
     PriceForecast,
+    RiskLevel,
     SpoilageRisk,
 )
 
 logger = logging.getLogger(__name__)
 
 
-class DecisionFactor(str, Enum):
+class DecisionFactor(StrEnum):
     """Factors influencing the decision."""
+
     SPOILAGE_CRITICAL = "spoilage_critical"  # >= 60%
     SPOILAGE_HIGH = "spoilage_high"  # 40-60%
     SPOILAGE_MODERATE = "spoilage_moderate"  # 20-40%
@@ -47,6 +47,7 @@ class StructuredDecision:
     Locked-in decision with reasoning factors.
     This object is deterministic and testable.
     """
+
     decision: Decision
     primary_factor: DecisionFactor
     secondary_factors: list[DecisionFactor]
@@ -61,7 +62,7 @@ class StructuredDecision:
 
     # Bundle info
     bundle_available: bool
-    bundle_saving_per_q: Optional[float] = None
+    bundle_saving_per_q: float | None = None
 
     # Scoring for confidence
     decision_confidence: float = 0.85  # Default confidence
@@ -112,7 +113,7 @@ def analyze_price(price: PriceForecast) -> DecisionFactor:
         return DecisionFactor.PRICE_STABLE
 
 
-def analyze_bundle(bundle: Optional[CooperativeBundle]) -> DecisionFactor:
+def analyze_bundle(bundle: CooperativeBundle | None) -> DecisionFactor:
     """Categorize bundle availability."""
     if not bundle:
         return DecisionFactor.NO_BUNDLE
@@ -126,7 +127,7 @@ def analyze_bundle(bundle: Optional[CooperativeBundle]) -> DecisionFactor:
 def make_decision(
     price_forecast: PriceForecast,
     spoilage_risk: SpoilageRisk,
-    bundle: Optional[CooperativeBundle],
+    bundle: CooperativeBundle | None,
 ) -> StructuredDecision:
     """
     DETERMINISTIC decision engine.
@@ -172,24 +173,25 @@ def make_decision(
         confidence = 0.90
 
     # Rule 3: BUNDLE AVAILABLE with high saving → hold & use bundle
-    elif (bundle and bundle.transport_saving_per_quintal >= 200):
+    elif bundle and bundle.transport_saving_per_quintal >= 200:
         decision = Decision.HOLD_3_DAYS  # Hold to organize logistics
         primary_factor = DecisionFactor.BUNDLE_AVAILABLE_HIGH_SAVING
         secondary_factors = [spoilage_factor, price_factor]
         confidence = 0.88
 
     # Rule 4: RISING PRICES + LOW SPOILAGE → hold 3 days
-    elif (price_forecast.price_direction == PriceDirection.RISING
-          and spoilage_pct < 40):
+    elif price_forecast.price_direction == PriceDirection.RISING and spoilage_pct < 40:
         decision = Decision.HOLD_3_DAYS
         primary_factor = DecisionFactor.PRICE_RISING
         secondary_factors = [spoilage_factor, bundle_factor]
         confidence = 0.80
 
     # Rule 5: HIGH SPOILAGE (40-60%) + STABLE/RISING PRICE → hold briefly
-    elif (spoilage_pct >= 40
-          and spoilage_pct < 60
-          and price_forecast.price_direction in [PriceDirection.RISING, PriceDirection.STABLE]):
+    elif (
+        spoilage_pct >= 40
+        and spoilage_pct < 60
+        and price_forecast.price_direction in [PriceDirection.RISING, PriceDirection.STABLE]
+    ):
         decision = Decision.HOLD_3_DAYS
         primary_factor = spoilage_factor
         secondary_factors = [price_factor, bundle_factor]
@@ -223,7 +225,6 @@ def make_decision(
 
 # Unit tests (run with: python -m pytest mandi_agent/backend/agents/decision_engine.py)
 if __name__ == "__main__":
-    import sys
     from datetime import date
 
     # Test case 1: Critical spoilage overrides rising prices

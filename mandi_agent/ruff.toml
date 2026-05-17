@@ -1,9 +1,20 @@
 target-version = "py312"
-line-length = 100
+line-length = 120
 
 [lint]
 select = ["E", "F", "I", "N", "W", "UP", "B", "SIM", "ARG"]
-ignore = ["B904", "SIM117"]
+ignore = [
+  "ARG",      # Unused arguments — many are valid FastAPI/test patterns
+  "B008",     # FastAPI Depends/Body default call pattern
+  "B017",     # assert Exception in tests
+  "B023",     # Loop variable binding — false positive for immediate-use inner funcs
+  "B904",     # raise from in except
+  "N806",     # Uppercase constants inside functions
+  "E402",     # Module- level imports — valid for FastAPI router registration
+  "E501",     # Line too long — data strings in prompts/FAQ
+  "E701",     # Multiple statements on one line — guard clauses
+  "SIM117",   # Nested with statements
+]
 
 [format]
 quote-style = "double"

@@ -6,9 +6,8 @@ Fallback: OpenWeatherMap
 
 import asyncio
 import logging
-from datetime import date, datetime, timedelta, timezone
-from typing import Optional
 from dataclasses import dataclass, field
+from datetime import UTC, date, datetime
 
 import httpx
 
@@ -20,17 +19,20 @@ OPENWEATHER_BASE_URL = "https://api.openweathermap.org/data/2.5"
 
 def _get_imd_api_key() -> str:
     import os
+
     return os.getenv("IMD_API_KEY", "")
 
 
 def _get_openweather_api_key() -> str:
     import os
+
     return os.getenv("OPENWEATHER_API_KEY", "")
 
 
 @dataclass
 class DayForecast:
     """Single day weather forecast."""
+
     date: date
     max_temp_celsius: float
     min_temp_celsius: float
@@ -42,11 +44,12 @@ class DayForecast:
 @dataclass
 class WeatherForecast:
     """7-day weather forecast for a district."""
+
     district: str
     state: str
     forecast_days: list[DayForecast] = field(default_factory=list)
     source: str = "imd"  # "imd" or "openweather"
-    fetched_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    fetched_at: datetime = field(default_factory=lambda: datetime.now(UTC))
 
 
 def _parse_imd_response(data: dict, district: str, state: str) -> WeatherForecast:
@@ -73,10 +76,7 @@ def _parse_imd_response(data: dict, district: str, state: str) -> WeatherForecas
         try:
             # Parse date
             date_str = day_data.get("date", day_data.get("date_val", ""))
-            if isinstance(date_str, str):
-                forecast_date = datetime.strptime(date_str, "%Y-%m-%d").date()
-            else:
-                forecast_date = date_str
+            forecast_date = datetime.strptime(date_str, "%Y-%m-%d").date() if isinstance(date_str, str) else date_str
 
             # Temperature (IMD uses Celsius)
             max_temp = float(day_data.get("max_temp", day_data.get("maxTemperature", 30)))
@@ -92,14 +92,16 @@ def _parse_imd_response(data: dict, district: str, state: str) -> WeatherForecas
             raw_condition = str(day_data.get("weather", day_data.get("condition", "sunny"))).lower()
             condition = _normalize_weather_condition(raw_condition)
 
-            forecast_days.append(DayForecast(
-                date=forecast_date,
-                max_temp_celsius=round(max_temp, 1),
-                min_temp_celsius=round(min_temp, 1),
-                rainfall_mm=round(rainfall, 1),
-                humidity_pct=min(100, max(0, humidity)),
-                weather_condition=condition,
-            ))
+            forecast_days.append(
+                DayForecast(
+                    date=forecast_date,
+                    max_temp_celsius=round(max_temp, 1),
+                    min_temp_celsius=round(min_temp, 1),
+                    rainfall_mm=round(rainfall, 1),
+                    humidity_pct=min(100, max(0, humidity)),
+                    weather_condition=condition,
+                )
+            )
         except (KeyError, ValueError) as e:
             logger.debug("Skipping invalid IMD forecast day: %s — %s", day_data, str(e))
             continue
@@ -156,7 +158,7 @@ def _parse_openweather_response(data: dict, district: str, state: str) -> Weathe
     # Group by date
     daily_data: dict[str, list] = {}
     for entry in data.get("list", []):
-        dt = datetime.fromtimestamp(entry["dt"], tz=timezone.utc)
+        dt = datetime.fromtimestamp(entry["dt"], tz=UTC)
         day_key = dt.date().isoformat()
         daily_data.setdefault(day_key, []).append(entry)
 
@@ -177,14 +179,16 @@ def _parse_openweather_response(data: dict, district: str, state: str) -> Weathe
         conditions = [e["weather"][0]["main"].lower() for e in entries]
         raw_condition = max(set(conditions), key=conditions.count)
 
-        forecast_days.append(DayForecast(
-            date=date.fromisoformat(day_key),
-            max_temp_celsius=round(max_temp, 1),
-            min_temp_celsius=round(min_temp, 1),
-            rainfall_mm=round(rainfall, 1),
-            humidity_pct=min(100, max(0, humidity)),
-            weather_condition=_normalize_weather_condition(raw_condition),
-        ))
+        forecast_days.append(
+            DayForecast(
+                date=date.fromisoformat(day_key),
+                max_temp_celsius=round(max_temp, 1),
+                min_temp_celsius=round(min_temp, 1),
+                rainfall_mm=round(rainfall, 1),
+                humidity_pct=min(100, max(0, humidity)),
+                weather_condition=_normalize_weather_condition(raw_condition),
+            )
+        )
 
     return WeatherForecast(
         district=district,
@@ -197,7 +201,7 @@ def _parse_openweather_response(data: dict, district: str, state: str) -> Weathe
 async def fetch_imd_forecast(
     district: str,
     state: str,
-) -> Optional[WeatherForecast]:
+) -> WeatherForecast | None:
     """
     Fetch 7-day forecast from IMD API.
 
@@ -230,8 +234,7 @@ async def fetch_imd_forecast(
             return _parse_imd_response(data, district, state)
 
     except httpx.HTTPStatusError as e:
-        logger.warning("IMD HTTP %d for %s, %s: %s",
-                      e.response.status_code, district, state, str(e)[:100])
+        logger.warning("IMD HTTP %d for %s, %s: %s", e.response.status_code, district, state, str(e)[:100])
     except httpx.TimeoutException:
         logger.warning("IMD timeout for %s, %s", district, state)
     except httpx.RequestError as e:
@@ -247,7 +250,7 @@ async def fetch_openweather_forecast(
     lon: float,
     district: str,
     state: str,
-) -> Optional[WeatherForecast]:
+) -> WeatherForecast | None:
     """
     Fetch forecast from OpenWeatherMap as IMD fallback.
 
@@ -281,16 +284,13 @@ async def fetch_openweather_forecast(
             return _parse_openweather_response(data, district, state)
 
     except httpx.HTTPStatusError as e:
-        logger.warning("OpenWeatherMap HTTP %d for (%.2f, %.2f): %s",
-                      e.response.status_code, lat, lon, str(e)[:100])
+        logger.warning("OpenWeatherMap HTTP %d for (%.2f, %.2f): %s", e.response.status_code, lat, lon, str(e)[:100])
     except httpx.TimeoutException:
         logger.warning("OpenWeatherMap timeout for (%.2f, %.2f)", lat, lon)
     except httpx.RequestError as e:
-        logger.warning("OpenWeatherMap request error for (%.2f, %.2f): %s",
-                      lat, lon, str(e)[:100])
+        logger.warning("OpenWeatherMap request error for (%.2f, %.2f): %s", lat, lon, str(e)[:100])
     except (KeyError, ValueError) as e:
-        logger.warning("OpenWeatherMap parse error for (%.2f, %.2f): %s",
-                      lat, lon, str(e)[:100])
+        logger.warning("OpenWeatherMap parse error for (%.2f, %.2f): %s", lat, lon, str(e)[:100])
 
     return None
 
@@ -298,8 +298,8 @@ async def fetch_openweather_forecast(
 async def fetch_weather_forecast(
     district: str,
     state: str,
-    lat: Optional[float] = None,
-    lon: Optional[float] = None,
+    lat: float | None = None,
+    lon: float | None = None,
 ) -> WeatherForecast:
     """
     Fetch 7-day weather forecast with fallback chain.
@@ -319,8 +319,7 @@ async def fetch_weather_forecast(
     # Try IMD first
     imd_result = await fetch_imd_forecast(district, state)
     if imd_result and imd_result.forecast_days:
-        logger.info("IMD forecast fetched for %s, %s: %d days",
-                   district, state, len(imd_result.forecast_days))
+        logger.info("IMD forecast fetched for %s, %s: %d days", district, state, len(imd_result.forecast_days))
         return imd_result
 
     logger.info("IMD unavailable for %s, %s — trying OpenWeatherMap fallback", district, state)
@@ -329,13 +328,11 @@ async def fetch_weather_forecast(
     if lat is not None and lon is not None:
         owm_result = await fetch_openweather_forecast(lat, lon, district, state)
         if owm_result and owm_result.forecast_days:
-            logger.info("OpenWeatherMap forecast for %s, %s: %d days",
-                       district, state, len(owm_result.forecast_days))
+            logger.info("OpenWeatherMap forecast for %s, %s: %d days", district, state, len(owm_result.forecast_days))
             return owm_result
 
     # Return empty forecast if all sources fail
-    logger.warning("All weather sources failed for %s, %s — returning empty forecast",
-                 district, state)
+    logger.warning("All weather sources failed for %s, %s — returning empty forecast", district, state)
     return WeatherForecast(
         district=district,
         state=state,
@@ -347,16 +344,20 @@ async def fetch_weather_forecast(
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
 
-    result = asyncio.run(fetch_weather_forecast(
-        district="Bangalore Rural",
-        state="Karnataka",
-        lat=13.5833,
-        lon=76.0364,
-    ))
+    result = asyncio.run(
+        fetch_weather_forecast(
+            district="Bangalore Rural",
+            state="Karnataka",
+            lat=13.5833,
+            lon=76.0364,
+        )
+    )
 
     print(f"District: {result.district}, {result.state}")
     print(f"Source: {result.source}")
     print(f"Days: {len(result.forecast_days)}")
     for day in result.forecast_days[:3]:
-        print(f"  {day.date}: {day.min_temp_celsius}-{day.max_temp_celsius}°C, "
-              f"rain={day.rainfall_mm}mm, {day.weather_condition}")
+        print(
+            f"  {day.date}: {day.min_temp_celsius}-{day.max_temp_celsius}°C, "
+            f"rain={day.rainfall_mm}mm, {day.weather_condition}"
+        )

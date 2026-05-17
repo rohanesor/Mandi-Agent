@@ -10,8 +10,8 @@ import asyncio
 import logging
 import time
 import uuid
-from datetime import datetime, timezone
-from typing import Any, Optional
+from datetime import UTC, datetime
+from typing import Any
 
 import httpx
 
@@ -55,22 +55,26 @@ ISO_TO_LANGUAGE = {v: k for k, v in LANGUAGE_CODES.items()}
 
 def _get_bhashini_user_id() -> str:
     import os
+
     return os.getenv("BHASHINI_USER_ID", "")
 
 
 def _get_bhashini_ulca_key() -> str:
     import os
+
     return os.getenv("BHASHINI_ULCA_API_KEY", "")
 
 
 def _get_bhashini_inference_key() -> str:
     import os
+
     return os.getenv("BHASHINI_INFERENCE_KEY", "")
 
 
 # =============================================================================
 # Language detection via script heuristics
 # =============================================================================
+
 
 def detect_language_by_script(text: str) -> str:
     """
@@ -143,11 +147,12 @@ def detect_language_by_script(text: str) -> str:
 # Pipeline config retrieval
 # =============================================================================
 
+
 async def get_pipeline_config(
     source_language: str,
     target_language: str,
     tasks: list[str],
-) -> Optional[dict[str, Any]]:
+) -> dict[str, Any] | None:
     """
     Get Bhashini pipeline config for a language pair + task combination.
 
@@ -193,10 +198,7 @@ async def get_pipeline_config(
     }
 
     payload = {
-        "pipelineTasks": [
-            {"taskName": task}
-            for task in tasks
-        ],
+        "pipelineTasks": [{"taskName": task} for task in tasks],
         "language": {
             "sourceLanguage": src_lang,
             "targetLanguage": tgt_lang,
@@ -215,8 +217,10 @@ async def get_pipeline_config(
 
             logger.debug(
                 "Pipeline config for %s→%s [%s]: %s",
-                src_lang, tgt_lang, ",".join(tasks),
-                "found" if data.get("pipeline") else "empty"
+                src_lang,
+                tgt_lang,
+                ",".join(tasks),
+                "found" if data.get("pipeline") else "empty",
             )
 
             return data
@@ -234,6 +238,7 @@ async def get_pipeline_config(
 # =============================================================================
 # BhashiniVoiceService
 # =============================================================================
+
 
 class BhashiniVoiceService:
     """
@@ -255,15 +260,15 @@ class BhashiniVoiceService:
 
     def __init__(
         self,
-        user_id: Optional[str] = None,
-        ulca_key: Optional[str] = None,
-        inference_key: Optional[str] = None,
+        user_id: str | None = None,
+        ulca_key: str | None = None,
+        inference_key: str | None = None,
     ):
         self._user_id = user_id or _get_bhashini_user_id()
         self._ulca_key = ulca_key or _get_bhashini_ulca_key()
         self._inference_key = inference_key or _get_bhashini_inference_key()
         self._pipeline_cache: dict[str, dict[str, Any]] = {}
-        self._http_client: Optional[httpx.AsyncClient] = None
+        self._http_client: httpx.AsyncClient | None = None
 
     async def _get_client(self) -> httpx.AsyncClient:
         """Lazy HTTP client."""
@@ -281,7 +286,7 @@ class BhashiniVoiceService:
         source: str,
         target: str,
         tasks: list[str],
-    ) -> Optional[dict[str, Any]]:
+    ) -> dict[str, Any] | None:
         """
         Get pipeline config, caching to avoid repeated API calls.
 
@@ -302,7 +307,7 @@ class BhashiniVoiceService:
         self,
         pipeline_config: dict[str, Any],
         input_data: dict[str, Any],
-    ) -> Optional[dict[str, Any]]:
+    ) -> dict[str, Any] | None:
         """
         Call Bhashini inference API.
 
@@ -343,8 +348,7 @@ class BhashiniVoiceService:
             return response.json()
 
         except httpx.HTTPStatusError as e:
-            logger.error("Bhashini inference HTTP %d: %s",
-                       e.response.status_code, str(e)[:200])
+            logger.error("Bhashini inference HTTP %d: %s", e.response.status_code, str(e)[:200])
         except httpx.TimeoutException:
             logger.error("Bhashini inference timeout")
         except Exception as e:
@@ -361,7 +365,7 @@ class BhashiniVoiceService:
         source_language: str,
         target_language: str,
         tasks: list[str],
-    ) -> Optional[dict[str, Any]]:
+    ) -> dict[str, Any] | None:
         """
         Get Bhashini pipeline config for language pair + tasks.
 
@@ -373,9 +377,7 @@ class BhashiniVoiceService:
         Returns:
             Pipeline config dict or None
         """
-        return await self._get_cached_pipeline(
-            source_language, target_language, tasks
-        )
+        return await self._get_cached_pipeline(source_language, target_language, tasks)
 
     # =========================================================================
     # Method 2: Speech-to-Text (ASR)
@@ -385,7 +387,7 @@ class BhashiniVoiceService:
         self,
         audio_base64: str,
         source_language: str,
-    ) -> Optional[str]:
+    ) -> str | None:
         """
         Convert speech audio to text using Bhashini ASR.
 
@@ -440,6 +442,7 @@ class BhashiniVoiceService:
         result_str = str(result)
         if "source" in result_str:
             import re
+
             matches = re.findall(r'"source"\s*:\s*"([^"]+)"', result_str)
             if matches:
                 return matches[0]
@@ -456,7 +459,7 @@ class BhashiniVoiceService:
         text: str,
         source_language: str,
         target_language: str = "en",
-    ) -> Optional[str]:
+    ) -> str | None:
         """
         Translate text between languages using Bhashini NMT.
 
@@ -481,8 +484,7 @@ class BhashiniVoiceService:
         )
 
         if not pipeline:
-            logger.error("No translation pipeline for %s→%s",
-                        source_language, target_language)
+            logger.error("No translation pipeline for %s→%s", source_language, target_language)
             return None
 
         input_data = {
@@ -520,9 +522,10 @@ class BhashiniVoiceService:
     # Method 4: Text-to-Speech (TTS)
     # =========================================================================
 
-    async def text_to_speech(self, text: str, target_language: str) -> Optional[str]:
+    async def text_to_speech(self, text: str, target_language: str) -> str | None:
         """Dummy AI4Bharat TTS fallback."""
         import logging
+
         logging.getLogger(__name__).warning("Using dummy AI4Bharat TTS bypass for %s", target_language)
         return "UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA="
 
@@ -530,13 +533,13 @@ class BhashiniVoiceService:
     # Method 5: Full voice pipeline
     # =========================================================================
 
-    async full_pipeline(
+    async def full_pipeline(
         self,
         audio_base64: str,
         farmer_language: str,
         advisory_english: str,
         farmer_id: str = "unknown",
-    ) -> Optional[VoiceSession]:
+    ) -> VoiceSession | None:
         """
         Run the complete voice pipeline for a farmer advisory.
 
@@ -570,21 +573,17 @@ class BhashiniVoiceService:
         # Step 2: NMT — translate input to English (for logging)
         input_text_english = ""
         if input_text_local:
-            input_text_english = await self.translate(
-                input_text_local, farmer_language, "en"
-            ) or ""
+            input_text_english = await self.translate(input_text_local, farmer_language, "en") or ""
 
         # Step 3: Already have advisory_english from caller (RAG advisory agent)
 
         # Step 4: NMT — translate English advisory to farmer's language
-        response_text_local = await self.translate(
-            advisory_english, "en", farmer_language
-        ) or advisory_english  # Fallback to English
+        response_text_local = (
+            await self.translate(advisory_english, "en", farmer_language) or advisory_english
+        )  # Fallback to English
 
         # Step 5: TTS — convert local language response to audio
-        response_audio_b64 = await self.text_to_speech(
-            response_text_local, farmer_language
-        )
+        response_audio_b64 = await self.text_to_speech(response_text_local, farmer_language)
 
         # Build audio URL as data URL
         response_audio_url = None
@@ -609,13 +608,16 @@ class BhashiniVoiceService:
             response_text_local=response_text_local,
             response_audio_url=response_audio_url,
             processing_ms=total_time_ms,
-            created_at=datetime.now(timezone.utc),
+            created_at=datetime.now(UTC),
         )
 
         logger.info(
             "Voice session %s: %s→%s processed in %dms, TTS=%s",
-            session_id, farmer_language, detected_language,
-            total_time_ms, "ok" if response_audio_url else "FAILED"
+            session_id,
+            farmer_language,
+            detected_language,
+            total_time_ms,
+            "ok" if response_audio_url else "FAILED",
         )
 
         return session
@@ -644,7 +646,7 @@ class BhashiniVoiceService:
 # Convenience functions
 # =============================================================================
 
-_default_service: Optional[BhashiniVoiceService] = None
+_default_service: BhashiniVoiceService | None = None
 
 
 async def get_voice_service() -> BhashiniVoiceService:
@@ -687,9 +689,9 @@ if __name__ == "__main__":
         # Test pipeline config (requires API keys)
         config = await service.get_pipeline_config("ta", "en", ["translation"])
         if config:
-            print(f"\nTranslation pipeline (ta→en): found")
+            print("\nTranslation pipeline (ta→en): found")
         else:
-            print(f"\nTranslation pipeline: requires BHASHINI_ULCA_API_KEY")
+            print("\nTranslation pipeline: requires BHASHINI_ULCA_API_KEY")
 
         await service.close()
 

@@ -4,9 +4,9 @@ API: https://api.data.gov.in/resource/9ef84268-d588-465a-a308-a864a43d0070
 """
 
 import asyncio
+import contextlib
 import logging
-from datetime import date, datetime, timedelta, timezone
-from typing import List, Optional
+from datetime import UTC, date, datetime
 
 import httpx
 from dotenv import load_dotenv
@@ -26,6 +26,7 @@ DATA_GOV_API_KEY = ""  # Loaded from env
 def _get_api_key() -> str:
     """Fetch API key from environment."""
     import os
+
     return os.getenv("DATA_GOV_API_KEY", "")
 
 
@@ -35,7 +36,7 @@ async def _fetch_with_retry(
     params: dict,
     max_attempts: int = 3,
     backoff_seconds: float = 2.0,
-) -> Optional[dict]:
+) -> dict | None:
     """
     Fetch URL with retry logic and exponential backoff.
 
@@ -57,18 +58,15 @@ async def _fetch_with_retry(
         except httpx.HTTPStatusError as e:
             logger.warning(
                 "Agmarknet HTTP error attempt %d/%d: %s %s",
-                attempt, max_attempts, e.response.status_code, e.response.text[:200]
+                attempt,
+                max_attempts,
+                e.response.status_code,
+                e.response.text[:200],
             )
         except httpx.TimeoutException as e:
-            logger.warning(
-                "Agmarknet timeout attempt %d/%d: %s",
-                attempt, max_attempts, str(e)
-            )
+            logger.warning("Agmarknet timeout attempt %d/%d: %s", attempt, max_attempts, str(e))
         except httpx.RequestError as e:
-            logger.warning(
-                "Agmarknet request error attempt %d/%d: %s",
-                attempt, max_attempts, str(e)
-            )
+            logger.warning("Agmarknet request error attempt %d/%d: %s", attempt, max_attempts, str(e))
 
         if attempt < max_attempts:
             # Exponential backoff: 2s, 4s, 8s
@@ -80,7 +78,7 @@ async def _fetch_with_retry(
     return None
 
 
-def _parse_agmarknet_record(record: dict) -> Optional[MandiPrice]:
+def _parse_agmarknet_record(record: dict) -> MandiPrice | None:
     """
     Parse a single Agmarknet API record into MandiPrice schema.
 
@@ -96,8 +94,7 @@ def _parse_agmarknet_record(record: dict) -> Optional[MandiPrice]:
     """
     try:
         # Skip records with missing essential fields
-        required_fields = ["market", "state", "commodity", "variety",
-                           "min_price", "max_price", "modal_price"]
+        required_fields = ["market", "state", "commodity", "variety", "min_price", "max_price", "modal_price"]
         for field in required_fields:
             if not record.get(field):
                 return None
@@ -135,10 +132,8 @@ def _parse_agmarknet_record(record: dict) -> Optional[MandiPrice]:
         arrival_tonnes = None
         arrival_str = record.get("arrivals_in_tonnes", "")
         if arrival_str:
-            try:
+            with contextlib.suppress(ValueError, TypeError):
                 arrival_tonnes = float(arrival_str.strip())
-            except (ValueError, TypeError):
-                pass
 
         return MandiPrice(
             mandi_name=record["market"].strip(),
@@ -159,12 +154,12 @@ def _parse_agmarknet_record(record: dict) -> Optional[MandiPrice]:
 
 
 async def fetch_agmarknet_prices(
-    commodity: Optional[str] = None,
-    state: Optional[str] = None,
-    from_date: Optional[date] = None,
-    to_date: Optional[date] = None,
+    commodity: str | None = None,
+    state: str | None = None,
+    from_date: date | None = None,
+    to_date: date | None = None,
     limit: int = 100,
-) -> List[MandiPrice]:
+) -> list[MandiPrice]:
     """
     Fetch daily mandi prices from data.gov.in Agmarknet API.
 
@@ -199,8 +194,8 @@ async def fetch_agmarknet_prices(
         "format": "json",
         "limit": limit,
         "filters[price_received_date]": from_date.strftime(date_format)
-            if from_date == to_date
-            else f"{from_date.strftime(date_format)},{to_date.strftime(date_format)}",
+        if from_date == to_date
+        else f"{from_date.strftime(date_format)},{to_date.strftime(date_format)}",
     }
 
     # Add optional filters
@@ -209,8 +204,8 @@ async def fetch_agmarknet_prices(
     if state:
         params["filters[state]"] = state
 
-    results: List[MandiPrice] = []
-    fetch_start = datetime.now(timezone.utc)
+    results: list[MandiPrice] = []
+    fetch_start = datetime.now(UTC)
 
     async with httpx.AsyncClient() as client:
         data = await _fetch_with_retry(client, AGMARKNET_API_URL, params)
@@ -221,8 +216,7 @@ async def fetch_agmarknet_prices(
         # Parse records — API returns 'records' key with list of dicts
         raw_records = data.get("records", [])
         if not raw_records:
-            logger.info("Agmarknet returned 0 records for date=%s commodity=%s",
-                        from_date, commodity)
+            logger.info("Agmarknet returned 0 records for date=%s commodity=%s", from_date, commodity)
             return []
 
         for record in raw_records:
@@ -230,16 +224,20 @@ async def fetch_agmarknet_prices(
             if mandi_price is not None:
                 results.append(mandi_price)
 
-    fetch_duration_ms = (datetime.now(timezone.utc) - fetch_start).total_seconds() * 1000
+    fetch_duration_ms = (datetime.now(UTC) - fetch_start).total_seconds() * 1000
     logger.info(
         "Agmarknet fetch complete: %d records in %.0fms (date=%s, commodity=%s, state=%s)",
-        len(results), fetch_duration_ms, from_date, commodity, state
+        len(results),
+        fetch_duration_ms,
+        from_date,
+        commodity,
+        state,
     )
 
     return results
 
 
-async def fetch_today_prices(commodity: Optional[str] = None) -> List[MandiPrice]:
+async def fetch_today_prices(commodity: str | None = None) -> list[MandiPrice]:
     """
     Convenience wrapper — fetch today's prices for a commodity.
 

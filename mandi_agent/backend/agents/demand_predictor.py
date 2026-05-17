@@ -3,13 +3,15 @@
 from __future__ import annotations
 
 from datetime import date, timedelta
+
 from mandi_agent.backend.api.core_schemas import DemandForecast, DemandLevel
 
 
 async def predict_demand(crop: str, state: str, months_ahead: int) -> DemandForecast:
     """Predict market demand using real Agmarknet price data."""
-    from mandi_agent.backend.services.data_sources.agmarknet import fetch_agmarknet_prices
     import logging
+
+    from mandi_agent.backend.services.data_sources.agmarknet import fetch_agmarknet_prices
 
     logger = logging.getLogger(__name__)
 
@@ -43,7 +45,7 @@ async def predict_demand(crop: str, state: str, months_ahead: int) -> DemandFore
         if not modal_prices:
             demand_index = 72.0
         else:
-            avg_price = sum(modal_prices) / len(modal_prices)
+            sum(modal_prices) / len(modal_prices)
             # Prices sorted from oldest to newest
             recent_prices = modal_prices[-7:] if len(modal_prices) >= 7 else modal_prices
             oldest_prices = modal_prices[:7] if len(modal_prices) >= 7 else modal_prices

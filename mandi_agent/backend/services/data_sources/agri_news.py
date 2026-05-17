@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import os
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import feedparser
@@ -17,7 +17,7 @@ async def fetch_newsapi_agri(language: str = "en", hours_back: int = 6) -> list[
     if not NEWSAPI_KEY:
         return []
 
-    from_time = (datetime.now(timezone.utc) - timedelta(hours=hours_back)).strftime("%Y-%m-%dT%H:%M:%SZ")
+    from_time = (datetime.now(UTC) - timedelta(hours=hours_back)).strftime("%Y-%m-%dT%H:%M:%SZ")
     keywords = [
         "agriculture India",
         "mandi price",
@@ -159,25 +159,25 @@ async def get_all_agri_news() -> list[dict[str, Any]]:
                 "description": "IMD predicts heavy to very heavy rainfall across Tamil Nadu Dec 14-16. Farmers with mature crops advised to harvest immediately.",
                 "url": "https://mandiagent.in/news/weather-alert-1",
                 "source": "IMD Portal",
-                "published_at": datetime.now(timezone.utc).isoformat(),
-                "feed": "mock"
+                "published_at": datetime.now(UTC).isoformat(),
+                "feed": "mock",
             },
             {
                 "title": "Tomato prices expected to rise 35% in Chennai mandis next week",
                 "description": "Supply disruption from Karnataka due to heavy rains expected to push tomato prices from ₹38 to ₹52/kg at Koyambedu.",
                 "url": "https://mandiagent.in/news/market-trend-1",
                 "source": "AgriWatch",
-                "published_at": (datetime.now(timezone.utc) - timedelta(hours=2)).isoformat(),
-                "feed": "mock"
+                "published_at": (datetime.now(UTC) - timedelta(hours=2)).isoformat(),
+                "feed": "mock",
             },
             {
                 "title": "PM-KISAN 18th instalment ₹2,000 to be released December 20",
                 "description": "The 18th instalment of PM-KISAN Samman Nidhi will be transferred directly to 9.3 crore farmer accounts.",
                 "url": "https://mandiagent.in/news/govt-scheme-1",
                 "source": "Ministry of Agriculture",
-                "published_at": (datetime.now(timezone.utc) - timedelta(hours=5)).isoformat(),
-                "feed": "mock"
-            }
+                "published_at": (datetime.now(UTC) - timedelta(hours=5)).isoformat(),
+                "feed": "mock",
+            },
         ]
 
     return sorted(

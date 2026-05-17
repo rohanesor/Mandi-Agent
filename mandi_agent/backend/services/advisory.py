@@ -15,22 +15,21 @@ Data sources (in priority order):
 
 import logging
 import uuid
-from datetime import date, datetime, timezone
-from typing import Optional
+from datetime import UTC, date, datetime
 
 logger = logging.getLogger(__name__)
 
 # Fallback reference data — only used when all live data sources fail
 FALLBACK_CROP_DATA = {
-    "Tomato":  {"price": 3400.0, "price_direction": "rising",  "spoilage_pct": 0.31, "risk": "moderate"},
-    "Onion":   {"price": 2600.0, "price_direction": "falling", "spoilage_pct": 0.45, "risk": "high"},
-    "Potato":  {"price": 2200.0, "price_direction": "stable",  "spoilage_pct": 0.20, "risk": "moderate"},
-    "Wheat":   {"price": 2200.0, "price_direction": "rising",  "spoilage_pct": 0.08, "risk": "safe"},
-    "Chilli":  {"price": 16000.0, "price_direction": "stable", "spoilage_pct": 0.15, "risk": "safe"},
+    "Tomato": {"price": 3400.0, "price_direction": "rising", "spoilage_pct": 0.31, "risk": "moderate"},
+    "Onion": {"price": 2600.0, "price_direction": "falling", "spoilage_pct": 0.45, "risk": "high"},
+    "Potato": {"price": 2200.0, "price_direction": "stable", "spoilage_pct": 0.20, "risk": "moderate"},
+    "Wheat": {"price": 2200.0, "price_direction": "rising", "spoilage_pct": 0.08, "risk": "safe"},
+    "Chilli": {"price": 16000.0, "price_direction": "stable", "spoilage_pct": 0.15, "risk": "safe"},
 }
 
 
-async def _fetch_live_price_forecast(crop: str, state: str, mandi_name: str) -> Optional[dict]:
+async def _fetch_live_price_forecast(crop: str, state: str, mandi_name: str) -> dict | None:
     """
     Fetch live price data from Agmarknet, falling back to price prediction agent.
 
@@ -44,9 +43,16 @@ async def _fetch_live_price_forecast(crop: str, state: str, mandi_name: str) -> 
         prices = await fetch_agmarknet_prices(commodity=crop, state=state, limit=5)
         if prices:
             latest = prices[0]
-            avg_price = (latest.modal_price or
-                         (latest.min_price + latest.max_price) / 2 if latest.min_price and latest.max_price else 3400.0)
-            direction = "rising" if latest.modal_price and len(prices) > 1 and latest.modal_price > prices[-1].modal_price else "stable"
+            avg_price = (
+                latest.modal_price or (latest.min_price + latest.max_price) / 2
+                if latest.min_price and latest.max_price
+                else 3400.0
+            )
+            direction = (
+                "rising"
+                if latest.modal_price and len(prices) > 1 and latest.modal_price > prices[-1].modal_price
+                else "stable"
+            )
             return {
                 "price": avg_price,
                 "price_direction": direction,
@@ -59,7 +65,6 @@ async def _fetch_live_price_forecast(crop: str, state: str, mandi_name: str) -> 
     # Try Price Prediction Agent
     try:
         from mandi_agent.backend.agents.price_prediction import predict_price
-        from mandi_agent.backend.api.core_schemas import MandiPrice
 
         forecast = await predict_price(
             crop=crop,
@@ -81,10 +86,11 @@ async def _fetch_live_price_forecast(crop: str, state: str, mandi_name: str) -> 
     return None
 
 
-async def _estimate_spoilage_risk(crop: str, farmer_id: str, state: str) -> Optional[dict]:
+async def _estimate_spoilage_risk(crop: str, farmer_id: str, state: str) -> dict | None:
     """Estimate spoilage risk using weather data if available."""
     try:
         from mandi_agent.backend.services.data_sources.imd_weather import fetch_weather_forecast
+
         forecast = await fetch_weather_forecast(district="", state=state)
         if forecast and forecast.forecast_days:
             today_w = forecast.forecast_days[0]
@@ -111,12 +117,15 @@ async def generate_advisory(farmer_id: str, crop: str, language: str, phone: str
 
     Data priority: Agmarknet → Price Prediction Agent → Fallback reference data.
     """
+    from mandi_agent.backend.agents.advisory_renderer import render_advisory
     from mandi_agent.backend.agents.decision_engine import make_decision
     from mandi_agent.backend.agents.explanation_extractor import extract_explanation
-    from mandi_agent.backend.agents.advisory_renderer import render_advisory
     from mandi_agent.backend.agents.voice_interface import translate_text
     from mandi_agent.backend.api.core_schemas import (
-        PriceForecast, SpoilageRisk, RiskLevel, PriceDirection,
+        PriceDirection,
+        PriceForecast,
+        RiskLevel,
+        SpoilageRisk,
     )
 
     # Fetch live data
@@ -226,15 +235,16 @@ async def generate_advisory(farmer_id: str, crop: str, language: str, phone: str
             "guardrail_status": "approved",
             "full_text_local": local_text,
             "full_text_english": rendered.full_text,
-            "created_at": datetime.now(timezone.utc).isoformat(),
+            "created_at": datetime.now(UTC).isoformat(),
         },
-        "created_at": datetime.now(timezone.utc).isoformat(),
+        "created_at": datetime.now(UTC).isoformat(),
         "n8n_triggered": False,
     }
 
     # Non-blocking n8n trigger
     try:
         from mandi_agent.backend.services.automations.n8n_triggers import trigger_voice_advisory
+
         n8n_ok = await trigger_voice_advisory(farmer_id, phone, language, rendered.full_text)
         payload["n8n_triggered"] = bool(n8n_ok)
     except Exception as exc:

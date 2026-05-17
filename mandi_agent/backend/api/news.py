@@ -4,7 +4,7 @@ News and Notification routes.
 
 import logging
 import uuid
-from typing import Any, Optional
+from typing import Any
 
 from fastapi import APIRouter, Body
 
@@ -13,10 +13,10 @@ logger = logging.getLogger(__name__)
 
 
 @router.get("/api/news")
-async def get_news(limit: int = 20, category: Optional[str] = None) -> dict[str, Any]:
+async def get_news(limit: int = 20, category: str | None = None) -> dict[str, Any]:
     """Get latest agricultural news with AI relevance analysis."""
-    from mandi_agent.backend.services.data_sources.agri_news import get_all_agri_news
     from mandi_agent.backend.agents.news_agent import analyze_article
+    from mandi_agent.backend.services.data_sources.agri_news import get_all_agri_news
 
     articles = await get_all_agri_news()
     analyzed: list[dict[str, Any]] = []
@@ -62,7 +62,9 @@ async def notify_farmers_of_news(req: dict = Body(...)) -> dict[str, Any]:
 
     logger.info(
         "Notification received: id=%s article_id=%s urgency=%s",
-        notification_id, article_id, urgency,
+        notification_id,
+        article_id,
+        urgency,
     )
 
     return {

@@ -7,7 +7,7 @@ ASR, NMT (translation), and TTS operations.
 """
 
 import logging
-from typing import Optional
+from datetime import UTC
 
 from mandi_agent.backend.api.core_schemas import VoiceSession
 
@@ -36,6 +36,7 @@ ISO_TO_NAME = {v: k for k, v in LANGUAGE_CODES.items()}
 async def _get_service():
     """Get the singleton Reverie voice service."""
     from mandi_agent.backend.services.voice.reverie_voice import get_voice_service
+
     return await get_voice_service()
 
 
@@ -63,11 +64,14 @@ async def speech_to_text(
 
     # Detect the actual language from the transcript
     from mandi_agent.backend.services.voice.utils import detect_language_by_script
+
     detected = detect_language_by_script(transcribed)
 
     logger.info(
         "STT: %d chars, input_lang=%s, detected=%s",
-        len(transcribed), language, detected,
+        len(transcribed),
+        language,
+        detected,
     )
 
     return transcribed, detected
@@ -125,20 +129,24 @@ async def translate_text(
     if translated is None:
         logger.warning(
             "Translation failed %s→%s, returning original",
-            source_lang, target_lang,
+            source_lang,
+            target_lang,
         )
         return text
 
     logger.info(
         "Translated %s→%s: %d→%d chars",
-        source_lang, target_lang, len(text), len(translated),
+        source_lang,
+        target_lang,
+        len(text),
+        len(translated),
     )
     return translated
 
 
 async def create_voice_session(
     farmer_id: str,
-    input_audio_base64: Optional[str] = None,
+    input_audio_base64: str | None = None,
     input_text: str = "",
     farmer_language: str = "hi",
     advisory_english: str = "",
@@ -181,7 +189,7 @@ async def create_voice_session(
     # Text-only fallback
     import time
     import uuid
-    from datetime import datetime, timezone
+    from datetime import datetime
 
     start_time = time.monotonic()
     session_id = str(uuid.uuid4())[:16]
@@ -189,18 +197,14 @@ async def create_voice_session(
     # Translate input to English if needed
     input_text_english = ""
     if input_text and farmer_language != "en":
-        input_text_english = await translate_text(
-            input_text, farmer_language, "en"
-        )
+        input_text_english = await translate_text(input_text, farmer_language, "en")
     elif input_text:
         input_text_english = input_text
 
     # Translate advisory to local language
     response_text_local = advisory_english
     if advisory_english and farmer_language != "en":
-        response_text_local = await translate_text(
-            advisory_english, "en", farmer_language
-        )
+        response_text_local = await translate_text(advisory_english, "en", farmer_language)
 
     # Generate TTS for local language response
     response_audio_url = None
@@ -215,6 +219,7 @@ async def create_voice_session(
     detected_language = farmer_language
     if input_text:
         from mandi_agent.backend.services.voice.utils import detect_language_by_script
+
         detected_language = detect_language_by_script(input_text)
 
     session = VoiceSession(
@@ -229,12 +234,14 @@ async def create_voice_session(
         response_text_local=response_text_local,
         response_audio_url=response_audio_url,
         processing_ms=total_ms,
-        created_at=datetime.now(timezone.utc),
+        created_at=datetime.now(UTC),
     )
 
     logger.info(
         "Voice session %s (text-only): %s processed in %dms",
-        session_id, farmer_language, total_ms,
+        session_id,
+        farmer_language,
+        total_ms,
     )
 
     return session

@@ -5,18 +5,16 @@ Orchestrates multiple farmers into a collective sale.
 
 import asyncio
 import logging
-from datetime import date, datetime, timedelta, timezone
-from typing import Any, Optional
+from datetime import UTC, date, datetime, timedelta
+
+from langgraph.graph import END, StateGraph
 from typing_extensions import TypedDict
 
-from langgraph.graph import StateGraph, END
-
 from mandi_agent.backend.api.core_schemas import (
+    BundleStatus,
     CooperativeBundle,
     HarvestIntent,
-    MandiPrice,
     PriceForecast,
-    BundleStatus,
 )
 
 logger = logging.getLogger(__name__)
@@ -31,14 +29,16 @@ MAX_MANDI_DISTANCE_KM = 80.0
 # Graph State Definition
 # =============================================================================
 
+
 class NegotiationState(TypedDict, total=False):
     """State passed between nodes in the negotiation graph."""
+
     block_id: str
     crop: str
     farmer_intents: list[dict]  # Serialized HarvestIntent
     price_forecasts: dict[str, dict]  # mandi_name -> serialized PriceForecast
     proposed_bundles: list[dict]
-    agreed_bundle: Optional[dict]  # Serialized CooperativeBundle
+    agreed_bundle: dict | None  # Serialized CooperativeBundle
     negotiation_round: int
     status: str  # assessing | proposing | checking | confirmed | failed
     errors: list[str]
@@ -79,7 +79,7 @@ def _find_best_mandi(
     farmer_locations: dict[str, tuple[float, float]],
     price_forecasts: dict[str, PriceForecast],
     spoilage_windows: dict[str, tuple[date, date]],  # farmer_id -> (min_date, max_date)
-) -> Optional[tuple[str, float, float]]:
+) -> tuple[str, float, float] | None:
     """
     Find best mandi that works for all farmers.
 
@@ -102,7 +102,7 @@ def _find_best_mandi(
 
         # Calculate average distance to all farmers
         distances = []
-        for farmer_id, (lat, lng) in farmer_locations.items():
+        for _farmer_id, (lat, lng) in farmer_locations.items():
             dist = _haversine_distance(lat, lng, mandi_lat, mandi_lng)
             distances.append(dist)
 
@@ -139,7 +139,7 @@ def _estimate_transit_hours(
         return 0.0
 
     distances = []
-    for farmer_id, (lat, lng) in farmer_locations.items():
+    for _farmer_id, (lat, lng) in farmer_locations.items():
         dist = _haversine_distance(lat, lng, mandi_lat, mandi_lng)
         distances.append(dist)
 
@@ -186,6 +186,7 @@ def _transport_savings(
 # Graph Nodes
 # =============================================================================
 
+
 def assess_block(state: NegotiationState) -> NegotiationState:
     """
     Node 1: Read all harvest intents in the block and group by harvest window.
@@ -213,12 +214,8 @@ def assess_block(state: NegotiationState) -> NegotiationState:
         if not current_window:
             current_window.append(intent)
         else:
-            last_date = datetime.strptime(
-                current_window[-1].get("expected_harvest_date", ""), "%Y-%m-%d"
-            ).date()
-            this_date = datetime.strptime(
-                intent.get("expected_harvest_date", ""), "%Y-%m-%d"
-            ).date()
+            last_date = datetime.strptime(current_window[-1].get("expected_harvest_date", ""), "%Y-%m-%d").date()
+            this_date = datetime.strptime(intent.get("expected_harvest_date", ""), "%Y-%m-%d").date()
             if (this_date - last_date).days <= 7:
                 current_window.append(intent)
             else:
@@ -232,17 +229,22 @@ def assess_block(state: NegotiationState) -> NegotiationState:
     window_summaries = []
     for window in windows:
         total_qty = sum(i.get("quantity_quintals", 0) for i in window)
-        window_summaries.append({
-            "intents": window,
-            "total_quantity": total_qty,
-            "harvest_start": window[0].get("expected_harvest_date"),
-            "harvest_end": window[-1].get("expected_harvest_date"),
-            "farmer_ids": [i.get("farmer_id") for i in window],
-        })
+        window_summaries.append(
+            {
+                "intents": window,
+                "total_quantity": total_qty,
+                "harvest_start": window[0].get("expected_harvest_date"),
+                "harvest_end": window[-1].get("expected_harvest_date"),
+                "farmer_ids": [i.get("farmer_id") for i in window],
+            }
+        )
 
     logger.info(
         "assess_block: block=%s crop=%s found %d harvest windows, total intents=%d",
-        block_id, crop, len(windows), len(intents)
+        block_id,
+        crop,
+        len(windows),
+        len(intents),
     )
 
     # Store window summaries in state
@@ -278,19 +280,17 @@ def propose_bundle(state: NegotiationState) -> NegotiationState:
         farmer_id = intent.get("farmer_id", "")
         # Deterministic pseudo-coordinates based on farmer_id hash
         import hashlib
+
         h = int(hashlib.md5(farmer_id.encode()).hexdigest()[:6], 16)
         lat = 13.0 + (h % 100) / 1000  # ~13.0-14.0
-        lng = 76.0 + (h % 100) / 100    # ~76.0-77.0
+        lng = 76.0 + (h % 100) / 100  # ~76.0-77.0
         farmer_locations[farmer_id] = (lat, lng)
 
     # Find best mandi from forecasts
     if price_forecasts:
         forecasts_for_mandi = {}
         for mandi_name, forecast_dict in price_forecasts.items():
-            if isinstance(forecast_dict, dict):
-                pf = PriceForecast(**forecast_dict)
-            else:
-                pf = forecast_dict
+            pf = PriceForecast(**forecast_dict) if isinstance(forecast_dict, dict) else forecast_dict
             forecasts_for_mandi[mandi_name] = pf
 
         best = _find_best_mandi(farmer_locations, forecasts_for_mandi, {})
@@ -306,14 +306,12 @@ def propose_bundle(state: NegotiationState) -> NegotiationState:
             mandi_lat = getattr(forecast, "mandi_lat", 13.5833)
             mandi_lng = getattr(forecast, "mandi_lng", 76.0364)
             avg_dist = 40.0
-            score = 0.5
     else:
         # No forecasts — use default mandi
         mandi_name = "Vashi Navi Mumbai"
         mandi_lat = 19.0664
         mandi_lng = 73.0154
         avg_dist = 50.0
-        score = 0.5
         forecast_dict = {
             "crop": crop,
             "mandi_name": mandi_name,
@@ -351,7 +349,9 @@ def propose_bundle(state: NegotiationState) -> NegotiationState:
         "target_mandi_lng": mandi_lng,
         "delivery_window_start": delivery_start.isoformat(),
         "delivery_window_end": delivery_end.isoformat(),
-        "forecast_price": forecast.predicted_price if isinstance(forecast, PriceForecast) else forecast.get("predicted_price", 2000.0),
+        "forecast_price": forecast.predicted_price
+        if isinstance(forecast, PriceForecast)
+        else forecast.get("predicted_price", 2000.0),
         "transport_saving_per_quintal": transport_saving,
         "avg_distance_km": avg_dist,
         "transit_hours_estimate": transit_hours,
@@ -360,7 +360,11 @@ def propose_bundle(state: NegotiationState) -> NegotiationState:
 
     logger.info(
         "propose_bundle: block=%s crop=%s mandi=%s qty=%.0fq saving=₹%.0f/q",
-        block_id, crop, mandi_name, total_qty, transport_saving
+        block_id,
+        crop,
+        mandi_name,
+        total_qty,
+        transport_saving,
     )
 
     state["proposed_bundles"] = [proposed]
@@ -402,18 +406,12 @@ def check_consensus(state: NegotiationState) -> NegotiationState:
             f"Some farmers beyond {MAX_MANDI_DISTANCE_KM}km from mandi — "
             f"round {negotiation_round + 1}/{MAX_NEGOTIATION_ROUNDS}"
         )
-        logger.info(
-            "check_consensus: block=%s round=%d — no consensus, retrying",
-            block_id, negotiation_round
-        )
+        logger.info("check_consensus: block=%s round=%d — no consensus, retrying", block_id, negotiation_round)
         return state
 
     # Consensus achieved — proceed to finalize
     state["status"] = "confirmed"
-    logger.info(
-        "check_consensus: block=%s — consensus reached for %s",
-        block_id, proposed["target_mandi"]
-    )
+    logger.info("check_consensus: block=%s — consensus reached for %s", block_id, proposed["target_mandi"])
     return state
 
 
@@ -435,9 +433,8 @@ def finalize_bundle(state: NegotiationState) -> NegotiationState:
 
     # Create bundle ID
     import hashlib
-    bundle_id = hashlib.sha256(
-        f"{block_id}:{proposed['crop']}:{proposed['farmer_ids']}".encode()
-    ).hexdigest()[:16]
+
+    bundle_id = hashlib.sha256(f"{block_id}:{proposed['crop']}:{proposed['farmer_ids']}".encode()).hexdigest()[:16]
 
     # Create CooperativeBundle
     bundle = CooperativeBundle(
@@ -449,22 +446,20 @@ def finalize_bundle(state: NegotiationState) -> NegotiationState:
         target_mandi=proposed["target_mandi"],
         target_mandi_lat=proposed["target_mandi_lat"],
         target_mandi_lng=proposed["target_mandi_lng"],
-        delivery_window_start=datetime.strptime(
-            proposed["delivery_window_start"], "%Y-%m-%d"
-        ).date(),
-        delivery_window_end=datetime.strptime(
-            proposed["delivery_window_end"], "%Y-%m-%d"
-        ).date(),
+        delivery_window_start=datetime.strptime(proposed["delivery_window_start"], "%Y-%m-%d").date(),
+        delivery_window_end=datetime.strptime(proposed["delivery_window_end"], "%Y-%m-%d").date(),
         forecast_price=proposed["forecast_price"],
         transport_saving_per_quintal=proposed["transport_saving_per_quintal"],
         status=BundleStatus.CONFIRMED,
-        created_at=datetime.now(timezone.utc),
+        created_at=datetime.now(UTC),
     )
 
     logger.info(
         "finalize_bundle: bundle_id=%s crop=%s qty=%.0f saving=₹%.0f/q",
-        bundle.bundle_id, bundle.crop, bundle.total_quantity_quintals,
-        bundle.transport_saving_per_quintal
+        bundle.bundle_id,
+        bundle.crop,
+        bundle.total_quantity_quintals,
+        bundle.transport_saving_per_quintal,
     )
 
     state["agreed_bundle"] = bundle.model_dump(mode="json")
@@ -475,6 +470,7 @@ def finalize_bundle(state: NegotiationState) -> NegotiationState:
 # =============================================================================
 # Build the Graph
 # =============================================================================
+
 
 def _build_negotiation_graph() -> StateGraph:
     """
@@ -518,7 +514,7 @@ def _build_negotiation_graph() -> StateGraph:
             "finalize_bundle": "finalize_bundle",
             "propose_bundle": "propose_bundle",
             END: END,
-        }
+        },
     )
 
     graph.add_edge("finalize_bundle", END)
@@ -530,12 +526,13 @@ def _build_negotiation_graph() -> StateGraph:
 # Main negotiation function
 # =============================================================================
 
+
 async def run_negotiation(
     block_id: str,
     crop: str,
     farmer_intents: list[HarvestIntent],
-    price_forecasts: Optional[dict[str, PriceForecast]] = None,
-) -> Optional[CooperativeBundle]:
+    price_forecasts: dict[str, PriceForecast] | None = None,
+) -> CooperativeBundle | None:
     """
     Run the negotiation graph to form a Virtual Cooperative bundle.
 
@@ -616,8 +613,8 @@ async def negotiate_bundle(
     block_id: str,
     crop: str,
     farmer_intents: list[HarvestIntent],
-    price_forecasts: Optional[dict[str, PriceForecast]] = None,
-) -> Optional[CooperativeBundle]:
+    price_forecasts: dict[str, PriceForecast] | None = None,
+) -> CooperativeBundle | None:
     """Alias for run_negotiation."""
     return await run_negotiation(block_id, crop, farmer_intents, price_forecasts)
 
@@ -625,6 +622,7 @@ async def negotiate_bundle(
 if __name__ == "__main__":
     # Smoke test
     import asyncio
+
     logging.basicConfig(level=logging.INFO)
 
     async def test():
@@ -632,17 +630,23 @@ if __name__ == "__main__":
 
         intents = [
             HarvestIntent(
-                intent_id="I1", farmer_id="F1", crop="tomato",
+                intent_id="I1",
+                farmer_id="F1",
+                crop="tomato",
                 quantity_quintals=15.0,
                 expected_harvest_date=date_cls(2026, 3, 25),
-                current_growth_stage="mature", block_id="KA-001",
+                current_growth_stage="mature",
+                block_id="KA-001",
                 submitted_at=None,
             ),
             HarvestIntent(
-                intent_id="I2", farmer_id="F2", crop="tomato",
+                intent_id="I2",
+                farmer_id="F2",
+                crop="tomato",
                 quantity_quintals=12.0,
                 expected_harvest_date=date_cls(2026, 3, 27),
-                current_growth_stage="mature", block_id="KA-001",
+                current_growth_stage="mature",
+                block_id="KA-001",
                 submitted_at=None,
             ),
         ]

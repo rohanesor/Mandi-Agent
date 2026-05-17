@@ -10,14 +10,9 @@ Maps dataset labels to our disease taxonomy.
 import hashlib
 import json
 import logging
-import os
 import random
 import shutil
 from pathlib import Path
-from typing import Optional
-
-import requests
-from tqdm import tqdm
 
 logger = logging.getLogger(__name__)
 
@@ -172,14 +167,16 @@ def sample_dataset(
             if not dry_run:
                 shutil.copy2(img, dest)
 
-            sample_manifest.append({
-                "crop": crop,
-                "disease": disease,
-                "ground_truth": class_name,
-                "image_path": str(dest.relative_to(output_dir)) if not dry_run else str(img),
-                "image_hash": hashlib.md5(img.read_bytes()).hexdigest(),
-                "class_dir": class_name,
-            })
+            sample_manifest.append(
+                {
+                    "crop": crop,
+                    "disease": disease,
+                    "ground_truth": class_name,
+                    "image_path": str(dest.relative_to(output_dir)) if not dry_run else str(img),
+                    "image_hash": hashlib.md5(img.read_bytes()).hexdigest(),
+                    "class_dir": class_name,
+                }
+            )
 
     manifest_path = Path(output_dir) / "manifest.json"
     if not dry_run:
@@ -212,16 +209,16 @@ def download_dataset(
 
     print("PlantVillage dataset download instructions:")
     print("=" * 60)
-    print(f"1. Download from: https://www.kaggle.com/datasets/emmarex/plantdisease")
-    print(f"   OR: https://github.com/spMohanty/PlantVillage-Dataset")
+    print("1. Download from: https://www.kaggle.com/datasets/emmarex/plantdisease")
+    print("   OR: https://github.com/spMohanty/PlantVillage-Dataset")
     print(f"2. Extract to: {output_dir}")
-    print(f"3. Expected structure:")
+    print("3. Expected structure:")
     print(f"   {output_dir}/")
-    print(f"     color/  (or raw/color/)")
-    print(f"       Tomato___healthy/")
-    print(f"       Tomato___Early_blight/")
-    print(f"       ...")
-    print(f"\nFor GitHub Actions, add to secrets or use kaggle API:")
+    print("     color/  (or raw/color/)")
+    print("       Tomato___healthy/")
+    print("       Tomato___Early_blight/")
+    print("       ...")
+    print("\nFor GitHub Actions, add to secrets or use kaggle API:")
     print(f"  kaggle datasets download -d emmarex/plantdisease -p {output_dir}")
     print(f"  unzip {output_dir}/plantdisease.zip -d {output_dir}")
     print("=" * 60)

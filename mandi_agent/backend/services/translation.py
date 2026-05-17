@@ -3,8 +3,8 @@ Translation service using Reverie NMT REST API.
 Used by the /api/translate route and advisory generation.
 """
 
-import os
 import logging
+import os
 
 import httpx  # type: ignore
 

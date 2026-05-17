@@ -5,12 +5,11 @@ Validates Bearer tokens from Supabase Auth using the Supabase service key.
 Provides `get_current_user` dependency for protected routes.
 """
 
-import os
 import logging
-from typing import Optional
-from fastapi import Depends, HTTPException, status
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+import os
 
+from fastapi import Depends, HTTPException, status
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from supabase import create_client
 from supabase.lib.client_options import ClientOptions
 
@@ -28,14 +27,15 @@ def _get_supabase_admin():
         key = os.getenv("SUPABASE_SERVICE_KEY", "")
         if url and key:
             _supabase_client = create_client(
-                url, key,
+                url,
+                key,
                 options=ClientOptions(postgrest_client_timeout=10),
             )
     return _supabase_client
 
 
 async def get_current_user(
-    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security),
+    credentials: HTTPAuthorizationCredentials | None = Depends(security),
 ) -> dict:
     """
     FastAPI dependency that validates a Supabase JWT and returns the user object.

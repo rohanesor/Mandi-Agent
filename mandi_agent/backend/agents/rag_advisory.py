@@ -13,12 +13,12 @@ Result: Deterministic, testable, WhatsApp-friendly advisories.
 
 import logging
 import uuid
-from datetime import datetime, timezone
-from typing import Any, Optional
+from datetime import UTC, datetime
+from typing import Any
 
+from mandi_agent.backend.agents.advisory_renderer import render_advisory
 from mandi_agent.backend.agents.decision_engine import make_decision
 from mandi_agent.backend.agents.explanation_extractor import extract_explanation
-from mandi_agent.backend.agents.advisory_renderer import render_advisory
 from mandi_agent.backend.api.core_schemas import (
     CooperativeBundle,
     FarmerAdvisory,
@@ -37,9 +37,9 @@ async def generate_advisory(
     intent: HarvestIntent,
     price_forecast: PriceForecast,
     spoilage_risk: SpoilageRisk,
-    bundle: Optional[CooperativeBundle],
+    bundle: CooperativeBundle | None,
     rag_context: list[dict[str, Any]],
-) -> Optional[FarmerAdvisory]:
+) -> FarmerAdvisory | None:
     """
     Generate a personalized advisory using 3-stage deterministic pipeline.
 
@@ -96,7 +96,7 @@ async def generate_advisory(
             full_text_local=rendered.full_text,  # Translation done separately
             confidence=structured_decision.decision_confidence,
             guardrail_status=GuardrailStatus.APPROVED,
-            created_at=datetime.now(timezone.utc),
+            created_at=datetime.now(UTC),
         )
 
         logger.info(
@@ -117,7 +117,8 @@ if __name__ == "__main__":
     # Integration test with 3-stage pipeline
     import asyncio
     from datetime import date as date_cls
-    from mandi_agent.backend.api.core_schemas import RiskLevel, PriceDirection
+
+    from mandi_agent.backend.api.core_schemas import PriceDirection, RiskLevel
 
     logging.basicConfig(level=logging.INFO)
 
@@ -187,7 +188,7 @@ if __name__ == "__main__":
         adv = await generate_advisory(farmer, intent, forecast, spoilage, None, rag_context)
 
         if adv:
-            print(f"\n✅ Advisory generated successfully!")
+            print("\n✅ Advisory generated successfully!")
             print(f"   ID: {adv.advisory_id}")
             print(f"   Decision: {adv.decision.value}")
             print(f"   Confidence: {adv.confidence:.0%}")

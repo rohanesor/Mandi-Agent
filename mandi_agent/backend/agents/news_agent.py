@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from typing import Optional
-
 from pydantic import BaseModel, Field
 
 try:
@@ -26,18 +24,21 @@ class NewsAnalysis(BaseModel):
 import google.generativeai as genai
 
 GEMINI_MODEL = "gemini-2.0-flash"
-_gemini_model: Optional[genai.GenerativeModel] = None
+_gemini_model: genai.GenerativeModel | None = None
+
 
 def _get_model() -> genai.GenerativeModel:
     global _gemini_model
     if _gemini_model is None:
         import os
+
         api_key = os.getenv("GEMINI_API_KEY", os.getenv("GOOGLE_API_KEY", ""))
         if not api_key:
             raise ValueError("GEMINI_API_KEY or GOOGLE_API_KEY not set")
         genai.configure(api_key=api_key)
         _gemini_model = genai.GenerativeModel(GEMINI_MODEL)
     return _gemini_model
+
 
 SYSTEM_PROMPT = """You are an agricultural news analyst for Indian farmers.
 Given a news article title and description, determine:
@@ -122,19 +123,19 @@ def _fallback_analysis(title: str, description: str) -> NewsAnalysis:
 async def analyze_article(title: str, description: str) -> NewsAnalysis:
     """Analyze a raw news article and return farmer-focused relevance summary using Gemini."""
     import json
-    
+
     # 🚀 DEMO OVERRIDE: Automatic High-Relevance for Mock Data
     text_lower = f"{title} {description}".lower()
     if any(k in text_lower for k in ["monsoon", "tomato price", "pm-kisan", "mandi price"]):
         return _fallback_analysis(title, description)
 
     prompt = f"{SYSTEM_PROMPT}\n\nTitle: {title}\nDescription: {description}"
-    
+
     try:
         model = _get_model()
         response = await model.generate_content_async(prompt)
         response_text = response.text.strip()
-        
+
         if "```json" in response_text:
             start = response_text.index("```json") + 7
             end = response_text.index("```", start)
@@ -146,7 +147,7 @@ async def analyze_article(title: str, description: str) -> NewsAnalysis:
 
         data = json.loads(response_text)
         return NewsAnalysis(**data)
-        
+
     except Exception as e:
         print(f"Gemini analysis failed: {e}")
         return _fallback_analysis(title, description)

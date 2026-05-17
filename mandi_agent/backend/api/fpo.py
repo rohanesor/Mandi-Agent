@@ -3,12 +3,11 @@ FPO Analytics and Block Status routes.
 """
 
 import logging
-from datetime import date, timedelta, timezone, datetime
-
+from datetime import UTC, date, datetime, timedelta
 
 from fastapi import APIRouter, HTTPException, status
 
-from mandi_agent.backend.api.schemas import FPOAnalyticsResponse, BlockStatusResponse
+from mandi_agent.backend.api.schemas import BlockStatusResponse, FPOAnalyticsResponse
 from mandi_agent.backend.db.supabase import get_supabase_async
 
 router = APIRouter(tags=["FPO"])
@@ -35,21 +34,32 @@ async def get_block_status(block_id: str) -> BlockStatusResponse:
             )
 
         # Count active intents
-        intents_resp = await supabase.table("harvest_intents").select(
-            "intent_id", count="exact"
-        ).eq("block_id", block_id).execute()
+        intents_resp = (
+            await supabase.table("harvest_intents")
+            .select("intent_id", count="exact")
+            .eq("block_id", block_id)
+            .execute()
+        )
         active_intents = intents_resp.count or 0
 
         # Get oversupply alerts
-        alerts_resp = await supabase.table("oversupply_alerts").select(
-            "crop"
-        ).eq("block_id", block_id).eq("severity", "high").execute()
+        alerts_resp = (
+            await supabase.table("oversupply_alerts")
+            .select("crop")
+            .eq("block_id", block_id)
+            .eq("severity", "high")
+            .execute()
+        )
         oversupply_crops = list(set(r.get("crop") for r in alerts_resp.data or []))
 
         # Get active bundles
-        bundles_resp = await supabase.table("bundles").select(
-            "bundle_id"
-        ).eq("block_id", block_id).eq("status", "confirmed").execute()
+        bundles_resp = (
+            await supabase.table("bundles")
+            .select("bundle_id")
+            .eq("block_id", block_id)
+            .eq("status", "confirmed")
+            .execute()
+        )
         active_bundles = [r.get("bundle_id") for r in bundles_resp.data or []]
 
         return BlockStatusResponse(
@@ -101,9 +111,13 @@ async def fpo_analytics(fpo_id: str) -> FPOAnalyticsResponse:
         seven_days_ago = date.today() - timedelta(days=7)
 
         # Fetch harvest intents (map points)
-        intents_response = await supabase.table("harvest_intents").select(
-            "block_id, crop, COUNT(*) as farmer_count"
-        ).eq("fpo_id", fpo_id).gte("created_at", seven_days_ago.isoformat()).execute()
+        intents_response = (
+            await supabase.table("harvest_intents")
+            .select("block_id, crop, COUNT(*) as farmer_count")
+            .eq("fpo_id", fpo_id)
+            .gte("created_at", seven_days_ago.isoformat())
+            .execute()
+        )
 
         harvest_intent_map_points = []
         if intents_response.data:
@@ -111,13 +125,15 @@ async def fpo_analytics(fpo_id: str) -> FPOAnalyticsResponse:
                 # Generate approximate coordinates for demo (in production, use geocoding)
                 lat = 13.0 + (hash(intent.get("block_id", "")) % 100) / 1000
                 lng = 78.0 + (hash(intent.get("block_id", "")) % 100) / 1000
-                harvest_intent_map_points.append({
-                    "block_id": intent.get("block_id", ""),
-                    "crop": intent.get("crop", ""),
-                    "farmer_count": intent.get("farmer_count", 0),
-                    "lat": lat,
-                    "lng": lng,
-                })
+                harvest_intent_map_points.append(
+                    {
+                        "block_id": intent.get("block_id", ""),
+                        "crop": intent.get("crop", ""),
+                        "farmer_count": intent.get("farmer_count", 0),
+                        "lat": lat,
+                        "lng": lng,
+                    }
+                )
 
         # Fetch bundle progress
         bundles_response = await supabase.table("bundles").select("*").eq("fpo_id", fpo_id).execute()
@@ -136,11 +152,14 @@ async def fpo_analytics(fpo_id: str) -> FPOAnalyticsResponse:
         bundle_progress = {**bundle_counts, "avg_fill_pct": avg_fill_pct}
 
         # Fetch price trends from mandi_prices
-        prices_response = await supabase.table("mandi_prices").select(
-            "commodity, modal_price, price_date"
-        ).eq("state", "Karnataka").gte("price_date", seven_days_ago.isoformat()).order(
-            "commodity,price_date"
-        ).execute()
+        prices_response = (
+            await supabase.table("mandi_prices")
+            .select("commodity, modal_price, price_date")
+            .eq("state", "Karnataka")
+            .gte("price_date", seven_days_ago.isoformat())
+            .order("commodity,price_date")
+            .execute()
+        )
 
         price_trends = []
         prices_by_crop = {}
@@ -156,9 +175,13 @@ async def fpo_analytics(fpo_id: str) -> FPOAnalyticsResponse:
                 price_trends.append({"crop": crop, "series": prices[-7:] if len(prices) > 7 else prices})
 
         # Fetch engagement metrics
-        advisories_response = await supabase.table("advisories").select("*").eq(
-            "fpo_id", fpo_id
-        ).gte("created_at", seven_days_ago.isoformat()).execute()
+        advisories_response = (
+            await supabase.table("advisories")
+            .select("*")
+            .eq("fpo_id", fpo_id)
+            .gte("created_at", seven_days_ago.isoformat())
+            .execute()
+        )
 
         active_farmers = set()
         if advisories_response.data:
@@ -300,11 +323,12 @@ async def log_fpo_report(request: dict):
         "advisories_sent": request.get("advisories_sent", 0),
         "bundles_formed": request.get("bundles_formed", 0),
         "total_savings": request.get("total_transport_savings", 0),
-        "created_at": datetime.now(timezone.utc).isoformat(),
+        "created_at": datetime.now(UTC).isoformat(),
     }
 
     try:
         from mandi_agent.backend.db.supabase import get_supabase_sync
+
         supabase = get_supabase_sync()
 
         if supabase:

@@ -21,7 +21,10 @@ CROP_DISEASE_CONTEXT = {
     "tomato": {
         "diseases": [
             ("Early Blight (Alternaria solani)", "concentric ring spots, brown lesions, lower leaves first, yellowing"),
-            ("Late Blight (Phytophthora infestans)", "water-soaked lesions, white fungal growth on underside, rapid spread, dark patches"),
+            (
+                "Late Blight (Phytophthora infestans)",
+                "water-soaked lesions, white fungal growth on underside, rapid spread, dark patches",
+            ),
             ("Bacterial Spot", "small water-soaked spots turning brown/black, raised lesions, leaf distortion"),
             ("Target Spot", "concentric rings, yellow halos, brown spots with target-like pattern"),
             ("Yellow Leaf Curl Virus", "upward leaf curling, yellowing, stunted growth, purple veins"),
@@ -35,7 +38,10 @@ CROP_DISEASE_CONTEXT = {
     "potato": {
         "diseases": [
             ("Early Blight (Alternaria solani)", "concentric ring spots, brown lesions, target-like pattern"),
-            ("Late Blight (Phytophthora infestans)", "water-soaked lesions, white mold on underside, brown patches, rapid wilting"),
+            (
+                "Late Blight (Phytophthora infestans)",
+                "water-soaked lesions, white mold on underside, brown patches, rapid wilting",
+            ),
         ],
         "healthy": "green leaves, no lesions, normal growth",
     },
@@ -158,10 +164,12 @@ async def detect_crop_disease(image_base64: str, crop: str) -> DiseaseDiagnosis:
     try:
         image_bytes = base64.b64decode(image_base64)
         model = _get_model()
-        response = await model.generate_content_async([
-            {"mime_type": "image/jpeg", "data": image_bytes},
-            prompt,
-        ])
+        response = await model.generate_content_async(
+            [
+                {"mime_type": "image/jpeg", "data": image_bytes},
+                prompt,
+            ]
+        )
         raw = (response.text or "").strip()
         if "```json" in raw:
             raw = raw.split("```json", 1)[1].split("```", 1)[0].strip()
@@ -177,7 +185,12 @@ async def detect_crop_disease(image_base64: str, crop: str) -> DiseaseDiagnosis:
             severity_str = "low"
             confidence = max(confidence, 0.9)
 
-        severity_map = {"low": Severity.LOW, "medium": Severity.MEDIUM, "high": Severity.HIGH, "critical": Severity.CRITICAL}
+        severity_map = {
+            "low": Severity.LOW,
+            "medium": Severity.MEDIUM,
+            "high": Severity.HIGH,
+            "critical": Severity.CRITICAL,
+        }
         severity = severity_map.get(severity_str, Severity.MEDIUM)
 
         return DiseaseDiagnosis(
@@ -198,17 +211,38 @@ async def detect_crop_disease(image_base64: str, crop: str) -> DiseaseDiagnosis:
 
 def _fallback_diagnosis(crop: str) -> DiseaseDiagnosis:
     CROP_COMMON_DISEASES = {
-        "tomato": {"disease_name": "Early Blight (suspected)", "symptoms": ["brown lesions on lower leaves", "concentric rings on spots"]},
-        "potato": {"disease_name": "Late Blight (suspected)", "symptoms": ["water-soaked lesions", "white mould on leaf underside"]},
-        "onion": {"disease_name": "Purple Blotch (suspected)", "symptoms": ["purple lesions on leaves", "yellowing leaf tips"]},
-        "rice": {"disease_name": "Rice Blast (suspected)", "symptoms": ["diamond-shaped lesions on leaves", "neck rot"]},
-        "wheat": {"disease_name": "Rust (suspected)", "symptoms": ["orange-brown pustules on leaves", "reduced vigour"]},
-        "chilli": {"disease_name": "Anthracnose (suspected)", "symptoms": ["sunken spots on fruits", "circular lesions"]},
+        "tomato": {
+            "disease_name": "Early Blight (suspected)",
+            "symptoms": ["brown lesions on lower leaves", "concentric rings on spots"],
+        },
+        "potato": {
+            "disease_name": "Late Blight (suspected)",
+            "symptoms": ["water-soaked lesions", "white mould on leaf underside"],
+        },
+        "onion": {
+            "disease_name": "Purple Blotch (suspected)",
+            "symptoms": ["purple lesions on leaves", "yellowing leaf tips"],
+        },
+        "rice": {
+            "disease_name": "Rice Blast (suspected)",
+            "symptoms": ["diamond-shaped lesions on leaves", "neck rot"],
+        },
+        "wheat": {
+            "disease_name": "Rust (suspected)",
+            "symptoms": ["orange-brown pustules on leaves", "reduced vigour"],
+        },
+        "chilli": {
+            "disease_name": "Anthracnose (suspected)",
+            "symptoms": ["sunken spots on fruits", "circular lesions"],
+        },
     }
-    crop_info = CROP_COMMON_DISEASES.get(crop.lower(), {
-        "disease_name": "Leaf disease (suspected)",
-        "symptoms": ["leaf discoloration", "spotting"],
-    })
+    crop_info = CROP_COMMON_DISEASES.get(
+        crop.lower(),
+        {
+            "disease_name": "Leaf disease (suspected)",
+            "symptoms": ["leaf discoloration", "spotting"],
+        },
+    )
     return DiseaseDiagnosis(
         diagnosis_id=f"diag-{uuid.uuid4().hex[:12]}",
         crop=crop,

@@ -4,19 +4,18 @@ Miscellaneous routes (disease detection, schemes, demand, logs, cold storage, he
 
 import logging
 import uuid
-from datetime import datetime, timezone, timedelta
-import os
+from datetime import UTC, datetime, timedelta
 
 from fastapi import APIRouter, HTTPException
 
+from mandi_agent.backend.api.core_schemas import DemandForecast, FAQVoiceItem, GovtScheme
 from mandi_agent.backend.api.schemas import (
-    DiseaseDetectionRequest,
-    SchemeEligibilityRequest,
     DemandPredictionRequest,
+    DiseaseDetectionRequest,
     FAQVoiceRequest,
     HealthResponse,
+    SchemeEligibilityRequest,
 )
-from mandi_agent.backend.api.core_schemas import GovtScheme, DemandForecast, FAQVoiceItem
 
 router = APIRouter(tags=["Misc"])
 logger = logging.getLogger(__name__)
@@ -102,9 +101,7 @@ async def nearest_cold_storage(lat: float = 0.0, lng: float = 0.0, crop: str = "
     ]
 
     matching = [
-        f for f in facilities
-        if crop.lower() in [c.lower() for c in f["supported_crops"]]
-        and f["available_tonnes"] > 0
+        f for f in facilities if crop.lower() in [c.lower() for c in f["supported_crops"]] and f["available_tonnes"] > 0
     ]
 
     if not matching:
@@ -157,7 +154,7 @@ async def book_cold_storage(request: dict):
         "crop": crop,
         "quantity_quintals": quantity,
         "booked": True,
-        "valid_until": (datetime.now(timezone.utc) + timedelta(hours=48)).isoformat(),
+        "valid_until": (datetime.now(UTC) + timedelta(hours=48)).isoformat(),
         "message": f"Cold storage booked for {quantity}q of {crop} at {storage_id}",
     }
 
@@ -170,10 +167,11 @@ async def log_advisory(request: dict):
         "advisory_id": request.get("advisory_id", ""),
         "language": request.get("language", ""),
         "channel": request.get("channel", "whatsapp"),
-        "created_at": datetime.now(timezone.utc).isoformat(),
+        "created_at": datetime.now(UTC).isoformat(),
     }
     try:
         from mandi_agent.backend.db.supabase import get_supabase_sync
+
         supabase = get_supabase_sync()
         if supabase:
             supabase.table("advisory_logs").insert(row).execute()
@@ -192,10 +190,11 @@ async def log_voice_session(request: dict):
         "response_text_local": request.get("response_text_local", ""),
         "response_audio_url": request.get("response_audio_url"),
         "processing_ms": request.get("processing_ms", 0),
-        "created_at": datetime.now(timezone.utc).isoformat(),
+        "created_at": datetime.now(UTC).isoformat(),
     }
     try:
         from mandi_agent.backend.db.supabase import get_supabase_sync
+
         supabase = get_supabase_sync()
         if supabase:
             supabase.table("voice_sessions").insert(row).execute()
@@ -212,14 +211,6 @@ async def health_check() -> HealthResponse:
     """
     agents_ok = True
     try:
-        from mandi_agent.backend.agents import (
-            price_prediction,
-            oversupply_detector,
-            spoilage_risk,
-            negotiation,
-            rag_advisory,
-            guardrails,
-        )
         agents = {
             "price_prediction": "ok",
             "oversupply_detector": "ok",

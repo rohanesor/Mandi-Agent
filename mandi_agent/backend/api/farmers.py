@@ -3,23 +3,20 @@ Farmer registration and profile management routes.
 Supports both legacy in-memory auth and Supabase Auth.
 """
 
-from datetime import datetime, timedelta, timezone
 import logging
 import uuid
-from typing import Any, Optional
+from datetime import UTC, datetime, timedelta
+from typing import Any
 
-from fastapi import APIRouter, HTTPException, Depends, status
-from pydantic import BaseModel
+from fastapi import APIRouter, Depends, HTTPException, status
 
+from mandi_agent.backend.api.core_schemas import FarmerAdvisory
 from mandi_agent.backend.api.schemas import (
-    FarmerRegistrationResponse,
     AdvisoryHistoryResponse,
-    FrontendFarmer,
 )
-from mandi_agent.backend.api.core_schemas import FarmerProfile, FarmerAdvisory
-from mandi_agent.backend.utils.tokens import AUTH_REFRESH_TOKENS, new_token
-from mandi_agent.backend.db.supabase import get_supabase_async
 from mandi_agent.backend.auth.jwt_validator import get_current_user
+from mandi_agent.backend.db.supabase import get_supabase_async
+from mandi_agent.backend.utils.tokens import AUTH_REFRESH_TOKENS, new_token
 
 logger = logging.getLogger(__name__)
 
@@ -54,7 +51,7 @@ async def complete_farmer_profile(
         "primary_crops": list(req.get("primary_crops", [])),
         "land_size_hectares": req.get("land_size_hectares"),
         "preferred_language": preferred_language,
-        "created_at": datetime.now(timezone.utc).isoformat(),
+        "created_at": datetime.now(UTC).isoformat(),
     }
 
     # Persist to Supabase
@@ -93,7 +90,7 @@ async def register_farmer(req: dict[str, Any]) -> Any:
         "primary_crops": list(req.get("primary_crops", [])),
         "land_size_hectares": req.get("land_size_hectares"),
         "preferred_language": str(req.get("preferred_language", "hi")),
-        "created_at": datetime.now(timezone.utc).isoformat(),
+        "created_at": datetime.now(UTC).isoformat(),
     }
 
     # Persist to Supabase
@@ -166,18 +163,21 @@ async def get_advisory_history(
         if not supabase:
             return AdvisoryHistoryResponse(farmer_id=farmer_id, advisories=[])
 
-        cutoff = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
+        cutoff = (datetime.now(UTC) - timedelta(days=days)).isoformat()
 
-        response = await supabase.table("advisories").select("*").eq(
-            "farmer_id", farmer_id
-        ).gte("created_at", cutoff).order("created_at", ascending=False).execute()
+        response = (
+            await supabase.table("advisories")
+            .select("*")
+            .eq("farmer_id", farmer_id)
+            .gte("created_at", cutoff)
+            .order("created_at", ascending=False)
+            .execute()
+        )
 
         advisories = []
         for row in response.data or []:
             if row.get("created_at") and isinstance(row["created_at"], str):
-                row["created_at"] = datetime.fromisoformat(
-                    row["created_at"].replace("Z", "+00:00")
-                )
+                row["created_at"] = datetime.fromisoformat(row["created_at"].replace("Z", "+00:00"))
             advisories.append(FarmerAdvisory(**row))
 
         return AdvisoryHistoryResponse(farmer_id=farmer_id, advisories=advisories)

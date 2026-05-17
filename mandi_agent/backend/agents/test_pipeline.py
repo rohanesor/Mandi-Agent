@@ -12,13 +12,13 @@ Verify:
 import logging
 from datetime import date
 
+from mandi_agent.backend.agents.advisory_renderer import render_advisory
 from mandi_agent.backend.agents.decision_engine import make_decision
 from mandi_agent.backend.agents.explanation_extractor import extract_explanation
-from mandi_agent.backend.agents.advisory_renderer import render_advisory
 from mandi_agent.backend.api.core_schemas import (
     CooperativeBundle,
-    PriceForecast,
     PriceDirection,
+    PriceForecast,
     RiskLevel,
     SpoilageRisk,
 )
@@ -65,7 +65,7 @@ def test_deterministic_decisions():
     for i in range(3):
         decision = make_decision(price, spoilage, None)
         decisions.append(decision)
-        print(f"  Run {i+1}: {decision.decision.value} (confidence: {decision.decision_confidence:.0%})")
+        print(f"  Run {i + 1}: {decision.decision.value} (confidence: {decision.decision_confidence:.0%})")
 
     # Verify all identical
     assert all(d.decision == decisions[0].decision for d in decisions)
@@ -133,14 +133,14 @@ def test_deterministic_explanations():
     for i in range(3):
         explanation = extract_explanation(decision, rag_context)
         explanations.append(explanation)
-        print(f"  Run {i+1}: {explanation.recommendation[:50]}...")
+        print(f"  Run {i + 1}: {explanation.recommendation[:50]}...")
 
     # Verify all identical
     assert all(e.current_situation == explanations[0].current_situation for e in explanations)
     assert all(e.price_context == explanations[0].price_context for e in explanations)
     assert all(e.recommendation == explanations[0].recommendation for e in explanations)
 
-    print(f"  ✓ All 3 runs produced identical explanation")
+    print("  ✓ All 3 runs produced identical explanation")
 
 
 def test_deterministic_rendering():
@@ -193,14 +193,14 @@ def test_deterministic_rendering():
     for i in range(3):
         advisory = render_advisory(decision, explanation, crop_name="wheat")
         advisories.append(advisory)
-        print(f"  Run {i+1}: '{advisory.full_text[:60]}...'")
+        print(f"  Run {i + 1}: '{advisory.full_text[:60]}...'")
 
     # Verify all identical
     assert all(a.full_text == advisories[0].full_text for a in advisories)
     assert all(a.emoji_decision == advisories[0].emoji_decision for a in advisories)
     assert all(a.action_summary == advisories[0].action_summary for a in advisories)
 
-    print(f"  ✓ All 3 runs produced identical advisory text")
+    print("  ✓ All 3 runs produced identical advisory text")
 
 
 def test_decision_rules():
@@ -305,7 +305,7 @@ def test_decision_rules():
     assert decision.decision.value == "hold_3_days"
     print(f"    ✓ {decision.decision.value}")
 
-    print(f"\n  ✅ All decision rules verified!")
+    print("\n  ✅ All decision rules verified!")
 
 
 def test_bundle_preference():
@@ -392,5 +392,6 @@ if __name__ == "__main__":
     except Exception as e:
         print(f"\n❌ ERROR: {e}")
         import traceback
+
         traceback.print_exc()
         exit(1)

@@ -14,7 +14,7 @@ from __future__ import annotations
 import logging
 import math
 import os
-from typing import Any, Optional
+from typing import Any
 
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, Field
@@ -28,6 +28,7 @@ router = APIRouter(prefix="/api/truck", tags=["truck"])
 # ---------------------------------------------------------------------------
 # Pydantic schemas
 # ---------------------------------------------------------------------------
+
 
 class ScrapeRequest(BaseModel):
     states: list[str] = Field(
@@ -60,8 +61,8 @@ class TruckAgency(BaseModel):
     rating: float
     total_trips: int = 0
     vehicle_types: list[str] = []
-    price_per_km: Optional[float] = None
-    distance_km: Optional[float] = None
+    price_per_km: float | None = None
+    distance_km: float | None = None
     profile_url: str = ""
     verified: bool = False
     source: str = "kisansabha"
@@ -73,8 +74,8 @@ class TruckMatchRequest(BaseModel):
     pickup_block: str
     destination_mandi: str
     state: str = "Karnataka"
-    lat: Optional[float] = None
-    lon: Optional[float] = None
+    lat: float | None = None
+    lon: float | None = None
 
 
 class TruckMatchResponse(BaseModel):
@@ -93,10 +94,12 @@ class TruckMatchResponse(BaseModel):
 # Supabase helper
 # ---------------------------------------------------------------------------
 
+
 def _get_supabase():
     """Return a Supabase client or None if not configured."""
     try:
         from supabase import create_client
+
         url = os.getenv("SUPABASE_URL", "")
         key = os.getenv("SUPABASE_SERVICE_KEY", "")
         if url and key:
@@ -122,57 +125,92 @@ def _haversine(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
 
 FALLBACK_AGENCIES: list[dict[str, Any]] = [
     {
-        "agency_id": "KS-FALLBACK-001", "kisansabha_id": "KS-FALLBACK-001",
-        "name": "Anand Transport",        "state": "Karnataka", "city": "Mulbagal, Kolar",
-        "phone": "+918181080000",         "whatsapp": "+918181080000",
-        "category_type": 21,             "category_name": "Transporter",
-        "rating": 4.6,                   "total_trips": 342,
+        "agency_id": "KS-FALLBACK-001",
+        "kisansabha_id": "KS-FALLBACK-001",
+        "name": "Anand Transport",
+        "state": "Karnataka",
+        "city": "Mulbagal, Kolar",
+        "phone": "+918181080000",
+        "whatsapp": "+918181080000",
+        "category_type": 21,
+        "category_name": "Transporter",
+        "rating": 4.6,
+        "total_trips": 342,
         "vehicle_types": ["Tata Ace", "Eicher Pro"],
-        "price_per_km": 18.0,            "verified": True,
+        "price_per_km": 18.0,
+        "verified": True,
         "profile_url": "https://kisansabha.in/Directory.aspx?Category=Transporter&CategoryType=21",
         "source": "kisansabha_fallback",
     },
     {
-        "agency_id": "KS-FALLBACK-002", "kisansabha_id": "KS-FALLBACK-002",
-        "name": "Sri Balaji Logistics",   "state": "Karnataka", "city": "Kolar, Karnataka",
-        "phone": "+918181080000",         "whatsapp": "+918181080000",
-        "category_type": 21,             "category_name": "Transporter",
-        "rating": 4.3,                   "total_trips": 217,
+        "agency_id": "KS-FALLBACK-002",
+        "kisansabha_id": "KS-FALLBACK-002",
+        "name": "Sri Balaji Logistics",
+        "state": "Karnataka",
+        "city": "Kolar, Karnataka",
+        "phone": "+918181080000",
+        "whatsapp": "+918181080000",
+        "category_type": 21,
+        "category_name": "Transporter",
+        "rating": 4.3,
+        "total_trips": 217,
         "vehicle_types": ["Eicher", "Mahindra Bolero"],
-        "price_per_km": 22.0,            "verified": False,
+        "price_per_km": 22.0,
+        "verified": False,
         "profile_url": "https://kisansabha.in/Directory.aspx?Category=Transporter&CategoryType=21",
         "source": "kisansabha_fallback",
     },
     {
-        "agency_id": "KS-FALLBACK-003", "kisansabha_id": "KS-FALLBACK-003",
-        "name": "Kumar Transport Co.",    "state": "Karnataka", "city": "Bangarpet, Kolar",
-        "phone": "+918181080000",         "whatsapp": "+918181080000",
-        "category_type": 20,             "category_name": "Truck Owner",
-        "rating": 4.8,                   "total_trips": 89,
+        "agency_id": "KS-FALLBACK-003",
+        "kisansabha_id": "KS-FALLBACK-003",
+        "name": "Kumar Transport Co.",
+        "state": "Karnataka",
+        "city": "Bangarpet, Kolar",
+        "phone": "+918181080000",
+        "whatsapp": "+918181080000",
+        "category_type": 20,
+        "category_name": "Truck Owner",
+        "rating": 4.8,
+        "total_trips": 89,
         "vehicle_types": ["Bolero Pickup", "Mini Truck"],
-        "price_per_km": 15.0,            "verified": False,
+        "price_per_km": 15.0,
+        "verified": False,
         "profile_url": "https://kisansabha.in/Directory.aspx?Category=Transporter&CategoryType=20",
         "source": "kisansabha_fallback",
     },
     {
-        "agency_id": "KS-FALLBACK-004", "kisansabha_id": "KS-FALLBACK-004",
-        "name": "Ravi Freight Services",  "state": "Karnataka", "city": "Chintamani, Chikkaballapur",
-        "phone": "+918181080000",         "whatsapp": "+918181080000",
-        "category_type": 21,             "category_name": "Transporter",
-        "rating": 4.1,                   "total_trips": 156,
+        "agency_id": "KS-FALLBACK-004",
+        "kisansabha_id": "KS-FALLBACK-004",
+        "name": "Ravi Freight Services",
+        "state": "Karnataka",
+        "city": "Chintamani, Chikkaballapur",
+        "phone": "+918181080000",
+        "whatsapp": "+918181080000",
+        "category_type": 21,
+        "category_name": "Transporter",
+        "rating": 4.1,
+        "total_trips": 156,
         "vehicle_types": ["Tata 407", "Eicher 10.90"],
-        "price_per_km": 20.0,            "verified": True,
+        "price_per_km": 20.0,
+        "verified": True,
         "profile_url": "https://kisansabha.in/Directory.aspx?Category=Transporter&CategoryType=21",
         "source": "kisansabha_fallback",
     },
     {
-        "agency_id": "KS-FALLBACK-005", "kisansabha_id": "KS-FALLBACK-005",
-        "name": "Lakshmi Agri Transport", "state": "Karnataka", "city": "Srinivaspur, Kolar",
-        "phone": "+918181080000",         "whatsapp": "+918181080000",
-        "category_type": 18,             "category_name": "Booking Agent",
-        "rating": 4.4,                   "total_trips": 203,
+        "agency_id": "KS-FALLBACK-005",
+        "kisansabha_id": "KS-FALLBACK-005",
+        "name": "Lakshmi Agri Transport",
+        "state": "Karnataka",
+        "city": "Srinivaspur, Kolar",
+        "phone": "+918181080000",
+        "whatsapp": "+918181080000",
+        "category_type": 18,
+        "category_name": "Booking Agent",
+        "rating": 4.4,
+        "total_trips": 203,
         "vehicle_types": ["Tata Ace", "Tata 407", "Eicher Pro"],
-        "price_per_km": 17.0,            "verified": False,
+        "price_per_km": 17.0,
+        "verified": False,
         "profile_url": "https://kisansabha.in/Directory.aspx?Category=Transporter&CategoryType=18",
         "source": "kisansabha_fallback",
     },
@@ -183,6 +221,7 @@ FALLBACK_AGENCIES: list[dict[str, Any]] = [
 # Routes
 # ---------------------------------------------------------------------------
 
+
 @router.post("/scrape-kisansabha", response_model=ScrapeResponse)
 async def scrape_kisansabha(req: ScrapeRequest):
     """
@@ -191,7 +230,9 @@ async def scrape_kisansabha(req: ScrapeRequest):
     """
     logger.info(
         "KisanSabha scrape requested: states=%s, cat_types=%s, max_pages=%d",
-        req.states, req.category_types, req.max_pages,
+        req.states,
+        req.category_types,
+        req.max_pages,
     )
 
     result = await scrape_kisansabha_transporters(
@@ -210,9 +251,7 @@ async def scrape_kisansabha(req: ScrapeRequest):
         db = _get_supabase()
         if db:
             try:
-                db.table("truck_agencies").upsert(
-                    agencies, on_conflict="kisansabha_id"
-                ).execute()
+                db.table("truck_agencies").upsert(agencies, on_conflict="kisansabha_id").execute()
                 logger.info("Upserted %d agencies to Supabase", len(agencies))
             except Exception as exc:
                 logger.warning("Supabase upsert failed: %s", exc)
@@ -226,11 +265,11 @@ async def scrape_kisansabha(req: ScrapeRequest):
 
 @router.get("/agencies", response_model=list[TruckAgency])
 async def list_agencies(
-    state: Optional[str] = Query(None, description="Filter by state"),
-    city: Optional[str] = Query(None, description="Filter by city (partial match)"),
-    category_type: Optional[int] = Query(None, description="18=Booking Agent, 19=Broker, 20=Truck Owner, 21=Transporter"),
-    lat: Optional[float] = Query(None, description="Farmer latitude (for distance sort)"),
-    lon: Optional[float] = Query(None, description="Farmer longitude (for distance sort)"),
+    state: str | None = Query(None, description="Filter by state"),
+    city: str | None = Query(None, description="Filter by city (partial match)"),
+    category_type: int | None = Query(None, description="18=Booking Agent, 19=Broker, 20=Truck Owner, 21=Transporter"),
+    lat: float | None = Query(None, description="Farmer latitude (for distance sort)"),
+    lon: float | None = Query(None, description="Farmer longitude (for distance sort)"),
     limit: int = Query(20, ge=1, le=100),
 ):
     """
@@ -267,6 +306,7 @@ async def list_agencies(
     # Compute distance if coordinates provided
     if lat is not None and lon is not None:
         from mandi_agent.backend.services.kisansabha import STATE_CENTRES
+
         for ag in agencies:
             ag_state = ag.get("state", "Karnataka")
             centre = STATE_CENTRES.get(ag_state, (14.9581, 75.8201))
@@ -302,7 +342,8 @@ async def match_truck(req: TruckMatchRequest):
     Find the best available truck agency for a booking.
     Called by n8n truck_booking workflow.
     """
-    import random, string
+    import random
+    import string
     from datetime import datetime, timedelta
 
     # Fetch suitable agencies
@@ -331,24 +372,26 @@ async def match_truck(req: TruckMatchRequest):
     agency = agencies[0]
 
     # Compute ETA (simple distance / 40 km/h)
-    distance_km = req.weight_tons * 2 + 15   # rough heuristic
+    distance_km = req.weight_tons * 2 + 15  # rough heuristic
     eta_minutes = int((distance_km / 40) * 60)
     now = datetime.utcnow()
     pickup_dt = now + timedelta(hours=2)
     eta_dt = pickup_dt + timedelta(minutes=eta_minutes)
 
     vehicle_types = agency.get("vehicle_types") or ["Tata Ace"]
-    vehicle_type = vehicle_types[0]
+    vehicle_types[0]
     suffix = "".join(random.choices(string.digits, k=4))
     vehicle_no = f"KA-02-AB-{suffix}"
     booking_id = "BKG-" + "".join(random.choices(string.ascii_uppercase + string.digits, k=8))
     cost = round((agency.get("price_per_km") or 18.0) * distance_km, 2)
 
     return TruckMatchResponse(
-        agency=TruckAgency(**{
-            **agency,
-            "agency_id": agency.get("agency_id", agency["kisansabha_id"]),
-        }),
+        agency=TruckAgency(
+            **{
+                **agency,
+                "agency_id": agency.get("agency_id", agency["kisansabha_id"]),
+            }
+        ),
         driver_name=f"Driver ({agency['name']})",
         driver_phone=agency.get("phone", "+918181080000"),
         vehicle_no=vehicle_no,

@@ -19,10 +19,10 @@ from mandi_agent.backend.api.core_schemas import (
     SpoilageRisk,
 )
 
-
 # ---------------------------------------------------------------------------
 # Event loop
 # ---------------------------------------------------------------------------
+
 
 @pytest.fixture(scope="session")
 def event_loop():
@@ -35,6 +35,7 @@ def event_loop():
 # ---------------------------------------------------------------------------
 # Domain object factories
 # ---------------------------------------------------------------------------
+
 
 @pytest.fixture()
 def sample_farmer() -> FarmerProfile:

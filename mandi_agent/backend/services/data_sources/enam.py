@@ -5,9 +5,9 @@ eNAM reports actual farmer sale prices (different from Agmarknet posted prices).
 """
 
 import asyncio
+import contextlib
 import logging
-from datetime import date, datetime, timezone
-from typing import List, Optional
+from datetime import UTC, date, datetime, timedelta
 
 import httpx
 
@@ -21,10 +21,11 @@ ENAM_API_URL = "https://enam.gov.in/api/v1"
 def _get_api_key() -> str:
     """Fetch eNAM API key from environment."""
     import os
+
     return os.getenv("ENAM_API_KEY", "")
 
 
-def _parse_enam_record(record: dict) -> Optional[MandiPrice]:
+def _parse_enam_record(record: dict) -> MandiPrice | None:
     """
     Parse a single eNAM API record into MandiPrice schema.
 
@@ -42,8 +43,7 @@ def _parse_enam_record(record: dict) -> Optional[MandiPrice]:
         MandiPrice instance or None if parsing fails
     """
     try:
-        required_fields = ["mandi_name", "state", "commodity", "variety",
-                          "min_price", "max_price", "modal_price"]
+        required_fields = ["mandi_name", "state", "commodity", "variety", "min_price", "max_price", "modal_price"]
         for field in required_fields:
             if not record.get(field):
                 return None
@@ -76,10 +76,8 @@ def _parse_enam_record(record: dict) -> Optional[MandiPrice]:
         arrival_tonnes = None
         arrival_str = record.get("arrival_tonnes", record.get("quantity", ""))
         if arrival_str:
-            try:
+            with contextlib.suppress(ValueError, TypeError):
                 arrival_tonnes = float(arrival_str.strip())
-            except (ValueError, TypeError):
-                pass
 
         return MandiPrice(
             mandi_name=record["mandi_name"].strip(),
@@ -100,12 +98,12 @@ def _parse_enam_record(record: dict) -> Optional[MandiPrice]:
 
 
 async def fetch_enam_prices(
-    commodity: Optional[str] = None,
-    state: Optional[str] = None,
-    from_date: Optional[date] = None,
-    to_date: Optional[date] = None,
+    commodity: str | None = None,
+    state: str | None = None,
+    from_date: date | None = None,
+    to_date: date | None = None,
     limit: int = 100,
-) -> List[MandiPrice]:
+) -> list[MandiPrice]:
     """
     Fetch prices from eNAM (electronic National Agriculture Market).
 
@@ -151,8 +149,8 @@ async def fetch_enam_prices(
     if state:
         payload["state"] = state
 
-    results: List[MandiPrice] = []
-    fetch_start = datetime.now(timezone.utc)
+    results: list[MandiPrice] = []
+    fetch_start = datetime.now(UTC)
 
     try:
         async with httpx.AsyncClient() as client:
@@ -167,8 +165,7 @@ async def fetch_enam_prices(
 
             raw_records = data.get("records", []) or data.get("data", [])
             if not raw_records:
-                logger.info("eNAM returned 0 records for commodity=%s state=%s",
-                           commodity, state)
+                logger.info("eNAM returned 0 records for commodity=%s state=%s", commodity, state)
                 return []
 
             for record in raw_records:
@@ -185,10 +182,13 @@ async def fetch_enam_prices(
     except (KeyError, ValueError) as e:
         logger.warning("eNAM parse error: %s", str(e)[:200])
 
-    fetch_duration_ms = (datetime.now(timezone.utc) - fetch_start).total_seconds() * 1000
+    fetch_duration_ms = (datetime.now(UTC) - fetch_start).total_seconds() * 1000
     logger.info(
         "eNAM fetch complete: %d records in %.0fms (commodity=%s, state=%s)",
-        len(results), fetch_duration_ms, commodity, state
+        len(results),
+        fetch_duration_ms,
+        commodity,
+        state,
     )
 
     return results
@@ -196,9 +196,9 @@ async def fetch_enam_prices(
 
 async def fetch_enam_prices_by_mandi(
     mandi_name: str,
-    commodity: Optional[str] = None,
+    commodity: str | None = None,
     days: int = 7,
-) -> List[MandiPrice]:
+) -> list[MandiPrice]:
     """
     Convenience wrapper — fetch recent prices for a specific mandi.
 
