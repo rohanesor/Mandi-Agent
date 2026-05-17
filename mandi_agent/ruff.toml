@@ -7,4 +7,3 @@ ignore = ["B904", "SIM117"]
 
 [format]
 quote-style = "double"
-indent-width = 4
