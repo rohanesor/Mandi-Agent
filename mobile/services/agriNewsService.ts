@@ -1,4 +1,5 @@
-export type { AgriNewsArticle } from '../constants/demoData';
+import type { AgriNewsArticle } from '../constants/demoData';
+export type { AgriNewsArticle };
 
 export type AgriNewsCategory = AgriNewsArticle['category'];
 

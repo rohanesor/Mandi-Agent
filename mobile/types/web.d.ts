@@ -73,3 +73,20 @@ declare const FileReader: {
 };
 
 declare const navigator: Navigator;
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Window & event APIs (available in React Native Web)
+// ──────────────────────────────────────────────────────────────────────────────
+
+interface Window {
+  confirm(message?: string): boolean;
+  location: { href: string };
+  addEventListener(type: string, listener: (...args: any[]) => void, options?: any): void;
+  removeEventListener(type: string, listener: (...args: any[]) => void, options?: any): void;
+  dispatchEvent(event: any): boolean;
+}
+declare var window: Window;
+
+declare function addEventListener(type: string, listener: (...args: any[]) => void, options?: any): void;
+declare function removeEventListener(type: string, listener: (...args: any[]) => void, options?: any): void;
+declare function dispatchEvent(event: any): boolean;

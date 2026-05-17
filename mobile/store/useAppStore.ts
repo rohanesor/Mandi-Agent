@@ -14,9 +14,9 @@ export interface FarmerProfile {
   state: string;
   district: string;
   block: string;
-  village?: string;
+  village?: string | null;
   primary_crops: string[];
-  land_size_hectares?: number;
+  land_size_hectares?: number | null;
   preferred_language: 'hi' | 'en' | 'mr' | 'ta' | 'te' | 'bn' | 'gu' | 'kn' | 'ml' | 'pa';
   created_at: string;
 }
