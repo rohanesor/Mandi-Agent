@@ -2,13 +2,14 @@
 # Mandi Agent — Render Blueprint
 # ──────────────────────────────────────────────────────────────────────────────
 # Usage:
-#   1. Push v* tag → CI builds & pushes to ghcr.io/rohanesor/mandi-agent
+#   1. Push to main or v* tag → CI builds and pushes multi-stage Docker image
+#      with the web app baked in (no separate frontend deployment needed)
 #   2. In Render Dashboard, create a new "Web Service"
 #   3. Choose "Existing Image" → ghcr.io/rohanesor/mandi-agent:latest
 #   4. Set port to 8000
 #   5. Add environment variables (see below)
-#   6. Set FRONTEND_URL to your GitHub Pages URL
-#   7. After deploy, set API_URL secret in GitHub to the Render URL
+#   6. Visit https://your-service.onrender.com — the web app and API
+#      are served from the same origin (no CORS issues)
 # ──────────────────────────────────────────────────────────────────────────────
 
 services:
