@@ -1,4 +1,12 @@
 {
+  "expo": {
+    "name": "Mandi Agent",
+    "slug": "mandi-agent",
+    "web": {
+      "output": "single",
+      "bundler": "metro"
+    }
+  },
   "plugins": [
     "expo-web-browser"
   ]

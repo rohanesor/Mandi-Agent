@@ -118,6 +118,11 @@ jobs:
           EXPO_PUBLIC_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
 
+      - name: Fix asset paths for subpath deployment
+        run: |
+          sed -i 's|src="/_expo|src="./_expo|g' mobile/dist/index.html
+          sed -i 's|href="/_expo|href="./_expo|g' mobile/dist/index.html
+
       - name: Upload web build artifact
         uses: actions/upload-artifact@v4
         with:
