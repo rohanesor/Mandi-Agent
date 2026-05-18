@@ -236,12 +236,4 @@ async def health_check() -> HealthResponse:
     )
 
 
-@router.get("/")
-async def root():
-    """Root endpoint — redirect to docs."""
-    return {
-        "name": "Mandi-Agent API",
-        "version": "0.1.0",
-        "docs": "/docs",
-        "health": "/api/health",
-    }
+
