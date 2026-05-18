@@ -121,11 +121,11 @@ jobs:
       - name: Fix asset paths for subpath deployment
         run: |
           cd mobile/dist
-          # Replace root-absolute Expo paths with relative paths across all files
-          find . -type f -exec sed -i 's|"/_expo/|"./_expo/|g' {} +
-          find . -type f -exec sed -i "s|'/_expo/|'./_expo/|g" {} +
-          find . -type f -exec sed -i 's|"/assets/|"./assets/|g' {} +
-          find . -type f -exec sed -i "s|'/assets/|'./assets/|g" {} +
+          # Replace root-absolute Expo paths with subpath-absolute paths across all files
+          find . -type f -exec sed -i 's|"/_expo/|"/Mandi-Agent/_expo/|g' {} +
+          find . -type f -exec sed -i "s|'/_expo/|'/Mandi-Agent/_expo/|g" {} +
+          find . -type f -exec sed -i 's|"/assets/|"/Mandi-Agent/assets/|g' {} +
+          find . -type f -exec sed -i "s|'/assets/|'/Mandi-Agent/assets/|g" {} +
 
       - name: Upload web build artifact
         uses: actions/upload-artifact@v4
