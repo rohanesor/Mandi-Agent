@@ -4,7 +4,8 @@
     "slug": "mandi-agent",
     "web": {
       "output": "single",
-      "bundler": "metro"
+      "bundler": "metro",
+      "favicon": "./assets/favicon.png"
     }
   },
   "plugins": [
