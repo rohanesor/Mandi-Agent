@@ -120,8 +120,12 @@ jobs:
 
       - name: Fix asset paths for subpath deployment
         run: |
-          sed -i 's|src="/_expo|src="./_expo|g' mobile/dist/index.html
-          sed -i 's|href="/_expo|href="./_expo|g' mobile/dist/index.html
+          cd mobile/dist
+          # Replace root-absolute Expo paths with relative paths across all files
+          find . -type f -exec sed -i 's|"/_expo/|"./_expo/|g' {} +
+          find . -type f -exec sed -i "s|'/_expo/|'./_expo/|g" {} +
+          find . -type f -exec sed -i 's|"/assets/|"./assets/|g' {} +
+          find . -type f -exec sed -i "s|'/assets/|'./assets/|g" {} +
 
       - name: Upload web build artifact
         uses: actions/upload-artifact@v4
