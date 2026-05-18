@@ -33,12 +33,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # Dependencies layer (cached unless requirements.txt changes)
-COPY backend/requirements.txt .
+COPY mandi_agent/backend/requirements.txt .
 RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu && \
     pip install --no-cache-dir -r requirements.txt
 
-COPY backend/ backend/
+COPY mandi_agent/backend/ backend/
 
 # Copy web build from stage 1
 COPY --from=web-builder /app/mobile/dist /workspace/mandi_agent/web
