@@ -80,6 +80,7 @@ app.add_middleware(
         "http://localhost:8081",
         "http://localhost:8082",
         "http://localhost:8085",
+        "https://rohanesor.github.io",
         os.getenv("FRONTEND_URL", "http://localhost:8085"),
     ],
     allow_credentials=True,

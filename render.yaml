@@ -1,0 +1,33 @@
+# ──────────────────────────────────────────────────────────────────────────────
+# Mandi Agent — Render Blueprint
+# ──────────────────────────────────────────────────────────────────────────────
+# Usage:
+#   1. Push v* tag → CI builds & pushes to ghcr.io/rohanesor/mandi-agent
+#   2. In Render Dashboard, create a new "Web Service"
+#   3. Choose "Existing Image" → ghcr.io/rohanesor/mandi-agent:latest
+#   4. Set port to 8000
+#   5. Add environment variables (see below)
+#   6. Set FRONTEND_URL to your GitHub Pages URL
+#   7. After deploy, set API_URL secret in GitHub to the Render URL
+# ──────────────────────────────────────────────────────────────────────────────
+
+services:
+  - type: web
+    name: mandi-agent
+    env: docker
+    image: ghcr.io/rohanesor/mandi-agent:latest
+    port: 8000
+    healthCheckPath: /api/health
+    envVars:
+      - key: FRONTEND_URL
+        value: https://rohanesor.github.io
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_KEY
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: N8N_BASE_URL
+        value: ""
+      - key: N8N_WEBHOOK_URL
+        value: ""
