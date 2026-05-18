@@ -173,12 +173,17 @@ jobs:
       - name: Build and push
         uses: docker/build-push-action@v5
         with:
-          context: ./mandi_agent
+          context: .
+          file: mandi_agent/Dockerfile
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+          build-args: |
+            EXPO_PUBLIC_SUPABASE_URL=${{ secrets.SUPABASE_URL }}
+            EXPO_PUBLIC_SUPABASE_ANON_KEY=${{ secrets.SUPABASE_ANON_KEY }}
+            EXPO_PUBLIC_API_URL=${{ secrets.API_URL }}
 
   # ─── DEPLOY WEB (GitHub Pages) ─────────────────────────────────────────────
   # Requires: Repo Settings → Pages → Source: "GitHub Actions"

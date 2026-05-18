@@ -10,6 +10,7 @@ from contextlib import asynccontextmanager
 from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
 # Load env before importing services
 load_dotenv()
@@ -101,6 +102,12 @@ app.include_router(automations_router)
 app.include_router(misc_router)
 app.include_router(truck_router)
 app.include_router(bundles_router)
+
+# Serve the web app static build (multi-stage Docker build puts it at /workspace/mandi_agent/web)
+# API routes take priority; unmatched routes fall through to the SPA
+web_dir = os.path.join(os.path.dirname(__file__), "..", "web")
+if os.path.isdir(web_dir):
+    app.mount("/", StaticFiles(directory=web_dir, html=True), name="web")
 
 
 if __name__ == "__main__":
